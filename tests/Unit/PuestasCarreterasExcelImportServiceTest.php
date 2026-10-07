@@ -12,6 +12,34 @@ use PHPUnit\Framework\TestCase;
 
 class PuestasCarreterasExcelImportServiceTest extends TestCase
 {
+    public function test_extrae_vehiculo_y_objetos_del_texto_historico(): void
+    {
+        $service = new PuestasCarreterasExcelImportService();
+        $vehicleMethod = new \ReflectionMethod($service, 'parseImportedVehicle');
+        $vehicleMethod->setAccessible(true);
+        $objectMethod = new \ReflectionMethod($service, 'parseImportedObject');
+        $objectMethod->setAccessible(true);
+
+        $vehicle = $vehicleMethod->invoke($service, [
+            'descripcion_origen' => '1 PERSONA, 1 CAMIONETA DE LA MARCA CHEVROLET SILVERADO MODELO 2021 TIPO PICK UP COLOR GRIS CON PLACAS DE LA UCD-G10242 SERIE: 1GCPYFELXMZ375490',
+            'motivo_destino' => 'OTRO',
+        ]);
+        $this->assertSame('CAMIONETA', $vehicle['tipo']);
+        $this->assertSame('CHEVROLET', $vehicle['marca']);
+        $this->assertSame('SILVERADO', $vehicle['submarca']);
+        $this->assertSame('2021', $vehicle['modelo']);
+        $this->assertSame('GRIS', $vehicle['color']);
+        $this->assertSame('G10242', $vehicle['placas']);
+        $this->assertSame('1GCPYFELXMZ375490', $vehicle['serie']);
+
+        $object = $objectMethod->invoke($service, [
+            'descripcion_origen' => '3 PERSONAS CON 1 ARMA, 9 CARTUCHOS, 11 ENVOLTORIOS DE DROGA Y $565,000.00',
+            'rnd' => 'RND-1',
+        ]);
+        $this->assertSame('DIVERSOS INDICIOS', $object['tipo_objeto']);
+        $this->assertSame('RND-1', $object['cadena_custodia']);
+    }
+
     public function test_separa_nombres_de_detenidos_sin_crear_registros_para_sin_detenidos(): void
     {
         $method = new \ReflectionMethod(PuestasCarreterasExcelImportService::class, 'parseDetainedNames');

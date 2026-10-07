@@ -313,7 +313,14 @@ class PuestasCarreterasExcelImportService
         }
 
         return DB::transaction(function () use ($plan, $createdBy, $linkExisting) {
-            $result = ['creados' => 0, 'vinculados' => 0, 'omitidos' => 0, 'personas_creadas' => 0];
+            $result = [
+                'creados' => 0,
+                'vinculados' => 0,
+                'omitidos' => 0,
+                'personas_creadas' => 0,
+                'vehiculos_creados' => 0,
+                'objetos_creados' => 0,
+            ];
             $nextNumbers = [];
 
             foreach ($plan['registros'] as $record) {
@@ -321,6 +328,9 @@ class PuestasCarreterasExcelImportService
                     $puesta = PuestaDisposicion::query()->find($record['existente_id']);
                     if ($puesta) {
                         $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
+                        $result['vehiculos_creados'] += $this->syncImportedVehicles($puesta, $record);
+                        $result['objetos_creados'] += $this->syncImportedObjects($puesta, $record);
+                        $this->syncImportedType($puesta, $record);
                     }
                     $result['omitidos']++;
                     continue;
@@ -332,6 +342,8 @@ class PuestasCarreterasExcelImportService
                     $puesta = PuestaDisposicion::query()->findOrFail($record['existente_id']);
                     $puesta->update($origin);
                     $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
+                    $result['vehiculos_creados'] += $this->syncImportedVehicles($puesta, $record);
+                    $result['objetos_creados'] += $this->syncImportedObjects($puesta, $record);
                     $result['vinculados']++;
                     continue;
                 }
@@ -374,6 +386,8 @@ class PuestasCarreterasExcelImportService
                     'created_by' => $createdBy,
                 ]));
                 $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
+                $result['vehiculos_creados'] += $this->syncImportedVehicles($puesta, $record);
+                $result['objetos_creados'] += $this->syncImportedObjects($puesta, $record);
                 $result['creados']++;
             }
 
@@ -515,7 +529,7 @@ class PuestasCarreterasExcelImportService
 
     private function containsVehicle(?string $text): bool
     {
-        return (bool) preg_match('/VEHICUL|MOTO|TRACTO|CAMION|REMOLQUE|SEMIRREMOLQUE|PORTACONTENEDOR|CONTENEDOR|CAJA SECA|AUTOMOVIL|CAMIONETA|SEDAN|PICK UP|CHASIS|PLACAS|SERIE/', $this->normalize($text));
+        return (bool) preg_match('/VEHICUL|MOTO|TRACTO|CAMION|REMOLQUE|PORTA ?CONTENEDOR|CONTENEDOR|CAJA SECA|CAJA REFRIGERADA|AUTOMOVIL|CAMIONETA|SEDAN|PICK UP|CHASIS|PLACAS|SERIE|NIV|DOLLY|GRUA|PIPA|COMBI|TIIDA|VERSA|VENTO|SILVERADO|ARKANA|TACOMA|SENTRA|NP300|SPORTAGE|TSURU|MUSTANG|RANGER|RAV4|JEEP|RAZER|COROLLA|CADILLAC/', $this->normalize($text));
     }
 
     private function dateDetachmentKey(?string $date, ?int $detachmentId): string
@@ -632,6 +646,155 @@ class PuestasCarreterasExcelImportService
             return 'MUJER';
         }
         return null;
+    }
+
+    private function syncImportedVehicles(PuestaDisposicion $puesta, array $record): int
+    {
+        $vehicle = $this->parseImportedVehicle($record);
+        if (!$vehicle) return 0;
+
+        $existing = $puesta->vehiculos()->get();
+        $series = $this->compactNormalize($vehicle['serie'] ?? null);
+        $plates = $this->compactNormalize($vehicle['placas'] ?? null);
+        $alreadyExists = $existing->contains(function ($item) use ($series, $plates, $vehicle) {
+            if ($series !== '' && $series === $this->compactNormalize($item->serie)) return true;
+            if ($plates !== '' && $plates === $this->compactNormalize(preg_replace('/\s*\(.*/', '', (string) $item->placas))) return true;
+            return $this->normalize($item->observaciones) === $this->normalize($vehicle['observaciones']);
+        });
+
+        if ($alreadyExists || ($existing->isNotEmpty() && $series === '' && $plates === '')) return 0;
+
+        $puesta->vehiculos()->create($vehicle);
+        return 1;
+    }
+
+    private function parseImportedVehicle(array $record): ?array
+    {
+        $description = trim((string) ($record['descripcion_origen'] ?? ''));
+        if (!$this->containsVehicle($description)) return null;
+
+        $normalized = $this->normalize($description);
+        $types = $this->vehicleTypes($normalized);
+        $type = count($types) > 1 ? 'VARIOS VEHICULOS' : ($types[0] ?? 'VEHICULO');
+        $multiple = $type === 'VARIOS VEHICULOS';
+
+        return [
+            'tipo' => $type,
+            'marca' => $multiple ? null : $this->firstKnownValue($normalized, [
+                'CHEVROLET', 'NISSAN', 'FORD', 'TOYOTA', 'HONDA', 'ITALIKA', 'VENTO', 'VOLKSWAGEN',
+                'VOLKWAGEN', 'RENAULT', 'KIA', 'JEEP', 'CADILLAC', 'KENWORTH', 'INTERNATIONAL',
+                'INTERNACIONAL', 'VOLVO', 'UTILITY', 'FRUEHAUF', 'GREAT DANE', 'WABASH', 'HYUNDAI',
+                'SILVER EAGLE', 'BUSH HOG', 'CARABELA', 'FREIGHTLINER', 'FREUGHTLINER',
+                'GENERAL MOTORS', 'HERCULES', 'MAGU', 'LOZANO', 'JJ FORZA',
+            ]),
+            'submarca' => $multiple ? null : $this->firstKnownValue($normalized, [
+                'S10 MAX', 'SILVERADO', 'TIIDA', 'VERSA', 'ARKANA', 'TACOMA', 'SENTRA', 'NP300',
+                'SPORTAGE', 'TSURU', 'MUSTANG', 'RANGER', 'RAV4', 'F350', 'F150', 'CRV', '250Z',
+                'SIENNA', 'WRANGLER', 'CHALLENGER', 'COROLLA', 'ECO SPORT', 'NITROX 330',
+                'NITROX', 'DM300', 'FT 125', 'LOBO', 'CAMARO', 'JETTA',
+            ]),
+            'modelo' => $multiple ? null : $this->extractVehicleModel($normalized),
+            'color' => $multiple ? null : $this->firstKnownValue($normalized, [
+                'BLANCO CON AZUL', 'BLANCA CON AMARILLO', 'PLATA METALICO', 'GRIS PLATA',
+                'BLANCO', 'BLANCA', 'NEGRO', 'NEGRA', 'ROJO', 'ROJA', 'GRIS', 'AZUL',
+                'VERDE', 'ROSA', 'GUINDA', 'PLATA', 'PLATEADO', 'PLATEADA', 'AMARILLO',
+            ]),
+            'placas' => $multiple ? null : $this->extractVehiclePlates($normalized),
+            'serie' => $multiple ? null : $this->extractVehicleSerial($normalized),
+            'calidad' => 'ASEGURADO',
+            'motivo_relacion' => $record['motivo_destino'] ?? null,
+            'con_reporte_robo' => str_contains($normalized, 'REPORTE DE ROBO') || str_contains($normalized, 'RECUPERAD'),
+            'numero_reporte_robo' => null,
+            'observaciones' => 'IMPORTADO DEL LISTADO IPH DE CARRETERAS: ' . Str::upper($description),
+        ];
+    }
+
+    private function syncImportedObjects(PuestaDisposicion $puesta, array $record): int
+    {
+        $object = $this->parseImportedObject($record);
+        if (!$object || $puesta->objetos()->exists()) return 0;
+
+        $puesta->objetos()->create($object);
+        return 1;
+    }
+
+    private function parseImportedObject(array $record): ?array
+    {
+        $description = trim((string) ($record['descripcion_origen'] ?? ''));
+        $normalized = $this->normalize($description);
+        $patterns = [
+            'ARMAS Y MUNICIONES' => '/ARMA|CARGADOR|CARTUCHO|MUNICION/',
+            'SUSTANCIA' => '/MARIHUANA|COCAINA|CRISTAL|DROGA|ESTUPEFACIENTE|HIERBA|VEGETAL VERDE|SUSTANCIA GRANULOSA/',
+            'DINERO' => '/\$|DINERO|EFECTIVO/',
+            'TELEFONO' => '/TELEFONO|CELULAR/',
+            'HERRAMIENTA' => '/MAQUINA DE SOLDAR|HERRAMIENTA/',
+            'INDICIO' => '/MALETA|BOLSA|ENVOLTURA|ENVOLTORIO|PIPA|BACHICHA/',
+        ];
+        $types = [];
+        foreach ($patterns as $type => $pattern) {
+            if (preg_match($pattern, $normalized)) $types[] = $type;
+        }
+        if (!$types) return null;
+
+        return [
+            'tipo_objeto' => count($types) > 1 ? 'DIVERSOS INDICIOS' : $types[0],
+            'descripcion' => Str::upper($description),
+            'cantidad' => null,
+            'unidad_medida' => null,
+            'cadena_custodia' => $this->upperOrNull($record['rnd'] ?? null),
+            'observaciones' => 'IMPORTADO DEL LISTADO IPH DE CARRETERAS.',
+        ];
+    }
+
+    private function syncImportedType(PuestaDisposicion $puesta, array $record): void
+    {
+        if ($this->normalize($puesta->observaciones) !== 'REGISTRO HISTORICO IMPORTADO DE LISTADO IPH DE CARRETERAS') return;
+
+        $type = $record['tipo_puesta_destino'] ?? null;
+        if ($type && $puesta->tipo_puesta !== $type) $puesta->update(['tipo_puesta' => $type]);
+    }
+
+    private function vehicleTypes(string $normalized): array
+    {
+        preg_match_all('/\b(CAJA REFRIGERADA|CAJA SECA|TRACTO CAMION|TRACTOCAMION(?:ES)?|CHASIS PORTA ?CONTENEDOR|CHASIS PORTA ?REMOLQUE|PORTA ?CONTENEDOR(?:ES)?|SEMIR?REMOLQUE|CONTENEDOR(?:ES)?|CAMIONETA|MOTOCICLETA|MOTOS?|CAMION|DOLLY|GRUA|PIPA|COMBI|VEHICULO)\b/', $normalized, $matches);
+        $types = collect($matches[1] ?? [])->map(function ($type) {
+            if (preg_match('/^MOTO/', $type)) return 'MOTOCICLETA';
+            if (preg_match('/^TRACTO/', $type)) return 'TRACTOCAMION';
+            if (str_contains($type, 'PORTA') && str_contains($type, 'CONTENEDOR')) return 'PORTACONTENEDOR';
+            if (str_contains($type, 'PORTA') && str_contains($type, 'REMOLQUE')) return 'CHASIS PORTAREMOLQUE';
+            if (str_contains($type, 'SEM') && str_contains($type, 'REMOLQUE')) return 'SEMIREMOLQUE';
+            if (str_starts_with($type, 'CONTENEDOR')) return 'CONTENEDOR';
+            return $type;
+        });
+        if ($types->contains(fn ($type) => $type !== 'VEHICULO')) {
+            $types = $types->reject(fn ($type) => $type === 'VEHICULO');
+        }
+        return $types->values()->all();
+    }
+
+    private function firstKnownValue(string $normalized, array $values): ?string
+    {
+        foreach ($values as $value) {
+            if (preg_match('/\b' . preg_quote($value, '/') . '\b/', $normalized)) {
+                return $value === 'VOLKWAGEN' ? 'VOLKSWAGEN' : ($value === 'FREUGHTLINER' ? 'FREIGHTLINER' : $value);
+            }
+        }
+        return null;
+    }
+
+    private function extractVehicleModel(string $normalized): ?string
+    {
+        return preg_match('/\b(?:MODELO|MOD|ANO)\s*[:.-]?\s*((?:19|20)\d{2})\b/', $normalized, $match) ? $match[1] : null;
+    }
+
+    private function extractVehiclePlates(string $normalized): ?string
+    {
+        return preg_match('/\bPLACAS(?:\s+(?:DE LA UCD|FEDERALES|TRASERA|DELANTERA))?\s*[-:]?\s*([A-Z0-9]+(?:-[A-Z0-9]+){0,3})\b/', $normalized, $match) ? $match[1] : null;
+    }
+
+    private function extractVehicleSerial(string $normalized): ?string
+    {
+        return preg_match('/\b(?:NUMERO DE SERIE|NUM DE SERIE|SERI VISIBLE|SERIE|NIV)\s*:?\s*([A-Z0-9-]{8,})\b/', $normalized, $match) ? $match[1] : null;
     }
 
     private function compactNormalize($value): string

@@ -151,6 +151,7 @@
 
 .sv-sidebar-nav .nav-link p {
     min-width: 0;
+    color: var(--side-text) !important;
     line-height: 1.18;
     white-space: normal !important;
     overflow-wrap: anywhere;
@@ -158,6 +159,8 @@
     font-weight: 750 !important;
     letter-spacing: 0 !important;
 }
+
+.sv-sidebar-nav .nav-link:hover p { color: #fff !important; }
 
 /* Sólo los grupos llevan flecha; las pantallas finales ya no aparentan otro nivel. */
 .sv-sidebar-nav .nav-link p::after { content: none !important; }
@@ -184,6 +187,7 @@
     border-color: rgba(34, 211, 238, .24) !important;
     background: linear-gradient(100deg, rgba(8, 78, 112, .36), rgba(45, 36, 104, .23)) !important;
 }
+.sv-sidebar-nav .menu-open > .nav-link.active p { color: #dff8ff !important; }
 .sv-sidebar-nav .menu-open > .nav-link.active > i:first-child {
     color: #7eeafb !important;
     border-color: rgba(34, 211, 238, .22) !important;
@@ -241,6 +245,7 @@
     background: linear-gradient(105deg, rgba(14, 116, 144, .72), rgba(67, 56, 202, .55)) !important;
     box-shadow: 0 9px 24px rgba(8, 145, 178, .17) !important;
 }
+.sv-sidebar-nav .nav-item:not(.menu-open) > .nav-link.active p { color: #fff !important; }
 .sv-sidebar-nav .nav-item:not(.menu-open) > .nav-link.active::before {
     content: '';
     position: absolute;

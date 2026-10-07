@@ -385,7 +385,7 @@
         }
     </style>
 
-    <link rel="stylesheet" href="{{ asset('css/sv-sidebar.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/sv-sidebar.css') }}?v={{ filemtime(public_path('css/sv-sidebar.css')) }}">
 
     @stack('styles')
 </head>
@@ -413,7 +413,7 @@
     @endif
 
     @yield('adminlte_js')
-<script src="{{ asset('js/sv-sidebar.js') }}"></script>
+<script src="{{ asset('js/sv-sidebar.js') }}?v={{ filemtime(public_path('js/sv-sidebar.js')) }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 

@@ -228,6 +228,28 @@ class PuestasCarreterasExcelImportService
             $rows[] = $record;
         }
 
+        $duplicateTargets = collect($rows)
+            ->where('accion', 'vincular')
+            ->groupBy('existente_id')
+            ->filter(fn ($group) => $group->count() > 1);
+
+        if ($duplicateTargets->isNotEmpty()) {
+            foreach ($rows as &$row) {
+                if ($row['accion'] !== 'vincular' || !$duplicateTargets->has($row['existente_id'])) {
+                    continue;
+                }
+
+                $sequences = $duplicateTargets->get($row['existente_id'])
+                    ->pluck('secuencia_origen')
+                    ->implode(', ');
+                $row['accion'] = 'error';
+                $row['mensaje'] = "El registro existente {$row['existente_id']} coincide con varias secuencias ({$sequences}); requiere revision manual.";
+                $stats['vincular']--;
+                $stats['error']++;
+            }
+            unset($row);
+        }
+
         return [
             'fuente' => $source,
             'unidad_id' => (int) $unit->id,

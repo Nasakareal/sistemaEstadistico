@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Models\PuestaDisposicion;
+use App\Models\PuestaDisposicionVehiculo;
 use App\Services\Carreteras\PuestasCarreterasExcelImportService;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -10,6 +12,34 @@ use PHPUnit\Framework\TestCase;
 
 class PuestasCarreterasExcelImportServiceTest extends TestCase
 {
+    public function test_distingue_puestas_del_mismo_dia_por_identificadores_del_vehiculo(): void
+    {
+        $existing = new PuestaDisposicion();
+        $existing->setRelation('vehiculos', collect([
+            new PuestaDisposicionVehiculo([
+                'tipo' => 'CAJA SECA',
+                'marca' => 'FRUEHAUF',
+                'modelo' => '2024',
+                'placas' => '63-UX-9R (S.A.F.)',
+                'serie' => '3AWVF4028SX457040',
+            ]),
+        ]));
+
+        $method = new \ReflectionMethod(PuestasCarreterasExcelImportService::class, 'vehicleMatchRank');
+        $method->setAccessible(true);
+        $service = new PuestasCarreterasExcelImportService();
+
+        $differentVehicle = $method->invoke($service, [
+            'descripcion_origen' => '1 CAJA SECA FRUEHAUF MODELO 2019 PLACAS 97-UW-4C SERIE 3AWV24KX176008',
+        ], $existing);
+        $matchingVehicle = $method->invoke($service, [
+            'descripcion_origen' => '1 CAJA SECA FRUEHAUF MODELO 2024 PLACAS 63-UX-9R SERIE 3AWVF028SX457040',
+        ], $existing);
+
+        $this->assertNull($differentVehicle);
+        $this->assertGreaterThanOrEqual(100, $matchingVehicle);
+    }
+
     public function test_analiza_el_detalle_y_advierte_totales_inconsistentes(): void
     {
         $workbook = new Spreadsheet();

@@ -169,6 +169,7 @@ class PuestasCarreterasExcelImportService
         $minDate = collect($analysis['registros'])->pluck('fecha_puesta')->filter()->min();
         $maxDate = collect($analysis['registros'])->pluck('fecha_puesta')->filter()->max();
         $existing = PuestaDisposicion::query()
+            ->with('vehiculos')
             ->where('unidad_id', $unit->id)
             ->when($minDate && $maxDate, fn ($query) => $query->whereBetween('fecha_puesta', [$minDate, $maxDate]))
             ->get();
@@ -234,20 +235,58 @@ class PuestasCarreterasExcelImportService
             ->filter(fn ($group) => $group->count() > 1);
 
         if ($duplicateTargets->isNotEmpty()) {
-            foreach ($rows as &$row) {
-                if ($row['accion'] !== 'vincular' || !$duplicateTargets->has($row['existente_id'])) {
+            $existingById = $existing->keyBy('id');
+
+            foreach ($duplicateTargets as $existingId => $group) {
+                $target = $existingById->get((int) $existingId);
+                $ranked = $group
+                    ->mapWithKeys(fn ($row) => [
+                        $row['secuencia_origen'] => $target
+                            ? $this->vehicleMatchRank($row, $target)
+                            : null,
+                    ])
+                    ->filter(fn ($rank) => $rank !== null);
+                $bestRank = $ranked->max();
+                $winners = $bestRank === null
+                    ? collect()
+                    : $ranked->filter(fn ($rank) => $rank === $bestRank);
+
+                if ($winners->count() === 1) {
+                    $winnerSequence = (int) $winners->keys()->first();
+                    foreach ($rows as &$row) {
+                        if ($row['accion'] !== 'vincular' || (int) $row['existente_id'] !== (int) $existingId) {
+                            continue;
+                        }
+
+                        if ((int) $row['secuencia_origen'] === $winnerSequence) {
+                            $row['mensaje'] = 'Coincide por fecha, respondiente e identificadores del vehiculo.';
+                            continue;
+                        }
+
+                        $row['accion'] = 'crear';
+                        $row['existente_id'] = null;
+                        $row['mensaje'] = 'Es una puesta distinta del registro existente, de acuerdo con los identificadores del vehiculo.';
+                        $stats['vincular']--;
+                        $stats['crear']++;
+                    }
+                    unset($row);
                     continue;
                 }
 
-                $sequences = $duplicateTargets->get($row['existente_id'])
+                $sequences = $group
                     ->pluck('secuencia_origen')
                     ->implode(', ');
-                $row['accion'] = 'error';
-                $row['mensaje'] = "El registro existente {$row['existente_id']} coincide con varias secuencias ({$sequences}); requiere revision manual.";
-                $stats['vincular']--;
-                $stats['error']++;
+                foreach ($rows as &$row) {
+                    if ($row['accion'] !== 'vincular' || (int) $row['existente_id'] !== (int) $existingId) {
+                        continue;
+                    }
+                    $row['accion'] = 'error';
+                    $row['mensaje'] = "El registro existente {$existingId} coincide con varias secuencias ({$sequences}); requiere revision manual.";
+                    $stats['vincular']--;
+                    $stats['error']++;
+                }
+                unset($row);
             }
-            unset($row);
         }
 
         return [
@@ -486,6 +525,50 @@ class PuestasCarreterasExcelImportService
         }
         $intersection = array_intersect($sourceTokens, $existingTokens);
         return count($intersection) === min(count($sourceTokens), count($existingTokens));
+    }
+
+    private function vehicleMatchRank(array $record, PuestaDisposicion $existing): ?int
+    {
+        $description = $this->compactNormalize($record['descripcion_origen'] ?? null);
+        if ($description === '') {
+            return null;
+        }
+
+        $best = null;
+        foreach ($existing->vehiculos as $vehicle) {
+            $score = 0;
+            $strongIdentifier = false;
+            $plate = preg_replace('/\s*\(.*/', '', (string) $vehicle->placas);
+            $plate = $this->compactNormalize($plate);
+            if (strlen($plate) >= 5 && str_contains($description, $plate)) {
+                $score += 100;
+                $strongIdentifier = true;
+            }
+
+            $serial = $this->compactNormalize($vehicle->serie);
+            if (strlen($serial) >= 8 && str_contains($description, $serial)) {
+                $score += 50;
+                $strongIdentifier = true;
+            }
+
+            foreach (['modelo' => 4, 'marca' => 2, 'tipo' => 1] as $attribute => $points) {
+                $value = $this->compactNormalize($vehicle->{$attribute});
+                if ($value !== '' && str_contains($description, $value)) {
+                    $score += $points;
+                }
+            }
+
+            if ($strongIdentifier && ($best === null || $score > $best)) {
+                $best = $score;
+            }
+        }
+
+        return $best;
+    }
+
+    private function compactNormalize($value): string
+    {
+        return preg_replace('/[^A-Z0-9]+/', '', Str::upper(Str::ascii(trim((string) $value))));
     }
 
     private function sourceName(?string $source, array $years): string

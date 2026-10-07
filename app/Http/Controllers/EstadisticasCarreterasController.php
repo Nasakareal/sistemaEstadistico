@@ -428,6 +428,19 @@ class EstadisticasCarreterasController extends Controller
                 'puestas_disposicion.unidad_id',
                 'puestas_disposicion.delegacion_id',
                 'puestas_disposicion.destacamento_id',
+                'puestas_disposicion.fuente_importacion',
+                'puestas_disposicion.secuencia_origen',
+                'puestas_disposicion.folio_origen',
+                'puestas_disposicion.numero_origen',
+                'puestas_disposicion.descripcion_origen',
+                'puestas_disposicion.personal_participante',
+                'puestas_disposicion.detenidos_descripcion',
+                'puestas_disposicion.rnd',
+                'puestas_disposicion.numero_faltas_administrativas',
+                'puestas_disposicion.numero_detenidos',
+                'puestas_disposicion.numero_aseguramientos',
+                'puestas_disposicion.numero_menores',
+                'puestas_disposicion.sexo_resumen',
             ])
             ->selectRaw('COUNT(DISTINCT puestas_disposicion_personas.id) as total_personas')
             ->selectRaw('COUNT(DISTINCT puestas_disposicion_vehiculos.id) as total_vehiculos')
@@ -450,7 +463,20 @@ class EstadisticasCarreterasController extends Controller
                 'puestas_disposicion.lugar_puesta',
                 'puestas_disposicion.unidad_id',
                 'puestas_disposicion.delegacion_id',
-                'puestas_disposicion.destacamento_id'
+                'puestas_disposicion.destacamento_id',
+                'puestas_disposicion.fuente_importacion',
+                'puestas_disposicion.secuencia_origen',
+                'puestas_disposicion.folio_origen',
+                'puestas_disposicion.numero_origen',
+                'puestas_disposicion.descripcion_origen',
+                'puestas_disposicion.personal_participante',
+                'puestas_disposicion.detenidos_descripcion',
+                'puestas_disposicion.rnd',
+                'puestas_disposicion.numero_faltas_administrativas',
+                'puestas_disposicion.numero_detenidos',
+                'puestas_disposicion.numero_aseguramientos',
+                'puestas_disposicion.numero_menores',
+                'puestas_disposicion.sexo_resumen'
             )
             ->orderByDesc('puestas_disposicion.fecha_puesta')
             ->orderByDesc('puestas_disposicion.numero_puesta');
@@ -483,6 +509,19 @@ class EstadisticasCarreterasController extends Controller
                 'total_personas',
                 'total_vehiculos',
                 'total_objetos',
+                'fuente_importacion',
+                'secuencia_origen',
+                'folio_origen',
+                'numero_origen',
+                'descripcion_origen',
+                'personal_participante',
+                'detenidos_descripcion',
+                'rnd',
+                'numero_faltas_administrativas',
+                'numero_detenidos',
+                'numero_aseguramientos',
+                'numero_menores',
+                'sexo_resumen',
             ]);
 
             $q->chunk(1000, function ($rows) use ($out) {
@@ -509,6 +548,19 @@ class EstadisticasCarreterasController extends Controller
                         $r->total_personas,
                         $r->total_vehiculos,
                         $r->total_objetos,
+                        $r->fuente_importacion,
+                        $r->secuencia_origen,
+                        $r->folio_origen,
+                        $r->numero_origen,
+                        $r->descripcion_origen,
+                        $r->personal_participante,
+                        $r->detenidos_descripcion,
+                        $r->rnd,
+                        $r->numero_faltas_administrativas,
+                        $r->numero_detenidos,
+                        $r->numero_aseguramientos,
+                        $r->numero_menores,
+                        $r->sexo_resumen,
                     ]);
                 }
             });
@@ -682,7 +734,13 @@ class EstadisticasCarreterasController extends Controller
                 ->orWhere('puestas_disposicion.autoridad_receptora', 'like', "%$search%")
                 ->orWhere('puestas_disposicion.carpeta_investigacion', 'like', "%$search%")
                 ->orWhere('puestas_disposicion.oficio', 'like', "%$search%")
-                ->orWhere('puestas_disposicion.lugar_puesta', 'like', "%$search%");
+                ->orWhere('puestas_disposicion.lugar_puesta', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.folio_origen', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.numero_origen', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.descripcion_origen', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.personal_participante', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.detenidos_descripcion', 'like', "%$search%")
+                ->orWhere('puestas_disposicion.rnd', 'like', "%$search%");
         });
     }
 

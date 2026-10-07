@@ -459,6 +459,12 @@ class PuestaDisposicionController extends Controller
                     ->orWhere('motivo', 'like', $like)
                     ->orWhere('tipo_puesta', 'like', $like)
                     ->orWhere('area', 'like', $like)
+                    ->orWhere('folio_origen', 'like', $like)
+                    ->orWhere('numero_origen', 'like', $like)
+                    ->orWhere('descripcion_origen', 'like', $like)
+                    ->orWhere('personal_participante', 'like', $like)
+                    ->orWhere('detenidos_descripcion', 'like', $like)
+                    ->orWhere('rnd', 'like', $like)
                     ->orWhereRaw('CAST(numero_puesta AS CHAR) LIKE ?', [$like])
                     ->orWhereHas('personas', function ($personas) use ($like) {
                         $personas->where('nombre_completo', 'like', $like)

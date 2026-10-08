@@ -92,10 +92,8 @@ class ConstanciaManejoController extends Controller
 
     public function examenesImprimibles()
     {
-        $this->authorizeConstanciasUnidad();
-
         $usuario = auth()->user();
-        $moduloId = (int) ($this->queryModulosPermitidos()->value('id') ?? 0);
+        $moduloId = (int) ($usuario->constancia_modulo_id ?? 0);
         $tipos = [
             'SERVICIO_PUBLICO' => 'Servicio publico',
             'AUTOMOVILISTA' => 'Automovilista',

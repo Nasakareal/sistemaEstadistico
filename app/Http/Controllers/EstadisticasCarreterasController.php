@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Delegacion;
 use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -22,7 +21,15 @@ class EstadisticasCarreterasController extends Controller
 
     public function index(Request $request)
     {
-        return view('estadisticas_carreteras.index');
+        $unitId = $this->carreterasUnitId();
+
+        return view('estadisticas_carreteras.index', [
+            'destacamentos' => DB::table('destacamentos')
+                ->where('unidad_id', $unitId)
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']),
+        ]);
     }
 
     public function concentrado(Request $request)
@@ -165,6 +172,11 @@ class EstadisticasCarreterasController extends Controller
             $puestas = $this->basePuestasQuery($request);
             $this->applySearchPuestas($puestas, $request);
 
+            $actividades = $this->baseActividadesQuery($request);
+            $this->applySearchActividades($actividades, $request);
+
+            $totalActividades = (int) (clone $actividades)->sum('actividades.cantidad');
+
             $totalOperativos = (clone $operativos)->count('operativo_dispositivos.id');
 
             $totalPuestas = (clone $puestas)->count('puestas_disposicion.id');
@@ -221,7 +233,7 @@ class EstadisticasCarreterasController extends Controller
 
             return [
                 'totales' => [
-                    'actividades' => 0,
+                    'actividades' => $totalActividades,
                     'operativos' => (int) $totalOperativos,
                     'puestas_disposicion' => (int) $totalPuestas,
                     'personas' => (int) $totalPersonas,
@@ -241,7 +253,22 @@ class EstadisticasCarreterasController extends Controller
 
     public function seriesActividades(Request $request)
     {
-        return response()->json(['group' => $this->grouping($request), 'series' => []]);
+        return $this->cachedJson($request, 'seriesActividades', function () use ($request) {
+            $group = $this->grouping($request);
+            $q = $this->baseActividadesQuery($request);
+            $this->applySearchActividades($q, $request);
+
+            $dateExpression = $group === 'month'
+                ? "DATE_FORMAT(actividades.fecha, '%Y-%m-01')"
+                : 'DATE(actividades.fecha)';
+
+            $rows = $q->selectRaw("{$dateExpression} as x, SUM(COALESCE(actividades.cantidad, 0)) as y")
+                ->groupBy('x')
+                ->orderBy('x')
+                ->get();
+
+            return ['group' => $group, 'series' => $rows];
+        });
     }
 
     public function seriesOperativos(Request $request)
@@ -294,15 +321,33 @@ class EstadisticasCarreterasController extends Controller
 
     public function actividades(Request $request)
     {
-        return response()->json([
-            'current_page' => 1,
-            'data' => [],
-            'from' => null,
-            'last_page' => 1,
-            'per_page' => (int) $request->query('per', 25),
-            'to' => null,
-            'total' => 0,
-        ]);
+        return $this->cachedJson($request, 'actividades', function () use ($request) {
+            $per = max(1, min(200, (int) $request->query('per', 25)));
+            $q = $this->baseActividadesQuery($request);
+            $this->applySearchActividades($q, $request);
+
+            return $q
+                ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+                ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+                ->leftJoin('destacamentos', 'destacamentos.id', '=', 'actividades.destacamento_id')
+                ->select([
+                    'actividades.id',
+                    'actividades.fecha',
+                    'actividades.hora',
+                    'actividades.nombre',
+                    'actividades.cantidad',
+                    'actividades.motivo',
+                    'actividades.estado_revision',
+                    'actividad_categorias.nombre as categoria',
+                    'actividad_subcategorias.nombre as subcategoria',
+                    'destacamentos.nombre as destacamento',
+                ])
+                ->orderByDesc('actividades.fecha')
+                ->orderByDesc('actividades.hora')
+                ->orderByDesc('actividades.id')
+                ->paginate($per)
+                ->toArray();
+        });
     }
 
     public function operativos(Request $request)
@@ -418,12 +463,31 @@ class EstadisticasCarreterasController extends Controller
 
     public function exportActividades(Request $request)
     {
+        $q = $this->baseActividadesQuery($request);
+        $this->applySearchActividades($q, $request);
+        $q->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+            ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'actividades.destacamento_id')
+            ->select([
+                'actividades.id', 'actividades.fecha', 'actividades.hora', 'actividades.nombre',
+                'actividad_categorias.nombre as categoria', 'actividad_subcategorias.nombre as subcategoria',
+                'destacamentos.nombre as destacamento', 'actividades.cantidad', 'actividades.motivo',
+                'actividades.estado_revision', 'actividades.fuente_importacion',
+            ])
+            ->orderBy('actividades.fecha')
+            ->orderBy('actividades.id');
+
         $filename = 'actividades_carreteras_' . now()->format('Ymd_His') . '.csv';
 
-        return new StreamedResponse(function () {
+        return new StreamedResponse(function () use ($q) {
             $out = fopen('php://output', 'w');
             fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($out, ['sin_datos']);
+            fputcsv($out, ['id', 'fecha', 'hora', 'nombre', 'categoria', 'subcategoria', 'destacamento', 'cantidad', 'motivo', 'estado_revision', 'fuente_importacion']);
+            $q->chunk(1000, function ($rows) use ($out) {
+                foreach ($rows as $row) {
+                    fputcsv($out, (array) $row);
+                }
+            });
             fclose($out);
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -718,6 +782,10 @@ class EstadisticasCarreterasController extends Controller
             $q->where('operativo_dispositivos.operativo_dispositivo_catalogo_id', $catalogoId);
         }
 
+        if ($request->filled('destacamento_id')) {
+            $q->where('operativo_dispositivos.destacamento_id', (int) $request->query('destacamento_id'));
+        }
+
         return $q;
     }
 
@@ -741,6 +809,36 @@ class EstadisticasCarreterasController extends Controller
             $q->whereRaw('UPPER(TRIM(puestas_disposicion.nombre_policia)) = ?', [$elemento]);
         }
 
+        $this->applyPuestasDetachmentFilter($q, $request);
+
+        return $q;
+    }
+
+    private function baseActividadesQuery(Request $request)
+    {
+        $q = DB::table('actividades')
+            ->where('actividades.unidad_org_id', $this->carreterasUnitId());
+
+        $desde = trim((string) $request->query('desde', ''));
+        $hasta = trim((string) $request->query('hasta', ''));
+        if ($desde !== '') {
+            $q->whereDate('actividades.fecha', '>=', $desde);
+        }
+        if ($hasta !== '') {
+            $q->whereDate('actividades.fecha', '<=', $hasta);
+        }
+
+        foreach ([
+            'actividad_categoria_id' => 'actividades.actividad_categoria_id',
+            'destacamento_id' => 'actividades.destacamento_id',
+            'estado_revision' => 'actividades.estado_revision',
+        ] as $parameter => $column) {
+            $value = trim((string) $request->query($parameter, ''));
+            if ($value !== '') {
+                $q->where($column, $value);
+            }
+        }
+
         return $q;
     }
 
@@ -759,6 +857,8 @@ class EstadisticasCarreterasController extends Controller
         if ($request->filled('tipo_puesta')) {
             $q->where('puestas_disposicion.tipo_puesta', strtoupper(trim((string) $request->query('tipo_puesta'))));
         }
+
+        $this->applyPuestasDetachmentFilter($q, $request);
 
         return $q;
     }
@@ -779,6 +879,8 @@ class EstadisticasCarreterasController extends Controller
             $q->where('puestas_disposicion.tipo_puesta', strtoupper(trim((string) $request->query('tipo_puesta'))));
         }
 
+        $this->applyPuestasDetachmentFilter($q, $request);
+
         return $q;
     }
 
@@ -798,7 +900,16 @@ class EstadisticasCarreterasController extends Controller
             $q->where('puestas_disposicion.tipo_puesta', strtoupper(trim((string) $request->query('tipo_puesta'))));
         }
 
+        $this->applyPuestasDetachmentFilter($q, $request);
+
         return $q;
+    }
+
+    private function applyPuestasDetachmentFilter($query, Request $request): void
+    {
+        if ($request->filled('destacamento_id')) {
+            $query->where('puestas_disposicion.destacamento_id', (int) $request->query('destacamento_id'));
+        }
     }
 
     private function applyOperativosDateFilter($q, Request $request): void
@@ -931,6 +1042,24 @@ class EstadisticasCarreterasController extends Controller
         });
     }
 
+    private function applySearchActividades($q, Request $request): void
+    {
+        $search = trim((string) $request->query('q', ''));
+        if ($search === '') {
+            return;
+        }
+
+        $q->where(function ($qq) use ($search) {
+            $qq->where('actividades.nombre', 'like', "%{$search}%")
+                ->orWhere('actividades.motivo', 'like', "%{$search}%")
+                ->orWhere('actividades.lugar', 'like', "%{$search}%")
+                ->orWhere('actividades.municipio', 'like', "%{$search}%")
+                ->orWhere('actividades.carretera', 'like', "%{$search}%")
+                ->orWhere('actividades.tramo', 'like', "%{$search}%")
+                ->orWhere('actividades.observaciones', 'like', "%{$search}%");
+        });
+    }
+
     private function applyDefaultReportDates(Request $request): void
     {
         if (!$request->query->has('desde') && !$request->query->has('hasta')) {
@@ -959,8 +1088,17 @@ class EstadisticasCarreterasController extends Controller
 
     private function applyCarreterasUnitFilter($query): void
     {
+        $query->where('puestas_disposicion.unidad_id', $this->carreterasUnitId());
+    }
+
+    private function carreterasUnitId(): int
+    {
         $unitId = (int) Unidad::query()->where('slug', 'carreteras')->value('id');
-        $query->where('puestas_disposicion.unidad_id', $unitId);
+        if ($unitId <= 0) {
+            throw new \RuntimeException('No existe la unidad Carreteras.');
+        }
+
+        return $unitId;
     }
 
     private function reportDetachments(Request $request)
@@ -1046,68 +1184,22 @@ class EstadisticasCarreterasController extends Controller
             return;
         }
 
+        $unidadCarreterasId = $this->carreterasUnitId();
+        $query->where('operativo_dispositivos.unidad_org_id', $unidadCarreterasId);
+
         if ($usuario->hasRole('Superadmin')) {
             return;
         }
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        $unidadCarreterasId = (int) Unidad::query()
-            ->where('slug', 'carreteras')
-            ->value('id');
-
-        if ($unidadCarreterasId > 0 && $unidadId === $unidadCarreterasId) {
-            $query->where('operativo_dispositivos.unidad_org_id', $unidadCarreterasId);
-
-            if (!is_null($usuario->delegacion_id) && $this->hasColumn('operativo_dispositivos', 'delegacion_id')) {
-                $query->where('operativo_dispositivos.delegacion_id', $usuario->delegacion_id);
-            }
-
-            if (!is_null($usuario->destacamento_id) && $this->hasColumn('operativo_dispositivos', 'destacamento_id')) {
-                $query->where('operativo_dispositivos.destacamento_id', $usuario->destacamento_id);
-            }
-
+        if ($unidadId !== $unidadCarreterasId) {
+            $query->whereRaw('1=0');
             return;
         }
 
-        if ($unidadId === 2) {
-            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
-
-            if ($delegacionId <= 0) {
-                $query->whereRaw('1=0');
-                return;
-            }
-
-            $esRegional = Delegacion::query()
-                ->where('id', $delegacionId)
-                ->whereNull('delegacion_padre_id')
-                ->exists();
-
-            if ($usuario->hasRole('Subdirector')) {
-                if ($esRegional) {
-                    $ids = Delegacion::query()
-                        ->where('id', $delegacionId)
-                        ->orWhere('delegacion_padre_id', $delegacionId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    $query->whereIn('operativo_dispositivos.delegacion_id', $ids);
-                } else {
-                    $query->where('operativo_dispositivos.delegacion_id', $delegacionId);
-                }
-            } else {
-                $query->where('operativo_dispositivos.delegacion_id', $delegacionId);
-            }
-
-            return;
+        if (!is_null($usuario->destacamento_id) && $this->hasColumn('operativo_dispositivos', 'destacamento_id')) {
+            $query->where('operativo_dispositivos.destacamento_id', $usuario->destacamento_id);
         }
-
-        if ($unidadId > 0) {
-            $query->where('operativo_dispositivos.unidad_org_id', $unidadId);
-            return;
-        }
-
-        $query->whereRaw('1=0');
     }
 
     private function applyPuestasVisibilityScope($query, $usuario): void
@@ -1117,13 +1209,14 @@ class EstadisticasCarreterasController extends Controller
             return;
         }
 
+        $unidadCarreterasId = $this->carreterasUnitId();
+        $query->where('puestas_disposicion.unidad_id', $unidadCarreterasId);
+
         if ($usuario->hasRole('Superadmin')) {
             return;
         }
 
-        if ($usuario->unidad_id) {
-            $query->where('puestas_disposicion.unidad_id', $usuario->unidad_id);
-        } else {
+        if ((int) ($usuario->unidad_id ?? 0) !== $unidadCarreterasId) {
             $query->whereRaw('1=0');
             return;
         }
@@ -1152,7 +1245,14 @@ class EstadisticasCarreterasController extends Controller
             return response()->json($fn());
         }
 
-        $hash = sha1($request->fullUrl());
+        $user = $request->user();
+        $scope = implode('|', [
+            (int) ($user->id ?? 0),
+            (int) ($user->unidad_id ?? 0),
+            (int) ($user->delegacion_id ?? 0),
+            (int) ($user->destacamento_id ?? 0),
+        ]);
+        $hash = sha1($scope . '|' . $request->fullUrl());
         $cacheKey = "estadisticas_carreteras:$key:$hash";
 
         $data = Cache::remember($cacheKey, $ttl, function () use ($fn) {

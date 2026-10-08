@@ -32,6 +32,11 @@
                 <div class="sv-form">
                     <div class="sv-form__row">
                         <div class="sv-field">
+                            <label>Unidad</label>
+                            <input type="text" class="form-control form-control-sm" value="Protección a Carreteras" readonly>
+                        </div>
+
+                        <div class="sv-field">
                             <label>Desde</label>
                             <input type="date" id="f_desde" class="form-control form-control-sm">
                         </div>
@@ -60,8 +65,13 @@
                         </div>
 
                         <div class="sv-field">
-                            <label>ID Catálogo Operativo</label>
-                            <input type="number" id="f_operativo_catalogo_id" class="form-control form-control-sm" placeholder="Ej: 1">
+                            <label>Destacamento</label>
+                            <select id="f_destacamento" class="form-control form-control-sm">
+                                <option value="">Todos</option>
+                                @foreach($destacamentos as $destacamento)
+                                    <option value="{{ $destacamento->id }}">{{ $destacamento->nombre }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="sv-field sv-field--actions">
@@ -86,9 +96,17 @@
                         <div class="sv-field">
                             <label>Listado</label>
                             <select id="f_listado" class="form-control form-control-sm">
+                                <option value="actividades">Actividades</option>
                                 <option value="operativos">Operativos</option>
                                 <option value="puestas-disposicion">Puestas a disposición</option>
                             </select>
+                        </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <a class="btn sv-btn sv-btn--ghost w-100" id="btn_export_actividades" href="#" target="_blank">
+                                <i class="fa-solid fa-file-csv"></i> Actividades CSV
+                            </a>
                         </div>
 
                         <div class="sv-field">
@@ -107,7 +125,7 @@
                     </div>
 
                     <div class="sv-hint">
-                        * Los totales de personas, vehículos y objetos se calculan desde los registros relacionados de cada puesta a disposición.
+                        * Este panel está bloqueado a Protección a Carreteras. Ningún resultado incluye registros de otras unidades.
                     </div>
                 </div>
             </div>
@@ -115,6 +133,16 @@
     </div>
 
     <div class="row">
+        <div class="col-lg-2 col-md-4 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-info"><i class="fa-solid fa-clipboard-list"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Actividades</div>
+                    <div class="sv-kpi__value" id="k_actividades">—</div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-lg-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-maroon"><i class="fa-solid fa-shield-halved"></i></div>
@@ -145,7 +173,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 col-12">
+        <div class="col-lg-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-purple"><i class="fa-solid fa-car-side"></i></div>
                 <div class="sv-kpi__body">
@@ -155,7 +183,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 col-12">
+        <div class="col-lg-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-olive"><i class="fa-solid fa-box-open"></i></div>
                 <div class="sv-kpi__body">
@@ -167,6 +195,17 @@
     </div>
 
     <div class="row">
+        <div class="col-lg-6 col-12">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-chart-line"></i> Actividades en el tiempo
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_actividades_time" height="140"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="col-lg-6 col-12">
             <div class="sv-panel">
                 <div class="sv-panel__title">
@@ -340,7 +379,7 @@
         const q = val('f_q');
         const tipo_puesta = val('f_tipo_puesta');
         const motivo = val('f_motivo');
-        const operativo_catalogo_id = val('f_operativo_catalogo_id');
+        const destacamento_id = val('f_destacamento');
 
         if (desde) params.set('desde', desde);
         if (hasta) params.set('hasta', hasta);
@@ -348,7 +387,7 @@
         if (q) params.set('q', q);
         if (tipo_puesta) params.set('tipo_puesta', tipo_puesta);
         if (motivo) params.set('motivo', motivo);
-        if (operativo_catalogo_id) params.set('operativo_catalogo_id', operativo_catalogo_id);
+        if (destacamento_id) params.set('destacamento_id', destacamento_id);
 
         for (const k in extra){
             if (extra[k] !== null && extra[k] !== undefined && String(extra[k]).trim() !== ''){
@@ -379,6 +418,11 @@
     function setExportLinks(){
         const qs = qsFromFilters();
 
+        const a1 = el('btn_export_actividades');
+        if (a1){
+            a1.href = qs ? `${base}/export/actividades?${qs}` : `${base}/export/actividades`;
+        }
+
         const a2 = el('btn_export_operativos');
         if (a2){
             a2.href = qs ? `${base}/export/operativos?${qs}` : `${base}/export/operativos`;
@@ -393,7 +437,7 @@
     function wireExportLinkUpdates(){
         const ids = [
             'f_desde','f_hasta','f_group','f_q','f_tipo_puesta',
-            'f_motivo','f_operativo_catalogo_id','f_listado'
+            'f_motivo','f_destacamento','f_listado'
         ];
 
         ids.forEach(id => {
@@ -408,6 +452,7 @@
         });
     }
 
+    let chActividades = null;
     let chOperativos = null;
     let chPuestas = null;
     let chTipoPuesta = null;
@@ -460,7 +505,7 @@
     }
 
     function currentListado(){
-        return val('f_listado') || 'operativos';
+        return val('f_listado') || 'actividades';
     }
 
     function renderTableHead(mode){
@@ -471,6 +516,21 @@
         const clearButton = el('btn_limpiar_elemento');
         if (clearButton) {
             clearButton.classList.toggle('d-none', mode !== 'puestas-disposicion' || !selectedElemento);
+        }
+
+        if (mode === 'actividades'){
+            th.innerHTML = `
+                <tr>
+                    <th>Fecha</th>
+                    <th>Categoría</th>
+                    <th>Subcategoría</th>
+                    <th>Destacamento</th>
+                    <th class="text-center">Cantidad</th>
+                    <th></th>
+                </tr>
+            `;
+            if (title) title.textContent = 'Listado de Actividades de Carreteras';
+            return;
         }
 
         if (mode === 'operativos'){
@@ -505,6 +565,37 @@
                 ? `Puestas de ${selectedElemento}`
                 : 'Listado de Puestas a Disposición';
         }
+    }
+
+    function renderActividadesTable(paginated){
+        const tb = el('tb_data');
+        if (!tb) return;
+
+        if (!paginated || !paginated.data || paginated.data.length === 0){
+            tb.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Sin actividades para los filtros seleccionados.</td></tr>`;
+            if (el('pg_info')) el('pg_info').textContent = '—';
+            lastPage = 1;
+            return;
+        }
+
+        tb.innerHTML = paginated.data.map(r => `
+            <tr>
+                <td>${escapeHtml(r.fecha ?? '')}</td>
+                <td>${escapeHtml(r.categoria ?? 'SIN CATEGORÍA')}</td>
+                <td>${escapeHtml(r.subcategoria ?? 'SIN SUBCATEGORÍA')}</td>
+                <td>${escapeHtml(r.destacamento ?? 'GENERAL')}</td>
+                <td class="text-center"><span class="badge badge-info px-3 py-2">${escapeHtml(r.cantidad ?? 0)}</span></td>
+                <td class="text-right">
+                    <a class="btn btn-sm sv-btn" href="{{ url('actividades') }}/${encodeURIComponent(r.id)}">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+        `).join('');
+
+        page = paginated.current_page || 1;
+        lastPage = paginated.last_page || 1;
+        if (el('pg_info')) el('pg_info').textContent = `Página ${page} de ${lastPage} · ${paginated.total} registros`;
     }
 
     function renderOperativosTable(paginated){
@@ -587,6 +678,12 @@
         const mode = currentListado();
         renderTableHead(mode);
 
+        if (mode === 'actividades'){
+            const data = await getJson('actividades', { page });
+            renderActividadesTable(data);
+            return;
+        }
+
         if (mode === 'operativos'){
             const data = await getJson('operativos', { page });
             renderOperativosTable(data);
@@ -640,12 +737,22 @@
 
         const k = await getJson('kpis');
 
+        if (el('k_actividades')) el('k_actividades').textContent = (k.totales?.actividades ?? 0);
         if (el('k_operativos')) el('k_operativos').textContent = (k.totales?.operativos ?? 0);
         if (el('k_puestas')) el('k_puestas').textContent = (k.totales?.puestas_disposicion ?? 0);
         if (el('k_personas')) el('k_personas').textContent = (k.totales?.personas ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
         if (el('k_objetos')) el('k_objetos').textContent = (k.totales?.objetos ?? 0);
         renderElementosRanking((k.top?.elemento || []).slice(0, 20));
+
+        const actividadesTime = await getJson('series/actividades');
+        chActividades = mountOrUpdateChart(
+            'ch_actividades_time',
+            chActividades,
+            'bar',
+            (actividadesTime.series || []).map(r => r.x),
+            (actividadesTime.series || []).map(r => Number(r.y || 0))
+        );
 
         const operativosTime = await getJson('series/operativos');
         chOperativos = mountOrUpdateChart(

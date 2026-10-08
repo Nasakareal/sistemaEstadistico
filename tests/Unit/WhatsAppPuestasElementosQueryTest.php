@@ -261,6 +261,33 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $this->assertStringNotContainsString('ELEMENTO AJENO SINIESTROS', $packet['text']);
     }
 
+    public function test_superadmin_puede_consultar_rendimiento_de_carreteras_desde_el_menu(): void
+    {
+        $fecha = now()->startOfMonth()->toDateString();
+        $this->crearPuesta(4, $fecha, 'ELEMENTO VISIBLE PARA SUPERADMIN', 1);
+
+        $user = new User();
+        $user->id = 1;
+        $user->unidad_id = 1;
+
+        $packet = $this->service()->executeQuickStat(
+            $user,
+            [
+                'acceso_total' => true,
+                'modules' => ['siniestros', 'delegaciones', 'coordinacion', 'carreteras', 'vialidades'],
+                'default_module' => null,
+                'unidad_id' => 1,
+            ],
+            'rendimiento_carreteras',
+            'este_mes',
+            []
+        );
+
+        $this->assertStringContainsString('Rendimiento operativo', $packet['text']);
+        $this->assertStringContainsString('ELEMENTO VISIBLE PARA SUPERADMIN', $packet['text']);
+        $this->assertStringNotContainsString('disponible únicamente', $packet['text']);
+    }
+
     public function test_incapacidades_de_carreteras_muestra_dias_y_no_filtra_otra_unidad(): void
     {
         $personal = Personal::query()->create([

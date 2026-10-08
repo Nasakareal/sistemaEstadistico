@@ -64,13 +64,13 @@ class WhatsAppQueryService
 
             case 'rendimiento_carreteras':
                 return $this->rendimientoCarreterasReporte(
-                    $this->resolveUnitIdForJson($user, $context, $json),
+                    $this->resolveCarreterasReportUnitId($user, $context),
                     $this->filtros($json)
                 );
 
             case 'incapacidades_carreteras':
                 return $this->incapacidadesCarreterasReporte(
-                    $this->resolveUnitIdForJson($user, $context, $json),
+                    $this->resolveCarreterasReportUnitId($user, $context),
                     $this->filtros($json)
                 );
 
@@ -264,14 +264,14 @@ class WhatsAppQueryService
 
         if ($action === 'rendimiento_carreteras') {
             return $this->rendimientoCarreterasReporte(
-                $this->resolveUnitIdFromContext($user, $context, null),
+                $this->resolveCarreterasReportUnitId($user, $context),
                 $filters
             );
         }
 
         if ($action === 'incapacidades_carreteras') {
             return $this->incapacidadesCarreterasReporte(
-                $this->resolveUnitIdFromContext($user, $context, null),
+                $this->resolveCarreterasReportUnitId($user, $context),
                 $filters
             );
         }
@@ -2296,6 +2296,17 @@ class WhatsAppQueryService
             : ($user->unidad_id ? (int) $user->unidad_id : null);
 
         return $this->isValidUnidadId($unidadId) ? $unidadId : 0;
+    }
+
+    protected function resolveCarreterasReportUnitId($user, array $context): int
+    {
+        $modules = is_array($context['modules'] ?? null) ? $context['modules'] : [];
+
+        if (in_array('carreteras', $modules, true)) {
+            return 4;
+        }
+
+        return $this->resolveUnitIdFromContext($user, $context, null) === 4 ? 4 : 0;
     }
 
     protected function isValidUnidadId(?int $unidadId): bool

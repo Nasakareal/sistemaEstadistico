@@ -257,7 +257,7 @@
                                     @error('constancia_modulo_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Solo aplica a Siniestros en Morelia. El usuario únicamente podrá operar el módulo asignado.</small>
+                                    <small class="text-muted">Solo aplica a módulos de Siniestros. El usuario únicamente podrá operar el módulo asignado.</small>
                                 </div>
                             </div>
                         </div>

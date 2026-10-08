@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\EstadisticasActividadesController;
 use App\Http\Controllers\Api\EstadisticasAseguramientosController;
+use App\Http\Controllers\Api\EstadisticasReportesController;
 use App\Http\Controllers\Api\DictamenController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
@@ -586,6 +587,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/catalogos', [EstadisticasAseguramientosController::class, 'catalogos'])
             ->name('api.estadisticas_aseguramientos.catalogos');
     });
+
+    Route::get('/estadisticas-reportes/{reporte}', [EstadisticasReportesController::class, 'show'])
+        ->where('reporte', '[a-z0-9-]+')
+        ->name('api.estadisticas_reportes.show');
 
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');
     Route::post('/mi-personal/{user}/ubicacion', [PersonalController::class, 'toggleUbicacion'])->middleware('can:gestionar ubicaciones turno');

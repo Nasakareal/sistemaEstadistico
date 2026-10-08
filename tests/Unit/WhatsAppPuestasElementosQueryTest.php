@@ -120,6 +120,59 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $this->assertStringContainsString('SOLO CARRETERAS PROPIO', $propio['text']);
     }
 
+    public function test_expediente_de_carreteras_incluye_total_de_puestas_sin_duplicarlas(): void
+    {
+        Personal::query()->create([
+            'unidad_id' => 4,
+            'nombre' => 'JUAN',
+            'ap_paterno' => 'PEREZ',
+            'ap_materno' => 'LOPEZ',
+            'numero_empleado' => 'WA-PUESTAS-2042',
+            'estatus' => 'ACTIVO',
+        ]);
+
+        $fecha = '2042-07-29';
+        $this->crearPuesta(4, $fecha, 'PEREZ LOPEZ JUAN', 2);
+        PuestaDisposicion::query()->create([
+            'numero_puesta' => 8801,
+            'anio' => 2042,
+            'tipo_puesta' => 'PERSONA',
+            'motivo' => 'APOYO',
+            'estatus' => 'ACTIVA',
+            'nombre_policia' => 'OTRO ELEMENTO',
+            'personal_participante' => 'JUAN PEREZ LOPEZ',
+            'fecha_puesta' => $fecha,
+            'unidad_id' => 4,
+        ]);
+        PuestaDisposicion::query()->create([
+            'numero_puesta' => 8802,
+            'anio' => 2042,
+            'tipo_puesta' => 'PERSONA',
+            'motivo' => 'DUPLICADO DE ROL',
+            'estatus' => 'ACTIVA',
+            'nombre_policia' => 'JUAN PEREZ LOPEZ',
+            'personal_participante' => 'PEREZ LOPEZ JUAN',
+            'fecha_puesta' => '2042-07-30',
+            'unidad_id' => 4,
+        ]);
+
+        $packet = $this->service()->executeOpenAI(
+            $this->usuarioCarreteras(),
+            $this->contextoCarreteras(),
+            [
+                'accion' => 'detalle_personal',
+                'persona' => 'WA-PUESTAS-2042',
+                'unidad_id' => 1,
+            ]
+        );
+
+        $this->assertStringContainsString('PUESTAS A DISPOSICIÓN', $packet['text']);
+        $this->assertStringContainsString('Total vinculadas: 04', $packet['text']);
+        $this->assertStringContainsString('Como primer respondiente: 03', $packet['text']);
+        $this->assertStringContainsString('Como participante: 01', $packet['text']);
+        $this->assertStringContainsString('Última puesta: 2042-07-30', $packet['text']);
+    }
+
     public function test_menu_de_carreteras_expone_indicadores_ejecutivos_y_tarjeta_por_posicion(): void
     {
         $menu = new WhatsAppMenuService();

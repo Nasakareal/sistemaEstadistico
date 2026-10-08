@@ -12,6 +12,7 @@ use App\Models\PuestaDisposicion;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class WhatsAppQueryService
 {
@@ -1326,7 +1327,117 @@ class WhatsAppQueryService
             ];
         }
 
-        return $this->renderService->renderDetallePersonal($coincidencias->first());
+        $personal = $coincidencias->first();
+        $packet = $this->renderService->renderDetallePersonal($personal);
+
+        if ((int) $unidadId === 4) {
+            $resumenPuestas = $this->resumenPuestasPersonalCarreteras($personal);
+            $packet['text'] .= "\n\nPUESTAS A DISPOSICIÓN\n"
+                . '* Total vinculadas: ' . $this->formatNumber($resumenPuestas['total']) . "\n"
+                . '* Como primer respondiente: ' . $this->formatNumber($resumenPuestas['primer_respondiente']) . "\n"
+                . '* Como participante: ' . $this->formatNumber($resumenPuestas['participante']) . "\n"
+                . '* Última puesta: ' . ($resumenPuestas['ultima'] ?: 'SIN REGISTRO');
+        }
+
+        return $packet;
+    }
+
+    protected function resumenPuestasPersonalCarreteras(Personal $personal): array
+    {
+        $objetivo = $this->personKeyPuesta($personal->nombre_completo);
+        $puestaIds = [];
+        $primerIds = [];
+        $participanteIds = [];
+        $ultima = null;
+
+        if ($objetivo === '') {
+            return ['total' => 0, 'primer_respondiente' => 0, 'participante' => 0, 'ultima' => null];
+        }
+
+        $puestasQuery = PuestaDisposicion::query()
+            ->where('unidad_id', 4)
+            ->where(function ($query) {
+                $query->whereNotNull('nombre_policia')
+                    ->orWhereNotNull('personal_participante');
+            });
+
+        foreach (explode(' ', $objetivo) as $token) {
+            $puestasQuery->where(function ($query) use ($token) {
+                $query->where('nombre_policia', 'like', '%' . $token . '%')
+                    ->orWhere('personal_participante', 'like', '%' . $token . '%');
+            });
+        }
+
+        $puestas = $puestasQuery->get(['id', 'fecha_puesta', 'nombre_policia', 'personal_participante']);
+
+        foreach ($puestas as $puesta) {
+            $primeros = collect($this->splitPuestaElementNames($puesta->nombre_policia))
+                ->map(fn ($nombre) => $this->personKeyPuesta($nombre));
+            $participantes = collect($this->splitPuestaElementNames($puesta->personal_participante))
+                ->map(fn ($nombre) => $this->personKeyPuesta($nombre));
+            $esPrimerRespondiente = $primeros->contains($objetivo);
+            $esParticipante = $participantes->contains($objetivo);
+
+            if (!$esPrimerRespondiente && !$esParticipante) {
+                continue;
+            }
+
+            $id = (int) $puesta->id;
+            $puestaIds[$id] = true;
+            if ($esPrimerRespondiente) {
+                $primerIds[$id] = true;
+            } else {
+                $participanteIds[$id] = true;
+            }
+
+            $fecha = $this->formatDate($puesta->fecha_puesta);
+            if ($fecha !== 'SIN FECHA' && (!$ultima || $fecha > $ultima)) {
+                $ultima = $fecha;
+            }
+        }
+
+        return [
+            'total' => count($puestaIds),
+            'primer_respondiente' => count($primerIds),
+            'participante' => count($participanteIds),
+            'ultima' => $ultima,
+        ];
+    }
+
+    protected function splitPuestaElementNames(?string $value): array
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return [];
+        }
+
+        return collect(preg_split('/\s*(?:,|;|\r?\n|\s+Y\s+)\s*/iu', $value) ?: [])
+            ->map(fn ($name) => trim((string) preg_replace('/\s+/', ' ', $name)))
+            ->filter(function ($name) {
+                if ($name === '') {
+                    return false;
+                }
+
+                return !in_array($this->personKeyPuesta($name), [
+                    'NO PARTICIPACION', 'NO PERSONAL', 'NINGUNO', 'NINGUNA', 'NO APLICA', 'NA',
+                ], true);
+            })
+            ->unique(fn ($name) => $this->personKeyPuesta($name))
+            ->values()
+            ->all();
+    }
+
+    protected function personKeyPuesta(?string $name): string
+    {
+        $normalizado = trim((string) preg_replace(
+            '/[^A-Z0-9]+/',
+            ' ',
+            Str::upper(Str::ascii((string) $name))
+        ));
+        $tokens = array_values(array_filter(preg_split('/\s+/', $normalizado) ?: []));
+        sort($tokens);
+
+        return implode(' ', $tokens);
     }
 
     protected function actividadesHoy($user, array $context, string $module): array

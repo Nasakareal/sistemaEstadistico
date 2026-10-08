@@ -154,6 +154,43 @@ class SecurityLoggingTest extends TestCase
         }
     }
 
+    public function test_records_when_server_delivers_authorized_siniestros_menu(): void
+    {
+        $recorder = Mockery::mock(SecurityEventRecorder::class);
+        $recorder->shouldReceive('record')
+            ->once()
+            ->withArgs(function ($code, $description, $severity, $category, $request, $metadata) {
+                return $code === 'menu_siniestros_authorized_delivered'
+                    && $severity === 'info'
+                    && $category === 'interface_integrity'
+                    && $metadata['server_authorized'] === true
+                    && $metadata['delivered'] === true;
+            });
+
+        $middleware = new LogSecurityEvents($recorder);
+        $request = Request::create('/home', 'GET');
+        $request->setUserResolver(fn () => new class {
+            public $unidad_id = 2;
+
+            public function can($permission): bool
+            {
+                return $permission === 'ver hechos';
+            }
+
+            public function getAuthIdentifier(): int
+            {
+                return 99;
+            }
+        });
+        $response = response('<li id="menuSiniestros">Siniestros</li>', 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+        ]);
+
+        $handled = $middleware->handle($request, fn () => $response);
+
+        $this->assertSame(200, $handled->getStatusCode());
+    }
+
     public function test_historical_events_can_explain_probable_endpoint_intent(): void
     {
         $profileCheck = new SecurityEvent(['method' => 'GET', 'path' => '/api/me']);

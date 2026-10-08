@@ -1,4 +1,7 @@
-<li @isset($item['id']) id="{{ $item['id'] }}" @endisset class="nav-item has-treeview {{ $item['submenu_class'] }}">
+<li @isset($item['id']) id="{{ $item['id'] }}" @endisset
+    class="nav-item has-treeview {{ $item['submenu_class'] }} {{ !empty($item['force_open']) ? 'menu-open' : '' }}"
+    @if(!empty($item['integrity_monitor'])) data-sv-integrity-key="{{ $item['integrity_monitor'] }}" @endif
+    @if(!empty($item['force_open'])) data-sv-force-open="true" @endif>
 
     {{-- Menu toggler --}}
     <a class="nav-link {{ $item['class'] }} @isset($item['shift']) {{ $item['shift'] }} @endisset"

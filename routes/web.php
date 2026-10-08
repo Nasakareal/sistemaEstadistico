@@ -115,6 +115,10 @@ use App\Http\Controllers\EntregaRecepcionPatrullaController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
+Route::post('/security/interface-integrity', [SecurityEventController::class, 'storeInterfaceIntegrity'])
+    ->middleware(['auth', 'throttle:12,1'])
+    ->name('security.interface_integrity.store');
+
 // Ruta para las constancias de manejo
 Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen/{token}', [ConstanciaExamenPublicoController::class, 'iniciar'])->name('constancias_manejo.examen.iniciar');

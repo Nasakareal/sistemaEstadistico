@@ -96,6 +96,8 @@ class LogSecurityEvents
             );
         }
 
+        $this->recordAuthorizedSiniestrosMenuDelivery($request, $response, $status);
+
         return $response;
     }
 
@@ -325,5 +327,47 @@ class LogSecurityEvents
         }
 
         return null;
+    }
+
+    private function recordAuthorizedSiniestrosMenuDelivery(Request $request, $response, int $status): void
+    {
+        $user = $request->user();
+
+        if (
+            $status !== 200
+            || !$user
+            || !$user->can('ver hechos')
+            || (int) ($user->unidad_id ?? 0) === 5
+            || !method_exists($response, 'getContent')
+        ) {
+            return;
+        }
+
+        $contentType = strtolower((string) $response->headers->get('Content-Type', ''));
+        if (strpos($contentType, 'text/html') === false) {
+            return;
+        }
+
+        $content = (string) $response->getContent();
+        if (strpos($content, 'id="menuSiniestros"') === false) {
+            return;
+        }
+
+        $this->recorder->record(
+            'menu_siniestros_authorized_delivered',
+            'Laravel autorizó y entregó el menú Siniestros al usuario.',
+            'info',
+            'interface_integrity',
+            $request,
+            [
+                'status_code' => $status,
+                'module' => 'Siniestros / Choques',
+                'element' => 'menu_siniestros',
+                'server_authorized' => true,
+                'delivered' => true,
+                'unit_id' => (int) ($user->unidad_id ?? 0),
+                'evidence_scope' => 'server_rendered_response',
+            ]
+        );
     }
 }

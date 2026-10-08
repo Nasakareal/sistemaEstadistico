@@ -162,11 +162,17 @@ return [
         ],
 
         [
+            'id'      => 'menuSiniestros',
             'text'    => 'Siniestros (CHOQUES)',
             'icon'    => 'fa-solid fa-car-side',
             'classes' => 'bg-blue text-white',
             'can'     => 'ver hechos',
             'hide_for_units' => [5],
+            'always_open_for' => [
+                'units' => [2],
+                'roles' => ['Administrador'],
+            ],
+            'integrity_monitor' => 'menu_siniestros',
             'submenu' => [
                 [
                     'text'    => 'Listado de Siniestros',

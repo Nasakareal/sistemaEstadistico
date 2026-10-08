@@ -1,6 +1,6 @@
 /* Navegación lateral: jerarquía, ubicación actual y búsqueda sin scroll horizontal. */
 .main-sidebar.sv-sidebar {
-    --side-text: #dbe8f7;
+    --side-text: rgba(226, 232, 240, .72);
     --side-muted: #8295ad;
     --side-line: rgba(148, 163, 184, .14);
     --side-cyan: #22d3ee;
@@ -133,6 +133,10 @@
     background: rgba(12, 25, 41, .66) !important;
 }
 
+.sv-sidebar-nav > .nav-item > .nav-link p {
+    color: rgba(226, 232, 240, .80) !important;
+}
+
 .sv-sidebar-nav .nav-link:hover {
     color: #fff !important;
     border-color: rgba(125, 211, 252, .26) !important;
@@ -144,7 +148,7 @@
     height: 29px !important;
     border: 1px solid rgba(148, 163, 184, .16) !important;
     border-radius: 9px !important;
-    color: #b9c9dc !important;
+    color: rgba(203, 213, 225, .72) !important;
     background: rgba(148, 163, 184, .075) !important;
     font-size: 13px !important;
 }
@@ -222,6 +226,12 @@
     padding: 7px 8px !important;
     border-radius: 10px !important;
     background: transparent !important;
+}
+.sv-sidebar-nav .nav-treeview .nav-link p {
+    color: rgba(203, 213, 225, .66) !important;
+}
+.sv-sidebar-nav .nav-treeview .nav-link:hover p {
+    color: #f8fafc !important;
 }
 .sv-sidebar-nav .nav-treeview .nav-link > i:first-child {
     width: 25px !important;

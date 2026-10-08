@@ -22,4 +22,26 @@ class UnidadMenuFilterTest extends TestCase
             (object) ['unidad_id' => 5]
         ));
     }
+
+    public function test_mantiene_abierto_siniestros_para_administrador_de_unidad_dos(): void
+    {
+        $item = [
+            'always_open_for' => [
+                'units' => [2],
+                'roles' => ['Administrador'],
+            ],
+        ];
+        $usuario = new class {
+            public $unidad_id = 2;
+
+            public function hasAnyRole(array $roles): bool
+            {
+                return in_array('Administrador', $roles, true);
+            }
+        };
+
+        $this->assertTrue(UnidadMenuFilter::debePermanecerAbierto($item, $usuario));
+        $usuario->unidad_id = 3;
+        $this->assertFalse(UnidadMenuFilter::debePermanecerAbierto($item, $usuario));
+    }
 }

@@ -74,6 +74,14 @@ class SecurityEvent extends Model
 
     public function intentLabel(): string
     {
+        if ($this->event_code === 'menu_siniestros_authorized_delivered') {
+            return 'Dejar constancia de que Laravel autorizó y entregó el menú Siniestros.';
+        }
+
+        if ($this->event_code === 'dom_element_removed_or_modified') {
+            return 'Reportar y restaurar una alteración detectada en el menú Siniestros.';
+        }
+
         if (!empty($this->metadata['intent'])) {
             return (string) $this->metadata['intent'];
         }
@@ -108,6 +116,14 @@ class SecurityEvent extends Model
 
     public function assessmentLabel(): string
     {
+        if ($this->event_code === 'menu_siniestros_authorized_delivered') {
+            return 'Evidencia del servidor: el menú fue autorizado e incluido en la respuesta HTML.';
+        }
+
+        if ($this->event_code === 'dom_element_removed_or_modified') {
+            return 'Detección del navegador; puede indicar manipulación deliberada o un fallo de interfaz, pero no prueba intención por sí sola.';
+        }
+
         if (in_array($this->event_code, ['authenticated_rate_limit_reached', 'rate_limit_exceeded'], true)
             && $this->user_id) {
             return 'Probablemente tráfico legítimo excesivo de la app; revisar frecuencia y cliente antes de bloquear.';

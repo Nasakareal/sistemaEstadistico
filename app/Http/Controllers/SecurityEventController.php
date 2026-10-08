@@ -3,12 +3,55 @@
 namespace App\Http\Controllers;
 
 use App\Models\SecurityEvent;
+use App\Services\SecurityEventRecorder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SecurityEventController extends Controller
 {
+    public function storeInterfaceIntegrity(Request $request, SecurityEventRecorder $recorder)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user
+            && $user->can('ver hechos')
+            && (int) ($user->unidad_id ?? 0) !== 5,
+            403
+        );
+
+        $data = $request->validate([
+            'element' => ['required', 'in:menu_siniestros'],
+            'detected_state' => [
+                'required',
+                'in:element_absent,hidden_attribute,hidden_class,inline_hidden,label_modified,structure_modified,computed_hidden',
+            ],
+            'restored' => ['required', 'boolean'],
+            'page_path' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $recorder->record(
+            'dom_element_removed_or_modified',
+            'El navegador detectó una alteración sospechosa del menú Siniestros y ejecutó su restauración.',
+            'warning',
+            'interface_integrity',
+            $request,
+            [
+                'module' => 'Siniestros / Choques',
+                'element' => 'menu_siniestros',
+                'original_value' => 'Menú Siniestros autorizado, visible y con su estructura original.',
+                'detected_value' => $data['detected_state'],
+                'restored' => (bool) $data['restored'],
+                'page_path' => $this->normalizePagePath($data['page_path'] ?? null),
+                'classification' => 'suspicious',
+                'evidence_scope' => 'client_reported_detection',
+            ]
+        );
+
+        return response()->json(['recorded' => true], 201);
+    }
+
     public function index(Request $request)
     {
         abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
@@ -128,5 +171,16 @@ class SecurityEventController extends Controller
                     ->orWhere('user_agent', 'like', $search);
             });
         }
+    }
+
+    private function normalizePagePath(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $path = parse_url($value, PHP_URL_PATH);
+
+        return is_string($path) ? '/' . ltrim($path, '/') : null;
     }
 }

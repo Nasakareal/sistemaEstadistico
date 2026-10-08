@@ -213,10 +213,19 @@ class UserController extends Controller
             $user->syncRoles([$role->name]);
         });
 
+        $organizationalAssignmentChanged = $user->wasChanged([
+            'unidad_id',
+            'delegacion_id',
+            'destacamento_id',
+        ]);
+
         $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento']);
 
         return response()->json([
-            'message' => 'Usuario actualizado correctamente.',
+            'message' => $organizationalAssignmentChanged
+                ? 'Usuario actualizado correctamente. Debe iniciar sesión nuevamente para aplicar su nueva adscripción.'
+                : 'Usuario actualizado correctamente.',
+            'session_refresh_required' => $organizationalAssignmentChanged,
             'data' => $this->serializeUser($user),
         ]);
     }

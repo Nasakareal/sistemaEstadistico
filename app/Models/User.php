@@ -58,6 +58,13 @@ class User extends Authenticatable
         });
 
         static::saved(function (self $user) {
+            if ($user->wasChanged(['unidad_id', 'delegacion_id', 'destacamento_id'])) {
+                // La aplicación móvil conserva el perfil organizacional durante
+                // la sesión. Al cambiar de adscripción se revocan sus tokens para
+                // obligarla a descargar la asignación vigente antes de capturar.
+                $user->tokens()->delete();
+            }
+
             if (!$user->wasChanged('unidad_id') || empty($user->unidad_id)) {
                 return;
             }

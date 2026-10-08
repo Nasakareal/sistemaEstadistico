@@ -373,7 +373,12 @@ class UserController extends Controller
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
 
-            return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
+            $mensaje = 'Usuario actualizado correctamente.';
+            if ($user->wasChanged(['unidad_id', 'delegacion_id', 'destacamento_id'])) {
+                $mensaje .= ' Su sesión móvil fue cerrada para que ingrese nuevamente con la adscripción actualizada.';
+            }
+
+            return redirect()->route('users.index')->with('success', $mensaje);
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {

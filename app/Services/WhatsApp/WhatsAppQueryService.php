@@ -1330,7 +1330,7 @@ class WhatsAppQueryService
         $personal = $coincidencias->first();
         $packet = $this->renderService->renderDetallePersonal($personal);
 
-        if ((int) $unidadId === 4) {
+        if ((int) $personal->unidad_id === 4) {
             $resumenPuestas = $this->resumenPuestasPersonalCarreteras($personal);
             $packet['text'] .= "\n\nPUESTAS A DISPOSICIÓN\n"
                 . '* Total vinculadas: ' . $this->formatNumber($resumenPuestas['total']) . "\n"

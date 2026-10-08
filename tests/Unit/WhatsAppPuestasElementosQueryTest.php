@@ -173,6 +173,37 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $this->assertStringContainsString('Última puesta: 2042-07-30', $packet['text']);
     }
 
+    public function test_superadmin_sin_unidad_solicitada_ve_puestas_si_el_expediente_es_de_carreteras(): void
+    {
+        Personal::query()->create([
+            'unidad_id' => 4,
+            'nombre' => 'SUPERADMIN',
+            'ap_paterno' => 'PRUEBA',
+            'ap_materno' => 'UNIDAD',
+            'numero_empleado' => '5269-WA-TEST',
+            'estatus' => 'ACTIVO',
+        ]);
+        $this->crearPuesta(4, '2042-08-01', 'PRUEBA UNIDAD SUPERADMIN', 2);
+
+        $user = new User();
+        $user->id = 1;
+        $user->unidad_id = 1;
+        $packet = $this->service()->executeOpenAI($user, [
+            'acceso_total' => true,
+            'modules' => ['siniestros', 'delegaciones', 'coordinacion', 'carreteras', 'vialidades'],
+            'default_module' => null,
+            'unidad_id' => 1,
+        ], [
+            'accion' => 'detalle_personal',
+            'persona' => '5269-WA-TEST',
+            'unidad_id' => null,
+        ]);
+
+        $this->assertStringContainsString('PROTECCIÓN A CARRETERAS', $packet['text']);
+        $this->assertStringContainsString('PUESTAS A DISPOSICIÓN', $packet['text']);
+        $this->assertStringContainsString('Total vinculadas: 02', $packet['text']);
+    }
+
     public function test_menu_de_carreteras_expone_indicadores_ejecutivos_y_tarjeta_por_posicion(): void
     {
         $menu = new WhatsAppMenuService();

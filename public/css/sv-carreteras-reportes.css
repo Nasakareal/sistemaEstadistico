@@ -52,12 +52,18 @@
     background: linear-gradient(120deg, rgba(9, 24, 38, .98), rgba(13, 54, 51, .96) 58%, rgba(17, 38, 57, .98));
 }
 
+.sv-report-hero.incapacity {
+    border-color: rgba(251, 191, 36, .24);
+    background: linear-gradient(120deg, rgba(25, 21, 34, .98), rgba(65, 43, 18, .92) 58%, rgba(22, 34, 52, .98));
+}
+
 .sv-report-hero > * { position: relative; z-index: 1; }
 .sv-report-hero h1 { margin: .3rem 0 .25rem; font-size: clamp(2rem, 3vw, 3.2rem); font-weight: 800; letter-spacing: -.045em; }
 .sv-report-hero p { margin: 0; color: #b9c8da; font-size: 1rem; }
 .sv-report-kicker { color: var(--sv-cyan); font-size: .76rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 .sv-report-kicker i { margin-right: .4rem; }
 .elements .sv-report-kicker { color: var(--sv-green); }
+.incapacity .sv-report-kicker { color: var(--sv-amber); }
 
 .sv-report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
 .sv-report-actions .btn {
@@ -155,6 +161,7 @@
 .sv-report-bar { overflow: hidden; width: 110px; height: 7px; margin-bottom: .22rem; border-radius: 99px; background: rgba(148, 163, 184, .14); }
 .sv-report-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #38bdf8, #22d3ee); box-shadow: 0 0 12px rgba(34, 211, 238, .45); }
 .sv-report-bar.green span { background: linear-gradient(90deg, #10b981, #6ee7b7); box-shadow: 0 0 12px rgba(52, 211, 153, .35); }
+.sv-report-bar.amber span { background: linear-gradient(90deg, #f59e0b, #fde68a); box-shadow: 0 0 12px rgba(251, 191, 36, .35); }
 .sv-report-note { margin: -.3rem .25rem 1.3rem; color: #8294ac; font-size: .78rem; }
 .sv-report-note i { margin-right: .3rem; color: #4ac8dc; }
 
@@ -176,6 +183,11 @@
 .sv-podium-breakdown b { color: #fff; }.sv-podium-breakdown i { display: inline-block; width: 3px; height: 3px; margin: 0 .42rem; border-radius: 50%; background: #52647a; vertical-align: middle; }
 
 .sv-elements-table { min-width: 1240px; }
+.sv-incapacity-table { min-width: 1380px; }
+.sv-incapacity-table .top-row { background: rgba(251, 191, 36, .025); }
+.sv-open-period { display: block; width: max-content; margin: .3rem auto 0; padding: .16rem .35rem; color: #fde68a; border: 1px solid rgba(251, 191, 36, .2); border-radius: 5px; background: rgba(251, 191, 36, .08); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
+.sv-record-link { color: #9de7f0; border: 1px solid rgba(34, 211, 238, .2); border-radius: 8px; background: rgba(34, 211, 238, .07); }
+.sv-record-link:hover { color: #07111f; background: #67e8f9; }
 .sv-elements-table .top-row { background: rgba(251, 191, 36, .025); }
 .sv-rank { display: inline-grid; place-items: center; min-width: 32px; height: 32px; padding: 0 .45rem; color: #9fb0c5; border: 1px solid var(--sv-line); border-radius: 10px; background: rgba(255,255,255,.025); font-weight: 800; }
 .sv-rank.rank-1 { color: #1c1505; border-color: #fbbf24; background: #fbbf24; }

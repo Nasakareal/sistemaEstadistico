@@ -282,6 +282,7 @@
                                         <th>Valor</th>
                                         <th>Principal</th>
                                         <th>Observaciones</th>
+                                        <th>Documento</th>
                                         <th style="width: 110px;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -738,7 +739,7 @@
 
             <div class="card card-outline card-warning">
                 <div class="card-header">
-                    <h3 class="card-title">Incidencias</h3>
+                    <h3 class="card-title">Incidencias (incapacidades, vacaciones, permisos y demás)</h3>
                     <div class="card-tools">
                         @can('editar personal')
                             <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarIncidencia">
@@ -775,6 +776,15 @@
                                             <td>{{ $inc->folio ?? '' }}</td>
                                             <td>{{ $inc->motivo ?? '' }}</td>
                                             <td>{{ $inc->observaciones ?? '' }}</td>
+                                            <td>
+                                                @if($inc->documento && $inc->documento->archivo_path)
+                                                    <a href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('personal.documentos.signed', now()->addMinutes(30), ['documento' => $inc->documento->id, 'archivo' => 'general']) }}" target="_blank" class="btn btn-info btn-sm" title="Ver documento comprobatorio">
+                                                        <i class="fa-solid fa-file-medical"></i> Ver
+                                                    </a>
+                                                @else
+                                                    <span class="text-muted">Sin archivo</span>
+                                                @endif
+                                            </td>
                                             <td>
                                                 @can('editar personal')
                                                     <form action="{{ route('personal.incidencias.destroy', [$personal->id, $inc->id]) }}" method="POST" class="d-inline">
@@ -1430,7 +1440,7 @@
 
     <div class="modal fade modal-opaque" id="modalAgregarIncidencia" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
-            <form method="POST" action="{{ route('personal.incidencias.store', $personal->id) }}">
+            <form method="POST" action="{{ route('personal.incidencias.store', $personal->id) }}" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
@@ -1493,6 +1503,11 @@
                         <div class="form-group mb-0">
                             <label>Observaciones</label>
                             <input type="text" name="observaciones" class="form-control">
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label>Documento comprobatorio</label>
+                            <input type="file" name="archivo_incidencia" class="form-control-file" accept=".pdf,image/jpeg,image/png,image/webp">
+                            <small class="form-text text-muted">PDF o imagen (JPG, PNG o WEBP), máximo 10 MB. El archivo se integra al expediente del elemento.</small>
                         </div>
                     </div>
                     <div class="modal-footer">

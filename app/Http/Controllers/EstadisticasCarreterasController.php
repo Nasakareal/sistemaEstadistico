@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Unidad;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -160,6 +162,451 @@ class EstadisticasCarreterasController extends Controller
             'totalPuestas' => $puestas->count(),
             'destacamentos' => $this->reportDetachments($request),
             'filtros' => $this->reportFilters($request),
+        ]);
+    }
+
+    public function incapacidades(Request $request)
+    {
+        $this->applyDefaultReportDates($request);
+        $validated = $request->validate([
+            'desde' => ['required', 'date'],
+            'hasta' => ['required', 'date', 'after_or_equal:desde'],
+            'destacamento_id' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $desde = Carbon::parse($validated['desde'])->startOfDay();
+        $hasta = Carbon::parse($validated['hasta'])->startOfDay();
+        $destacamentoId = (int) ($validated['destacamento_id'] ?? 0);
+        $search = trim((string) ($validated['q'] ?? ''));
+        $unitId = $this->carreterasUnitId();
+
+        $query = DB::table('personal_incidencias')
+            ->join('incidencia_tipos', 'incidencia_tipos.id', '=', 'personal_incidencias.incidencia_tipo_id')
+            ->join('personals', 'personals.id', '=', 'personal_incidencias.personal_id')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'personals.destacamento_id')
+            ->where('personals.unidad_id', $unitId)
+            ->whereNull('personals.deleted_at')
+            ->where('personal_incidencias.activo', true)
+            ->where(function ($q) {
+                $q->whereRaw("UPPER(TRIM(incidencia_tipos.clave)) = 'INCAPACIDAD'")
+                    ->orWhereRaw("UPPER(TRIM(incidencia_tipos.nombre)) = 'INCAPACIDAD'");
+            })
+            ->whereDate('personal_incidencias.fecha_inicio', '<=', $hasta->toDateString())
+            ->where(function ($q) use ($desde) {
+                $q->whereNull('personal_incidencias.fecha_fin')
+                    ->orWhereDate('personal_incidencias.fecha_fin', '>=', $desde->toDateString());
+            });
+
+        if ($destacamentoId > 0) {
+            $query->where('personals.destacamento_id', $destacamentoId);
+        }
+
+        if ($search !== '') {
+            $like = "%{$search}%";
+            $query->where(function ($q) use ($like) {
+                $q->where('personals.nombre', 'like', $like)
+                    ->orWhere('personals.ap_paterno', 'like', $like)
+                    ->orWhere('personals.ap_materno', 'like', $like)
+                    ->orWhere('personals.numero_empleado', 'like', $like)
+                    ->orWhere('personals.numero_placa', 'like', $like);
+            });
+        }
+
+        $user = $request->user();
+        if ($user && !$user->hasRole('Superadmin')) {
+            if ((int) ($user->unidad_id ?? 0) !== $unitId) {
+                $query->whereRaw('1 = 0');
+            } elseif (!is_null($user->destacamento_id)) {
+                $query->where('personals.destacamento_id', (int) $user->destacamento_id);
+            }
+        }
+
+        $incidencias = $query->select([
+            'personal_incidencias.id',
+            'personal_incidencias.personal_id',
+            'personal_incidencias.fecha_inicio',
+            'personal_incidencias.fecha_fin',
+            'personals.nombre',
+            'personals.ap_paterno',
+            'personals.ap_materno',
+            'personals.numero_empleado',
+            'personals.numero_placa',
+            'personals.estatus',
+            DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->orderBy('personal_incidencias.fecha_inicio')->get();
+
+        $hoy = now()->startOfDay();
+        $ranking = $incidencias->groupBy('personal_id')->map(function ($periodos) use ($desde, $hasta, $hoy) {
+            $personal = $periodos->first();
+            $dias = 0;
+            $periodoMaximo = 0;
+            $sinFechaFin = 0;
+            $ultimo = null;
+
+            foreach ($periodos as $periodo) {
+                $inicioReal = Carbon::parse($periodo->fecha_inicio)->startOfDay();
+                $finReal = $periodo->fecha_fin
+                    ? Carbon::parse($periodo->fecha_fin)->startOfDay()
+                    : ($hoy->lessThan($hasta) ? $hoy->copy() : $hasta->copy());
+                $inicioComputado = $inicioReal->greaterThan($desde) ? $inicioReal->copy() : $desde->copy();
+                $finComputado = $finReal->lessThan($hasta) ? $finReal->copy() : $hasta->copy();
+                $duracion = $finComputado->lessThan($inicioComputado)
+                    ? 0
+                    : $inicioComputado->diffInDays($finComputado) + 1;
+
+                $dias += $duracion;
+                $periodoMaximo = max($periodoMaximo, $duracion);
+                $sinFechaFin += is_null($periodo->fecha_fin) ? 1 : 0;
+                if (!$ultimo || $inicioReal->greaterThan(Carbon::parse($ultimo->fecha_inicio))) {
+                    $ultimo = $periodo;
+                }
+            }
+
+            $nombre = trim(implode(' ', array_filter([
+                $personal->ap_paterno,
+                $personal->ap_materno,
+                $personal->nombre,
+            ], fn ($value) => trim((string) $value) !== '')));
+
+            return [
+                'personal_id' => (int) $personal->personal_id,
+                'nombre' => $nombre,
+                'numero_empleado' => $personal->numero_empleado,
+                'numero_placa' => $personal->numero_placa,
+                'estatus' => $personal->estatus,
+                'destacamento' => $personal->destacamento,
+                'incapacidades' => $periodos->count(),
+                'dias' => $dias,
+                'promedio_dias' => $periodos->count() > 0 ? round($dias / $periodos->count(), 1) : 0,
+                'periodo_maximo' => $periodoMaximo,
+                'sin_fecha_fin' => $sinFechaFin,
+                'ultima_inicio' => $ultimo ? Carbon::parse($ultimo->fecha_inicio) : null,
+                'ultima_fin' => $ultimo && $ultimo->fecha_fin ? Carbon::parse($ultimo->fecha_fin) : null,
+            ];
+        })->sort(function ($a, $b) {
+            if ($a['dias'] !== $b['dias']) {
+                return $b['dias'] <=> $a['dias'];
+            }
+            if ($a['incapacidades'] !== $b['incapacidades']) {
+                return $b['incapacidades'] <=> $a['incapacidades'];
+            }
+            return strcmp($a['nombre'], $b['nombre']);
+        })->values()->map(function ($row, $index) {
+            $row['posicion'] = $index + 1;
+            return $row;
+        });
+
+        return view('estadisticas_carreteras.incapacidades', [
+            'ranking' => $ranking,
+            'maxDias' => max(1, (int) $ranking->max('dias')),
+            'totales' => [
+                'personal' => $ranking->count(),
+                'incapacidades' => (int) $ranking->sum('incapacidades'),
+                'dias' => (int) $ranking->sum('dias'),
+                'sin_fecha_fin' => (int) $ranking->sum('sin_fecha_fin'),
+            ],
+            'destacamentos' => $this->reportDetachments($request),
+            'filtros' => $this->reportFilters($request),
+        ]);
+    }
+
+    public function rendimiento(Request $request)
+    {
+        $validated = $request->validate([
+            'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'destacamento_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $hasta = Carbon::createFromFormat('Y-m-d', $validated['hasta'] ?? now('America/Mexico_City')->toDateString())->startOfDay();
+        $desde = Carbon::createFromFormat('Y-m-d', $validated['desde'] ?? $hasta->copy()->subDays(29)->toDateString())->startOfDay();
+        if ($desde->diffInDays($hasta) > 730) {
+            $desde = $hasta->copy()->subDays(730);
+        }
+
+        $unidadId = $this->carreterasUnitId();
+        $destacamentoId = isset($validated['destacamento_id']) ? (int) $validated['destacamento_id'] : 0;
+        $usuario = $request->user();
+
+        $personalQuery = DB::table('personals')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'personals.destacamento_id')
+            ->where('personals.unidad_id', $unidadId)
+            ->whereNull('personals.deleted_at')
+            ->when($destacamentoId > 0, fn ($q) => $q->where('personals.destacamento_id', $destacamentoId));
+
+        $usuariosQuery = DB::table('users')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'users.destacamento_id')
+            ->where('users.unidad_id', $unidadId)
+            ->when($destacamentoId > 0, fn ($q) => $q->where('users.destacamento_id', $destacamentoId));
+
+        $puestasQuery = DB::table('puestas_disposicion')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'puestas_disposicion.destacamento_id')
+            ->where('puestas_disposicion.unidad_id', $unidadId)
+            ->whereBetween('puestas_disposicion.fecha_puesta', [$desde->toDateString(), $hasta->toDateString()])
+            ->when($destacamentoId > 0, fn ($q) => $q->where('puestas_disposicion.destacamento_id', $destacamentoId));
+
+        if ($usuario && !$usuario->hasRole('Superadmin')) {
+            if ((int) ($usuario->unidad_id ?? 0) !== $unidadId) {
+                $personalQuery->whereRaw('1 = 0');
+                $usuariosQuery->whereRaw('1 = 0');
+                $puestasQuery->whereRaw('1 = 0');
+            } elseif (!is_null($usuario->destacamento_id)) {
+                $personalQuery->where('personals.destacamento_id', (int) $usuario->destacamento_id);
+                $usuariosQuery->where('users.destacamento_id', (int) $usuario->destacamento_id);
+                $puestasQuery->where('puestas_disposicion.destacamento_id', (int) $usuario->destacamento_id);
+            }
+        }
+
+        $personal = $personalQuery->select([
+            'personals.id', 'personals.nombre', 'personals.ap_paterno', 'personals.ap_materno',
+            'personals.numero_empleado', 'personals.numero_placa', 'personals.grado', 'personals.estatus',
+            'personals.destacamento_id', DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->orderBy('destacamentos.nombre')->orderBy('personals.ap_paterno')->orderBy('personals.nombre')->get();
+
+        $usuarios = $usuariosQuery->select([
+            'users.id', 'users.name', 'users.estado', 'users.destacamento_id',
+            DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->orderBy('destacamentos.nombre')->orderBy('users.name')->get();
+
+        $puestas = $puestasQuery->select([
+            'puestas_disposicion.id', 'puestas_disposicion.fecha_puesta', 'puestas_disposicion.nombre_policia',
+            'puestas_disposicion.personal_participante', 'puestas_disposicion.motivo', 'puestas_disposicion.tipo_puesta',
+            'puestas_disposicion.destacamento_id', 'puestas_disposicion.numero_aseguramientos',
+            'puestas_disposicion.numero_faltas_administrativas', 'puestas_disposicion.numero_detenidos',
+            DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->orderBy('puestas_disposicion.fecha_puesta')->get();
+
+        $indices = [];
+        $filas = [];
+        foreach ($personal as $elemento) {
+            $nombre = trim(implode(' ', array_filter([
+                $elemento->ap_paterno, $elemento->ap_materno, $elemento->nombre,
+            ], fn ($valor) => trim((string) $valor) !== '')));
+            $llave = $this->personKey($nombre);
+            if ($llave !== '') {
+                $indices[$llave][] = 'p:' . (int) $elemento->id;
+            }
+            $filaId = 'p:' . (int) $elemento->id;
+            $filas[$filaId] = (object) [
+                'id' => (int) $elemento->id,
+                'user_id' => null,
+                'origen_identidad' => 'Expediente de personal',
+                'nombre' => $nombre,
+                'grado' => $elemento->grado,
+                'numero_empleado' => $elemento->numero_empleado,
+                'numero_placa' => $elemento->numero_placa,
+                'estatus' => $elemento->estatus,
+                'destacamento_id' => (int) ($elemento->destacamento_id ?? 0),
+                'destacamento' => $elemento->destacamento,
+                'puesta_ids' => [],
+                'primer_ids' => [],
+                'apoyo_ids' => [],
+                'fechas' => [],
+                'motivos' => [],
+                'aseguramientos' => 0,
+                'faltas' => 0,
+                'delitos' => 0,
+                'ultima_puesta' => null,
+            ];
+        }
+
+        foreach ($usuarios as $cuenta) {
+            $nombre = trim((string) $cuenta->name);
+            $llave = $this->personKey($nombre);
+            if ($llave === '' || isset($indices[$llave])) {
+                continue;
+            }
+            $filaId = 'u:' . (int) $cuenta->id;
+            $indices[$llave][] = $filaId;
+            $filas[$filaId] = (object) [
+                'id' => null,
+                'user_id' => (int) $cuenta->id,
+                'origen_identidad' => 'Cuenta institucional',
+                'nombre' => $nombre,
+                'grado' => null,
+                'numero_empleado' => null,
+                'numero_placa' => null,
+                'estatus' => $cuenta->estado,
+                'destacamento_id' => (int) ($cuenta->destacamento_id ?? 0),
+                'destacamento' => $cuenta->destacamento,
+                'puesta_ids' => [], 'primer_ids' => [], 'apoyo_ids' => [], 'fechas' => [], 'motivos' => [],
+                'aseguramientos' => 0, 'faltas' => 0, 'delitos' => 0, 'ultima_puesta' => null,
+            ];
+        }
+
+        // Los históricos pueden contener elementos todavía no vinculados a una cuenta
+        // o expediente. Se conservan como identidades operativas para no perder su trabajo.
+        foreach ($puestas as $puesta) {
+            $nombres = array_merge(
+                $this->splitElementNames($puesta->nombre_policia),
+                $this->splitElementNames($puesta->personal_participante)
+            );
+            foreach ($nombres as $nombre) {
+                $llave = $this->personKey($nombre);
+                if ($llave === '' || isset($indices[$llave])) {
+                    continue;
+                }
+                $filaId = 'r:' . (int) ($puesta->destacamento_id ?? 0) . ':' . sha1($llave);
+                $indices[$llave][] = $filaId;
+                $filas[$filaId] = (object) [
+                    'id' => null,
+                    'user_id' => null,
+                    'origen_identidad' => 'Registro operativo pendiente de vincular',
+                    'nombre' => Str::upper(trim((string) preg_replace('/\s+/', ' ', $nombre))),
+                    'grado' => null,
+                    'numero_empleado' => null,
+                    'numero_placa' => null,
+                    'estatus' => 'REGISTRO OPERATIVO',
+                    'destacamento_id' => (int) ($puesta->destacamento_id ?? 0),
+                    'destacamento' => $puesta->destacamento,
+                    'puesta_ids' => [], 'primer_ids' => [], 'apoyo_ids' => [], 'fechas' => [], 'motivos' => [],
+                    'aseguramientos' => 0, 'faltas' => 0, 'delitos' => 0, 'ultima_puesta' => null,
+                ];
+            }
+        }
+
+        $puestasIdentificadas = [];
+        foreach ($puestas as $puesta) {
+            $primeros = $this->splitElementNames($puesta->nombre_policia);
+            $participantes = $this->splitElementNames($puesta->personal_participante);
+            $participanteKeys = collect($participantes)->map(fn ($nombre) => $this->personKey($nombre))->flip();
+            if (count($primeros) > 1 && $participanteKeys->isNotEmpty()) {
+                $filtrados = collect($primeros)
+                    ->reject(fn ($nombre) => $participanteKeys->has($this->personKey($nombre)))
+                    ->values()->all();
+                if ($filtrados) {
+                    $primeros = $filtrados;
+                }
+            }
+
+            $primerIds = $this->personalIdsPorNombres($primeros, $indices);
+            $apoyoIds = array_values(array_diff($this->personalIdsPorNombres($participantes, $indices), $primerIds));
+            $relacionados = array_values(array_unique(array_merge($primerIds, $apoyoIds)));
+            if ($relacionados) {
+                $puestasIdentificadas[(int) $puesta->id] = true;
+            }
+
+            foreach ($relacionados as $filaId) {
+                if (!isset($filas[$filaId])) {
+                    continue;
+                }
+                $fila = $filas[$filaId];
+                $puestaId = (int) $puesta->id;
+                if (isset($fila->puesta_ids[$puestaId])) {
+                    continue;
+                }
+                $fila->puesta_ids[$puestaId] = true;
+                if (in_array($filaId, $primerIds, true)) {
+                    $fila->primer_ids[$puestaId] = true;
+                } else {
+                    $fila->apoyo_ids[$puestaId] = true;
+                }
+                $fecha = Carbon::parse($puesta->fecha_puesta)->toDateString();
+                $fila->fechas[$fecha] = true;
+                $motivo = trim((string) ($puesta->motivo ?: 'SIN MOTIVO ESPECIFICADO'));
+                $fila->motivos[$motivo] = ($fila->motivos[$motivo] ?? 0) + 1;
+                $fila->aseguramientos += (int) ($puesta->numero_aseguramientos ?? 0);
+                $fila->faltas += (int) ($puesta->numero_faltas_administrativas ?? 0);
+                $fila->delitos += (int) ($puesta->numero_detenidos ?? 0);
+                if (!$fila->ultima_puesta || $fecha > $fila->ultima_puesta) {
+                    $fila->ultima_puesta = $fecha;
+                }
+            }
+        }
+
+        $porElemento = collect($filas)->map(function ($fila) {
+            $fila->total = count($fila->puesta_ids);
+            $fila->primer_respondiente = count($fila->primer_ids);
+            $fila->participaciones = count($fila->apoyo_ids);
+            $fila->dias_activos = count($fila->fechas);
+            $fila->promedio_dia = $fila->dias_activos > 0 ? round($fila->total / $fila->dias_activos, 2) : 0.0;
+            $fila->ritmo_principal = $fila->dias_activos > 0 ? round($fila->primer_respondiente / $fila->dias_activos, 2) : 0.0;
+            $fila->detenciones = $fila->faltas + $fila->delitos;
+            $fila->amplitud = count($fila->motivos);
+            arsort($fila->motivos);
+            $fila->motivos_relevantes = collect($fila->motivos)->take(3)->keys()->implode(' · ');
+            unset($fila->puesta_ids, $fila->primer_ids, $fila->apoyo_ids, $fila->fechas, $fila->motivos);
+            return $fila;
+        })->values();
+
+        $diasPeriodo = $desde->diffInDays($hasta) + 1;
+        $minimoPuestas = $diasPeriodo <= 1 ? 1 : ($diasPeriodo <= 7 ? 2 : 3);
+        $minimoDias = $diasPeriodo <= 1 ? 1 : 2;
+        $porElemento = $this->calificarRendimientoCarreteras($porElemento, $minimoPuestas, $minimoDias)
+            ->sortBy([
+                fn ($a, $b) => ($b->calificacion ?? -1) <=> ($a->calificacion ?? -1),
+                fn ($a, $b) => $b->primer_respondiente <=> $a->primer_respondiente,
+                fn ($a, $b) => $b->total <=> $a->total,
+            ])->values();
+
+        $porDestacamento = $puestas->groupBy(fn ($puesta) => (string) ((int) ($puesta->destacamento_id ?? 0)))
+            ->map(function ($grupo) use ($porElemento) {
+                $primera = $grupo->first();
+                $destacamentoId = (int) ($primera->destacamento_id ?? 0);
+                return (object) [
+                    'id' => $destacamentoId,
+                    'nombre' => $primera->destacamento,
+                    'puestas' => $grupo->count(),
+                    'aseguramientos' => (int) $grupo->sum(fn ($p) => (int) ($p->numero_aseguramientos ?? 0)),
+                    'detenciones' => (int) $grupo->sum(fn ($p) => (int) ($p->numero_faltas_administrativas ?? 0) + (int) ($p->numero_detenidos ?? 0)),
+                    'elementos_activos' => $porElemento->where('destacamento_id', $destacamentoId)->where('total', '>', 0)->count(),
+                ];
+            })->sortByDesc('puestas')->values();
+
+        $diarioConteos = $puestas->countBy(fn ($puesta) => Carbon::parse($puesta->fecha_puesta)->toDateString());
+        $diario = collect(CarbonPeriod::create($desde, $hasta))->map(fn ($fecha) => [
+            'fecha' => $fecha->toDateString(),
+            'total' => (int) ($diarioConteos[$fecha->toDateString()] ?? 0),
+        ])->values();
+
+        $motivos = $puestas->countBy(fn ($puesta) => trim((string) ($puesta->motivo ?: 'SIN MOTIVO ESPECIFICADO')))
+            ->sortDesc()->take(8)->map(fn ($total, $motivo) => ['motivo' => $motivo, 'total' => $total])->values();
+
+        $periodoAnteriorHasta = $desde->copy()->subDay();
+        $periodoAnteriorDesde = $periodoAnteriorHasta->copy()->subDays($diasPeriodo - 1);
+        $anteriorQuery = DB::table('puestas_disposicion')
+            ->where('unidad_id', $unidadId)
+            ->whereBetween('fecha_puesta', [$periodoAnteriorDesde->toDateString(), $periodoAnteriorHasta->toDateString()])
+            ->when($destacamentoId > 0, fn ($q) => $q->where('destacamento_id', $destacamentoId));
+        if ($usuario && !$usuario->hasRole('Superadmin')) {
+            if ((int) ($usuario->unidad_id ?? 0) !== $unidadId) {
+                $anteriorQuery->whereRaw('1 = 0');
+            } elseif (!is_null($usuario->destacamento_id)) {
+                $anteriorQuery->where('destacamento_id', (int) $usuario->destacamento_id);
+            }
+        }
+        $totalAnterior = (int) $anteriorQuery->count();
+        $totalPuestas = $puestas->count();
+        $lider = $porElemento->first(fn ($fila) => $fila->calificacion !== null);
+
+        return view('estadisticas_carreteras.rendimiento', [
+            'desde' => $desde->toDateString(),
+            'hasta' => $hasta->toDateString(),
+            'destacamentoSeleccionado' => $destacamentoId,
+            'destacamentos' => $this->reportDetachments($request),
+            'porElemento' => $porElemento,
+            'porDestacamento' => $porDestacamento,
+            'diario' => $diario,
+            'motivos' => $motivos,
+            'lider' => $lider,
+            'minimoPuestas' => $minimoPuestas,
+            'minimoDias' => $minimoDias,
+            'kpis' => [
+                'puestas' => $totalPuestas,
+                'aseguramientos' => (int) $puestas->sum(fn ($p) => (int) ($p->numero_aseguramientos ?? 0)),
+                'detenciones' => (int) $puestas->sum(fn ($p) => (int) ($p->numero_faltas_administrativas ?? 0) + (int) ($p->numero_detenidos ?? 0)),
+                'elementos_activos' => $porElemento->where('total', '>', 0)->count(),
+                'destacamentos_activos' => $porDestacamento->count(),
+                'cobertura_identificacion' => $this->porcentajeCarreteras(count($puestasIdentificadas), $totalPuestas),
+                'promedio_diario' => $diasPeriodo > 0 ? round($totalPuestas / $diasPeriodo, 1) : 0,
+            ],
+            'comparacion' => [
+                'desde' => $periodoAnteriorDesde->toDateString(),
+                'hasta' => $periodoAnteriorHasta->toDateString(),
+                'total' => $totalAnterior,
+                'variacion' => $this->variacionCarreteras($totalPuestas, $totalAnterior),
+            ],
         ]);
     }
 
@@ -1175,6 +1622,98 @@ class EstadisticasCarreterasController extends Controller
 
         $reason = trim((string) ($puesta->motivo ?: 'SIN MOTIVO ESPECIFICADO'));
         $people[$key]['motivos'][$reason] = ($people[$key]['motivos'][$reason] ?? 0) + 1;
+    }
+
+    private function personalIdsPorNombres(array $nombres, array $indices): array
+    {
+        $ids = [];
+        foreach ($nombres as $nombre) {
+            $coincidencias = $indices[$this->personKey($nombre)] ?? [];
+            // Si dos expedientes comparten exactamente el mismo nombre no se atribuye
+            // automáticamente la actuación para evitar falsos positivos.
+            if (count($coincidencias) === 1) {
+                $ids[] = $coincidencias[0];
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private function calificarRendimientoCarreteras($filas, int $minimoPuestas, int $minimoDias)
+    {
+        foreach ($filas as $fila) {
+            $fila->muestra_suficiente = $fila->total >= $minimoPuestas && $fila->dias_activos >= $minimoDias;
+        }
+
+        $grupos = $filas->groupBy(fn ($fila) => (string) $fila->destacamento_id);
+
+        return $filas->map(function ($fila) use ($grupos) {
+            $fila->calificacion = null;
+            $fila->nivel_calificacion = 'Sin muestra';
+            $fila->score_principal = null;
+            $fila->score_participacion = null;
+            $fila->score_constancia = null;
+            $fila->score_amplitud = null;
+            $fila->pares_comparables = 0;
+            $fila->motivo_sin_calificacion = 'Muestra insuficiente';
+
+            if (!$fila->muestra_suficiente) {
+                return $fila;
+            }
+
+            $pares = $grupos->get((string) $fila->destacamento_id, collect())
+                ->where('muestra_suficiente', true);
+            $fila->pares_comparables = $pares->count();
+            if ($fila->pares_comparables < 3) {
+                $fila->nivel_calificacion = 'Sin pares';
+                $fila->motivo_sin_calificacion = 'Menos de 3 compañeros comparables';
+                return $fila;
+            }
+
+            $fila->score_principal = $this->indiceRendimientoCarreteras($fila->ritmo_principal, (float) $pares->median('ritmo_principal'));
+            $fila->score_participacion = $this->indiceRendimientoCarreteras($fila->promedio_dia, (float) $pares->median('promedio_dia'));
+            $fila->score_constancia = $this->indiceRendimientoCarreteras($fila->dias_activos, (float) $pares->median('dias_activos'));
+            $fila->score_amplitud = $this->indiceRendimientoCarreteras($fila->amplitud, (float) $pares->median('amplitud'));
+
+            $nota = ($fila->score_principal * .40)
+                + ($fila->score_participacion * .30)
+                + ($fila->score_constancia * .20)
+                + ($fila->score_amplitud * .10);
+            $fila->calificacion = round(min(100, max(0, $nota)), 1);
+            $fila->motivo_sin_calificacion = null;
+            $fila->nivel_calificacion = match (true) {
+                $fila->calificacion >= 90 => 'Sobresaliente',
+                $fila->calificacion >= 80 => 'Alto',
+                $fila->calificacion >= 65 => 'Sólido',
+                default => 'Por fortalecer',
+            };
+
+            return $fila;
+        });
+    }
+
+    private function indiceRendimientoCarreteras(float|int $valor, float $mediana): float
+    {
+        if ($mediana <= 0) {
+            return $valor > 0 ? 100.0 : 0.0;
+        }
+
+        // La mediana equivale a 80 puntos y 125% de la mediana alcanza 100.
+        return round(min(100, max(0, ($valor / ($mediana * 1.25)) * 100)), 1);
+    }
+
+    private function porcentajeCarreteras(int $parte, int $total): float
+    {
+        return $total > 0 ? round(($parte / $total) * 100, 1) : 0.0;
+    }
+
+    private function variacionCarreteras(int $actual, int $anterior): ?float
+    {
+        if ($anterior === 0) {
+            return $actual === 0 ? 0.0 : null;
+        }
+
+        return round((($actual - $anterior) / $anterior) * 100, 1);
     }
 
     private function applyOperativosVisibilityScope($query, $usuario): void

@@ -480,6 +480,7 @@ class PersonalController extends Controller
             'patrulla',
             'rolesServicio',
             'incidencias.tipo',
+            'incidencias.documento',
             'documentos.documentoTipo',
             'licencias',
             'asignaciones',

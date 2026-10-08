@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentoTipo;
 use App\Models\IncidenciaTipo;
 use App\Models\Personal;
+use App\Models\PersonalDocumento;
 use App\Models\PersonalIncidencia;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PersonalIncidenciaController extends Controller
@@ -32,8 +36,11 @@ class PersonalIncidenciaController extends Controller
             'folio' => 'nullable|string|max:60',
             'motivo' => 'nullable|string|max:1000',
             'observaciones' => 'nullable|string|max:1000',
-            'documento_id' => 'nullable|integer',
+            'documento_id' => 'nullable|integer|exists:personal_documentos,id',
+            'archivo_incidencia' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
         ]);
+
+        $rutaNueva = null;
 
         try {
             $tipo = $this->resolverTipoIncidencia($validated['tipo']);
@@ -67,24 +74,73 @@ class PersonalIncidenciaController extends Controller
                     ->withInput();
             }
 
-            PersonalIncidencia::create([
-                'personal_id' => $personal->id,
-                'incidencia_tipo_id' => $tipo->id,
-                'fecha_inicio' => $validated['fecha_inicio'],
-                'fecha_fin' => $validated['fecha_fin'] ?? null,
-                'hora_inicio' => $validated['hora_inicio'] ?? null,
-                'hora_fin' => $validated['hora_fin'] ?? null,
-                'folio' => $validated['folio'] ?? null,
-                'motivo' => $validated['motivo'] ?? null,
-                'observaciones' => $validated['observaciones'] ?? null,
-                'documento_id' => $validated['documento_id'] ?? null,
-                'activo' => 1,
-            ]);
+            $documentoId = isset($validated['documento_id']) ? (int) $validated['documento_id'] : null;
+            if ($documentoId && !PersonalDocumento::query()->whereKey($documentoId)->where('personal_id', $personal->id)->exists()) {
+                return redirect()->back()
+                    ->withErrors(['documento_id' => 'El documento seleccionado no pertenece a este elemento.'])
+                    ->withInput();
+            }
+
+            DB::transaction(function () use ($request, $personal, $tipo, $validated, &$documentoId, &$rutaNueva) {
+                if ($request->hasFile('archivo_incidencia')) {
+                    $archivo = $request->file('archivo_incidencia');
+                    $storage = app(DocumentoArchivoStorage::class);
+                    $directorio = 'personals/' . $personal->id . '/documentos';
+                    $esPdf = strtolower((string) $archivo->getClientOriginalExtension()) === 'pdf';
+                    $rutaNueva = $esPdf
+                        ? $storage->putUploadedPdf($archivo, $directorio)
+                        : $storage->putUploadedFile($archivo, $directorio);
+
+                    $documentoTipo = DocumentoTipo::query()->updateOrCreate(
+                        ['clave' => 'INCIDENCIA_PERSONAL'],
+                        [
+                            'nombre' => 'Comprobante de incidencia de personal',
+                            'requiere_vigencia' => false,
+                            'dias_vigencia' => null,
+                            'sensible' => true,
+                            'activo' => true,
+                        ]
+                    );
+
+                    $documento = PersonalDocumento::query()->create([
+                        'personal_id' => $personal->id,
+                        'documento_tipo_id' => $documentoTipo->id,
+                        'numero' => $validated['folio'] ?? null,
+                        'fecha_emision' => $validated['fecha_inicio'],
+                        'fecha_vencimiento' => $validated['fecha_fin'] ?? null,
+                        'archivo_path' => $rutaNueva,
+                        'archivo_nombre' => $archivo->getClientOriginalName(),
+                        'archivo_mime' => $archivo->getMimeType() ?: $archivo->getClientMimeType(),
+                        'archivo_size' => $archivo->getSize(),
+                        'hash_sha256' => hash_file('sha256', $archivo->getRealPath()),
+                        'activo' => true,
+                        'observaciones' => 'Documento adjunto a incidencia tipo ' . $tipo->nombre . '.',
+                    ]);
+                    $documentoId = (int) $documento->id;
+                }
+
+                PersonalIncidencia::query()->create([
+                    'personal_id' => $personal->id,
+                    'incidencia_tipo_id' => $tipo->id,
+                    'fecha_inicio' => $validated['fecha_inicio'],
+                    'fecha_fin' => $validated['fecha_fin'] ?? null,
+                    'hora_inicio' => $validated['hora_inicio'] ?? null,
+                    'hora_fin' => $validated['hora_fin'] ?? null,
+                    'folio' => $validated['folio'] ?? null,
+                    'motivo' => $validated['motivo'] ?? null,
+                    'observaciones' => $validated['observaciones'] ?? null,
+                    'documento_id' => $documentoId,
+                    'activo' => 1,
+                ]);
+            });
 
             return redirect()
                 ->route('personal.show', $personal->id)
                 ->with('success', 'Incidencia registrada correctamente.');
         } catch (\Exception $e) {
+            if ($rutaNueva) {
+                app(DocumentoArchivoStorage::class)->delete($rutaNueva);
+            }
             Log::error('Error al crear incidencia: ' . $e->getMessage());
 
             return redirect()->back()

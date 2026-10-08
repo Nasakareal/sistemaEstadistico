@@ -462,6 +462,8 @@ Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisti
         Route::get('/', [EstadisticasCarreterasController::class, 'index'])->name('estadisticas_carreteras.index');
         Route::get('/concentrado', [EstadisticasCarreterasController::class, 'concentrado'])->name('estadisticas_carreteras.concentrado');
         Route::get('/elementos', [EstadisticasCarreterasController::class, 'elementos'])->name('estadisticas_carreteras.elementos');
+        Route::get('/rendimiento', [EstadisticasCarreterasController::class, 'rendimiento'])->name('estadisticas_carreteras.rendimiento');
+        Route::get('/incapacidades', [EstadisticasCarreterasController::class, 'incapacidades'])->name('estadisticas_carreteras.incapacidades');
         Route::get('/kpis', [EstadisticasCarreterasController::class, 'kpis'])->name('estadisticas_carreteras.kpis');
 
         Route::get('/series/actividades', [EstadisticasCarreterasController::class, 'seriesActividades'])->name('estadisticas_carreteras.series.actividades');

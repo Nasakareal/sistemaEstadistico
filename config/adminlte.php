@@ -607,6 +607,20 @@ return [
                             'can'     => 'menu-estadisticas-carreteras',
                         ],
                         [
+                            'text'    => 'Rendimiento operativo',
+                            'icon'    => 'fa-solid fa-award',
+                            'classes' => 'text-info',
+                            'route'   => 'estadisticas_carreteras.rendimiento',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
+                            'text'    => 'Incapacidades del personal',
+                            'icon'    => 'fa-solid fa-notes-medical',
+                            'classes' => 'text-warning',
+                            'route'   => 'estadisticas_carreteras.incapacidades',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
                             'text'    => 'Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',

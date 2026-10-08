@@ -4,6 +4,9 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\EstadisticasCarreterasController;
 use App\Models\Destacamento;
+use App\Models\IncidenciaTipo;
+use App\Models\Personal;
+use App\Models\PersonalIncidencia;
 use App\Models\PuestaDisposicion;
 use App\Models\Unidad;
 use App\Models\User;
@@ -143,6 +146,111 @@ class EstadisticasCarreterasElementosTest extends TestCase
         $this->assertSame(2, $juan['total']);
         $this->assertSame(2, $juan['participaciones']);
         $this->assertSame(2, $data['totalPuestas']);
+    }
+
+    public function test_incapacidades_ordena_por_dias_y_recorta_los_periodos_al_rango_consultado(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $usuario = User::factory()->create(['unidad_id' => $unidad->id]);
+        $tipo = IncidenciaTipo::query()->firstOrCreate(
+            ['clave' => 'INCAPACIDAD'],
+            ['nombre' => 'INCAPACIDAD', 'categoria' => 'PERSONAL', 'activo' => true]
+        );
+        $primero = Personal::query()->create([
+            'unidad_id' => $unidad->id,
+            'nombre' => 'ANA',
+            'ap_paterno' => 'PRUEBA',
+            'estatus' => 'ACTIVO',
+        ]);
+        $segundo = Personal::query()->create([
+            'unidad_id' => $unidad->id,
+            'nombre' => 'JUAN',
+            'ap_paterno' => 'PRUEBA',
+            'estatus' => 'ACTIVO',
+        ]);
+
+        PersonalIncidencia::query()->create([
+            'personal_id' => $primero->id,
+            'incidencia_tipo_id' => $tipo->id,
+            'fecha_inicio' => '2025-12-20',
+            'fecha_fin' => '2026-01-10',
+            'activo' => true,
+        ]);
+        PersonalIncidencia::query()->create([
+            'personal_id' => $primero->id,
+            'incidencia_tipo_id' => $tipo->id,
+            'fecha_inicio' => '2026-03-01',
+            'fecha_fin' => null,
+            'activo' => true,
+        ]);
+        PersonalIncidencia::query()->create([
+            'personal_id' => $segundo->id,
+            'incidencia_tipo_id' => $tipo->id,
+            'fecha_inicio' => '2026-02-01',
+            'fecha_fin' => '2026-02-20',
+            'activo' => true,
+        ]);
+
+        $request = Request::create('/estadisticas-carreteras/incapacidades', 'GET', [
+            'desde' => '2026-01-01',
+            'hasta' => '2026-03-31',
+        ]);
+        $request->setUserResolver(fn () => $usuario);
+
+        $data = (new EstadisticasCarreterasController())->incapacidades($request)->getData();
+
+        $this->assertSame($primero->id, $data['ranking']->first()['personal_id']);
+        $this->assertSame(41, $data['ranking']->first()['dias']);
+        $this->assertSame(2, $data['ranking']->first()['incapacidades']);
+        $this->assertSame(1, $data['ranking']->first()['sin_fecha_fin']);
+        $this->assertSame(61, $data['totales']['dias']);
+    }
+
+    public function test_rendimiento_compara_elementos_del_mismo_destacamento_y_atribuye_las_puestas_por_nombre(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $usuario = User::factory()->create(['unidad_id' => $unidad->id]);
+        $destacamento = Destacamento::query()->create([
+            'unidad_id' => $unidad->id,
+            'clave' => 'PRUEBA-RENDIMIENTO-' . uniqid(),
+            'nombre' => 'DESTACAMENTO PRUEBA RENDIMIENTO',
+            'activo' => true,
+        ]);
+        $ana = Personal::query()->create(['unidad_id' => $unidad->id, 'destacamento_id' => $destacamento->id, 'nombre' => 'ANA', 'ap_paterno' => 'PRUEBA', 'estatus' => 'ACTIVO']);
+        Personal::query()->create(['unidad_id' => $unidad->id, 'destacamento_id' => $destacamento->id, 'nombre' => 'JUAN', 'ap_paterno' => 'PRUEBA', 'estatus' => 'ACTIVO']);
+        Personal::query()->create(['unidad_id' => $unidad->id, 'destacamento_id' => $destacamento->id, 'nombre' => 'LUIS', 'ap_paterno' => 'PRUEBA', 'estatus' => 'ACTIVO']);
+        $anio = 2026;
+        $numero = $this->siguienteNumero($anio, $unidad->id);
+
+        foreach ([
+            ['2026-10-01', 'ANA PRUEBA'], ['2026-10-02', 'ANA PRUEBA'], ['2026-10-03', 'ANA PRUEBA'],
+            ['2026-10-01', 'JUAN PRUEBA'], ['2026-10-02', 'JUAN PRUEBA'],
+            ['2026-10-01', 'LUIS PRUEBA'], ['2026-10-02', 'LUIS PRUEBA'],
+        ] as $indice => [$fecha, $nombre]) {
+            $this->crearPuesta($numero + $indice, $anio, $unidad->id, $fecha, $nombre, [
+                'destacamento_id' => $destacamento->id,
+                'numero_aseguramientos' => 1,
+                'numero_detenidos' => 1,
+            ]);
+        }
+
+        $request = Request::create('/estadisticas-carreteras/rendimiento', 'GET', [
+            'desde' => '2026-10-01',
+            'hasta' => '2026-10-07',
+            'destacamento_id' => $destacamento->id,
+        ]);
+        $request->setUserResolver(fn () => $usuario);
+
+        $data = (new EstadisticasCarreterasController())->rendimiento($request)->getData();
+        $lider = $data['porElemento']->first();
+
+        $this->assertSame($ana->id, $lider->id);
+        $this->assertSame(3, $lider->primer_respondiente);
+        $this->assertNotNull($lider->calificacion);
+        $this->assertSame(7, $data['kpis']['puestas']);
+        $this->assertSame(7, $data['kpis']['aseguramientos']);
+        $this->assertSame(7, $data['kpis']['detenciones']);
+        $this->assertSame(100.0, $data['kpis']['cobertura_identificacion']);
     }
 
     private function crearPuesta(

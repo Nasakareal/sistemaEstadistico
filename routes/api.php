@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\PersonalController;
 use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\EstadisticasActividadesController;
+use App\Http\Controllers\Api\EstadisticasAseguramientosController;
 use App\Http\Controllers\Api\DictamenController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
@@ -577,6 +578,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/export/mensual', [EstadisticasActividadesController::class, 'exportMensual'])->name('api.estadisticas_actividades.export.mensual');
         Route::get('/export/fomento-cultura-vial', [EstadisticasActividadesController::class, 'exportFomentoCulturaVial'])->name('api.estadisticas_actividades.export.fomento_cultura_vial');
         Route::get('/export/puestas-disposicion', [EstadisticasActividadesController::class, 'exportPuestasDisposicion'])->name('api.estadisticas_actividades.export.puestas_disposicion');
+    });
+
+    Route::prefix('estadisticas-aseguramientos')->group(function () {
+        Route::get('/resumen', [EstadisticasAseguramientosController::class, 'resumen'])
+            ->name('api.estadisticas_aseguramientos.resumen');
+        Route::get('/catalogos', [EstadisticasAseguramientosController::class, 'catalogos'])
+            ->name('api.estadisticas_aseguramientos.catalogos');
     });
 
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');

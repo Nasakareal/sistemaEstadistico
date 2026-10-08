@@ -42,8 +42,10 @@ class PushService
 
             foreach ($tokens as $t) {
                 $isCommunication = ($data['modulo'] ?? '') === 'comunicaciones';
+                $pushType = strtoupper((string) ($data['type'] ?? ''));
+                $isWaze = in_array($pushType, ['WAZE_ACCIDENT', 'WAZE_ROAD_CLOSED'], true);
                 $messageData = $data;
-                if ($isCommunication) {
+                if ($isCommunication || $isWaze) {
                     $messageData['push_title'] = $title;
                     $messageData['push_body'] = $body;
                 }
@@ -52,9 +54,9 @@ class PushService
                     'token' => $t,
                     'data' => $this->stringifyData($messageData),
                 ];
-                if ($isCommunication) {
+                if ($isCommunication || $isWaze) {
                     // Android receives a high-priority data push so the app can
-                    // render an ongoing, separately grouped notification.
+                    // render communications and Waze in independent groups.
                     $message += self::platformOptions($data, $title, $body);
                 } else {
                     $message['notification'] = [
@@ -88,9 +90,17 @@ class PushService
 
     public static function platformOptions(array $data, string $title = '', string $body = ''): array
     {
-        if (($data['modulo'] ?? '') !== 'comunicaciones') {
+        $isCommunication = ($data['modulo'] ?? '') === 'comunicaciones';
+        $pushType = strtoupper((string) ($data['type'] ?? ''));
+        $isWaze = in_array($pushType, ['WAZE_ACCIDENT', 'WAZE_ROAD_CLOSED'], true);
+
+        if (!$isCommunication && !$isWaze) {
             return [];
         }
+
+        $threadId = $isWaze ? 'alertas_waze' : 'comunicaciones_prioritarias';
+        $category = $isWaze ? 'ALERTA_WAZE' : 'COMUNICACION_PRIORITARIA';
+
         return [
             'android' => [
                 'priority' => 'high',
@@ -100,8 +110,8 @@ class PushService
                 'payload' => ['aps' => [
                     'alert' => ['title' => $title, 'body' => $body],
                     'sound' => 'default',
-                    'thread-id' => 'comunicaciones_prioritarias',
-                    'category' => 'COMUNICACION_PRIORITARIA',
+                    'thread-id' => $threadId,
+                    'category' => $category,
                 ]],
             ],
         ];

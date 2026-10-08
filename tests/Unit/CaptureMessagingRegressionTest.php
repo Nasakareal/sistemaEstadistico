@@ -223,6 +223,20 @@ class CaptureMessagingRegressionTest extends TestCase
         $this->assertSame([], PushService::platformOptions(['modulo' => 'hechos']));
     }
 
+    public function test_waze_push_uses_its_own_apple_thread_and_high_priority_data_delivery(): void
+    {
+        $options = PushService::platformOptions(
+            ['type' => 'WAZE_ROAD_CLOSED'],
+            'Waze: Cierre reportado',
+            'Cierre en la avenida'
+        );
+
+        $this->assertSame('high', $options['android']['priority']);
+        $this->assertArrayNotHasKey('notification', $options['android']);
+        $this->assertSame('alertas_waze', $options['apns']['payload']['aps']['thread-id']);
+        $this->assertSame('ALERTA_WAZE', $options['apns']['payload']['aps']['category']);
+    }
+
     public function test_reusing_a_submitted_uuid_with_other_data_never_overwrites_old_hecho(): void
     {
         Schema::create('hechos', function (Blueprint $t) {

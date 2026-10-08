@@ -68,6 +68,33 @@ class OpenAIServiceTest extends TestCase
         $this->assertSame(2, $resultado['posicion']);
     }
 
+    public function test_interpreta_rendimiento_de_carreteras_localmente(): void
+    {
+        Carbon::setTestNow('2026-10-07 10:30:00');
+        $resultado = (new OpenAIService())->interpretar('Muéstrame el rendimiento operativo de carreteras este mes');
+
+        $this->assertSame('rendimiento_carreteras', $resultado['accion']);
+        $this->assertSame(4, $resultado['unidad_id']);
+        $this->assertSame('2026-10-01', $resultado['filtros']['fecha_inicio']);
+    }
+
+    public function test_interpreta_incapacidades_de_carreteras_localmente(): void
+    {
+        $resultado = (new OpenAIService())->interpretar('Consulta las incapacidades de carreteras');
+
+        $this->assertSame('incapacidades_carreteras', $resultado['accion']);
+        $this->assertSame(4, $resultado['unidad_id']);
+    }
+
+    public function test_interpreta_detalle_de_puesta_localmente(): void
+    {
+        $resultado = (new OpenAIService())->interpretar('Dame el detalle de la puesta 125 de carreteras');
+
+        $this->assertSame('detalle_puesta_disposicion', $resultado['accion']);
+        $this->assertSame(125, $resultado['id']);
+        $this->assertSame(4, $resultado['unidad_id']);
+    }
+
     public function test_interpreta_lesionados_como_estadistica_rapida(): void
     {
         Carbon::setTestNow('2026-04-23 10:30:00');

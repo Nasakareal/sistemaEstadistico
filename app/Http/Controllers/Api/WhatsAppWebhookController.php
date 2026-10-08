@@ -343,6 +343,21 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
+        if (in_array($action['key'], ['rendimiento_carreteras', 'incapacidades_carreteras'], true)) {
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_quick_stat_period',
+                'module' => $module,
+                'action' => $action['key'],
+                'filters' => [],
+                'scope' => $context,
+            ]);
+
+            $packet = $this->menuService->buildQuickStatsPeriodMenu($action['key']);
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
         if (($action['requires_param'] ?? false) === false) {
             $result = $this->queryService->executeImmediate($user, $context, $module, $action['key']);
             $this->sendPacket($from, $result);

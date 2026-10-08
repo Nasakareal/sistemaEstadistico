@@ -210,7 +210,10 @@ class WhatsAppRenderService
             'fotoPrincipal',
             'fotos',
             'documentos.documentoTipo',
+            'incidencias.tipo',
+            'incidencias.documento.documentoTipo',
             'asignaciones.armamento',
+            'destacamento',
         ]);
 
         $nombre = $personal->nombre_completo;
@@ -234,6 +237,7 @@ class WhatsAppRenderService
             'Turno: ' . (optional($personal->turno)->nombre ?: 'SIN TURNO'),
             'Adscripción: ' . ($personal->adscripcion ?: 'SIN ADSCRIPCIÓN'),
             'Área: ' . ($personal->area ?: 'SIN ÁREA'),
+            'Destacamento: ' . (optional($personal->destacamento)->nombre ?: 'SIN DESTACAMENTO'),
         ];
 
         if ($patrulla) {
@@ -277,6 +281,30 @@ class WhatsAppRenderService
             ]);
 
             $lineas[] = 'Armamento actual: ' . implode(' | ', $armamentoResumen);
+        }
+
+        $incidencias = collect($personal->incidencias ?? [])
+            ->where('activo', true)
+            ->sortByDesc('fecha_inicio')
+            ->take(10);
+
+        if ($incidencias->isEmpty()) {
+            $lineas[] = 'Incidencias: SIN REGISTROS ACTIVOS';
+        } else {
+            $lineas[] = 'Incidencias (incapacidades, vacaciones, permisos y demás):';
+            foreach ($incidencias as $incidencia) {
+                $rango = $incidencia->fecha_inicio
+                    ? $incidencia->fecha_inicio->format('d-m-Y')
+                    : 'SIN FECHA';
+                $rango .= ' al ' . ($incidencia->fecha_fin ? $incidencia->fecha_fin->format('d-m-Y') : 'ABIERTA');
+                $partes = [
+                    optional($incidencia->tipo)->nombre ?: 'SIN TIPO',
+                    $rango,
+                    $incidencia->folio ? 'Folio ' . $incidencia->folio : null,
+                    $incidencia->motivo ?: null,
+                ];
+                $lineas[] = '- ' . implode(' | ', array_filter($partes));
+            }
         }
 
         $documentosLineas = $this->lineasDocumentosPersonal($personal);

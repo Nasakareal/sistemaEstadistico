@@ -11,6 +11,7 @@ use App\Models\PersonalAsignacion;
 use App\Models\PuestaDisposicion;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class WhatsAppQueryService
 {
@@ -59,6 +60,18 @@ class WhatsAppQueryService
 
             case 'tarjeta_top_puestas':
                 return $this->tarjetaTopPuestasOpenAI($user, $context, $json);
+
+            case 'rendimiento_carreteras':
+                return $this->rendimientoCarreterasReporte(
+                    $this->resolveUnitIdForJson($user, $context, $json),
+                    $this->filtros($json)
+                );
+
+            case 'incapacidades_carreteras':
+                return $this->incapacidadesCarreterasReporte(
+                    $this->resolveUnitIdForJson($user, $context, $json),
+                    $this->filtros($json)
+                );
 
             case 'estadistica_resumen_general':
             case 'estadistica_motocicletas':
@@ -222,6 +235,15 @@ class WhatsAppQueryService
             return $this->tarjetaTopPuestasPorModulo($user, $context, $module, $value);
         }
 
+        if ($action === 'detalle_puesta') {
+            return $this->detallePuestaOpenAI($user, $context, [
+                'accion' => 'detalle_puesta_disposicion',
+                'unidad_id' => $this->resolveUnitIdFromModule($user, $context, $module),
+                'id' => (int) trim($value),
+                'filtros' => [],
+            ]);
+        }
+
         return [
             'text' => 'No pude procesar esa consulta.',
         ];
@@ -238,6 +260,20 @@ class WhatsAppQueryService
         }
 
         $filters = array_merge($filters, $this->buildFiltersForRange($desde, $hasta));
+
+        if ($action === 'rendimiento_carreteras') {
+            return $this->rendimientoCarreterasReporte(
+                $this->resolveUnitIdFromContext($user, $context, null),
+                $filters
+            );
+        }
+
+        if ($action === 'incapacidades_carreteras') {
+            return $this->incapacidadesCarreterasReporte(
+                $this->resolveUnitIdFromContext($user, $context, null),
+                $filters
+            );
+        }
 
         return $this->buildQuickStatPacket(
             $user,
@@ -665,7 +701,7 @@ class WhatsAppQueryService
         }
 
         $query = PuestaDisposicion::query()
-            ->with(['personas', 'vehiculos', 'objetos'])
+            ->with(['personas', 'vehiculos', 'objetos', 'destacamento'])
             ->where(function ($q) use ($puestaId) {
                 $q->where('id', $puestaId)
                     ->orWhere('numero_puesta', $puestaId);
@@ -696,7 +732,21 @@ class WhatsAppQueryService
                     'Tipo: ' . ($puesta->tipo_puesta ?: 'SIN TIPO'),
                     'Estatus: ' . ($puesta->estatus ?: 'SIN ESTATUS'),
                     'Policía: ' . ($puesta->nombre_policia ?: 'SIN DATO'),
+                    'Personal participante: ' . ($puesta->personal_participante ?: 'SIN DATO'),
                     'MP: ' . ($puesta->nombre_mp ?: 'SIN DATO'),
+                    'Autoridad receptora: ' . ($puesta->autoridad_receptora ?: 'SIN DATO'),
+                    'Destacamento: ' . (optional($puesta->destacamento)->nombre ?: 'SIN DATO'),
+                    'Motivo: ' . ($puesta->motivo ?: 'SIN DATO'),
+                    'Lugar: ' . ($puesta->lugar_puesta ?: 'SIN DATO'),
+                    'Folio de origen: ' . ($puesta->folio_origen ?: 'SIN DATO'),
+                    'Número de origen: ' . ($puesta->numero_origen ?: 'SIN DATO'),
+                    'RND: ' . ($puesta->rnd ?: 'SIN DATO'),
+                    'Detenidos: ' . $this->formatNumber((int) ($puesta->numero_detenidos ?? 0)),
+                    'Faltas administrativas: ' . $this->formatNumber((int) ($puesta->numero_faltas_administrativas ?? 0)),
+                    'Aseguramientos: ' . $this->formatNumber((int) ($puesta->numero_aseguramientos ?? 0)),
+                    'Menores: ' . $this->formatNumber((int) ($puesta->numero_menores ?? 0)),
+                    'Sexo: ' . ($puesta->sexo_resumen ?: 'SIN DATO'),
+                    'Descripción de detenidos: ' . ($puesta->detenidos_descripcion ?: 'SIN DATO'),
                     'Personas: ' . $this->formatNumber($puesta->personas->count()),
                     'Vehículos: ' . $this->formatNumber($puesta->vehiculos->count()),
                     'Objetos: ' . $this->formatNumber($puesta->objetos->count()),
@@ -857,6 +907,166 @@ class WhatsAppQueryService
         $posicion = (int) trim($value);
 
         return $this->tarjetaTopPuestasReporte($unidadId, $this->filtros([]), $posicion);
+    }
+
+    protected function rendimientoCarreterasReporte(?int $unidadId, array $filtros): array
+    {
+        if ($unidadId !== 4) {
+            return ['text' => 'Esta consulta está disponible únicamente para Protección a Carreteras.'];
+        }
+
+        $query = PuestaDisposicion::query()
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'puestas_disposicion.destacamento_id')
+            ->where('puestas_disposicion.unidad_id', 4);
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'puestas_disposicion.fecha_puesta', 'puestas_disposicion.hora_puesta');
+        if (!empty($filtros['tipo_puesta'])) {
+            $this->whereUpperEquals($query, 'puestas_disposicion.tipo_puesta', (string) $filtros['tipo_puesta']);
+        }
+        if (!empty($filtros['estatus'])) {
+            $this->whereUpperEquals($query, 'puestas_disposicion.estatus', (string) $filtros['estatus']);
+        }
+
+        $totales = (clone $query)->selectRaw(
+            'COUNT(puestas_disposicion.id) as puestas, '
+            . 'COALESCE(SUM(puestas_disposicion.numero_aseguramientos), 0) as aseguramientos, '
+            . 'COALESCE(SUM(puestas_disposicion.numero_detenidos), 0) as delitos, '
+            . 'COALESCE(SUM(puestas_disposicion.numero_faltas_administrativas), 0) as faltas, '
+            . 'COUNT(DISTINCT puestas_disposicion.destacamento_id) as destacamentos'
+        )->first();
+
+        $ranking = (clone $query)
+            ->whereNotNull('puestas_disposicion.nombre_policia')
+            ->whereRaw("TRIM(puestas_disposicion.nombre_policia) <> ''")
+            ->selectRaw(
+                "UPPER(TRIM(puestas_disposicion.nombre_policia)) as elemento, "
+                . "COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento, "
+                . 'COUNT(DISTINCT puestas_disposicion.id) as puestas, '
+                . 'COUNT(DISTINCT DATE(puestas_disposicion.fecha_puesta)) as dias_activos, '
+                . 'COUNT(DISTINCT COALESCE(NULLIF(TRIM(puestas_disposicion.motivo), \'\'), \'SIN MOTIVO\')) as variedad, '
+                . 'COALESCE(SUM(puestas_disposicion.numero_aseguramientos), 0) as aseguramientos, '
+                . 'COALESCE(SUM(puestas_disposicion.numero_detenidos), 0) + '
+                . 'COALESCE(SUM(puestas_disposicion.numero_faltas_administrativas), 0) as detenciones'
+            )
+            ->groupBy('elemento', 'destacamento')
+            ->orderByDesc('puestas')
+            ->orderByDesc('dias_activos')
+            ->orderBy('elemento')
+            ->limit(10)
+            ->get();
+
+        $lineas = [
+            'Puestas: ' . $this->formatNumber((int) ($totales->puestas ?? 0)),
+            'Aseguramientos: ' . $this->formatNumber((int) ($totales->aseguramientos ?? 0)),
+            'Detenciones por delito: ' . $this->formatNumber((int) ($totales->delitos ?? 0)),
+            'Faltas administrativas: ' . $this->formatNumber((int) ($totales->faltas ?? 0)),
+            'Destacamentos con actividad: ' . $this->formatNumber((int) ($totales->destacamentos ?? 0)),
+        ];
+
+        if ($ranking->isEmpty()) {
+            $lineas[] = 'No hay elementos identificados en el periodo.';
+        }
+
+        foreach ($ranking as $index => $row) {
+            $lineas[] = '#' . ($index + 1) . ' ' . $row->elemento
+                . ' | ' . $row->destacamento
+                . ' | Puestas ' . $this->formatNumber((int) $row->puestas)
+                . ' | Días activos ' . $this->formatNumber((int) $row->dias_activos)
+                . ' | Motivos ' . $this->formatNumber((int) $row->variedad)
+                . ' | Detenciones ' . $this->formatNumber((int) $row->detenciones)
+                . ' | Aseguramientos ' . $this->formatNumber((int) $row->aseguramientos);
+        }
+
+        return [
+            'text' => $this->renderService->renderReporte(
+                4,
+                'Rendimiento operativo de Protección a Carreteras',
+                $this->periodoTexto($filtros),
+                $lineas
+            ),
+        ];
+    }
+
+    protected function incapacidadesCarreterasReporte(?int $unidadId, array $filtros): array
+    {
+        if ($unidadId !== 4) {
+            return ['text' => 'Esta consulta está disponible únicamente para Protección a Carreteras.'];
+        }
+
+        $desde = $filtros['fecha'] ?: ($filtros['fecha_inicio'] ?: now()->startOfMonth()->toDateString());
+        $hasta = $filtros['fecha'] ?: ($filtros['fecha_fin'] ?: now()->toDateString());
+        $corte = now()->toDateString() < $hasta ? now()->toDateString() : $hasta;
+
+        $periodos = DB::table('personal_incidencias')
+            ->join('incidencia_tipos', 'incidencia_tipos.id', '=', 'personal_incidencias.incidencia_tipo_id')
+            ->join('personals', 'personals.id', '=', 'personal_incidencias.personal_id')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'personals.destacamento_id')
+            ->where('personals.unidad_id', 4)
+            ->whereNull('personals.deleted_at')
+            ->where('personal_incidencias.activo', true)
+            ->where(function ($q) {
+                $q->whereRaw("UPPER(TRIM(incidencia_tipos.clave)) = 'INCAPACIDAD'")
+                    ->orWhereRaw("UPPER(TRIM(incidencia_tipos.nombre)) = 'INCAPACIDAD'");
+            })
+            ->whereDate('personal_incidencias.fecha_inicio', '<=', $hasta)
+            ->where(function ($q) use ($desde) {
+                $q->whereNull('personal_incidencias.fecha_fin')
+                    ->orWhereDate('personal_incidencias.fecha_fin', '>=', $desde);
+            })
+            ->select([
+                'personal_incidencias.personal_id', 'personal_incidencias.fecha_inicio',
+                'personal_incidencias.fecha_fin', 'personal_incidencias.folio',
+                'personals.nombre', 'personals.ap_paterno', 'personals.ap_materno',
+                DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+            ])->get();
+
+        $ranking = $periodos->groupBy('personal_id')->map(function ($items) use ($desde, $hasta, $corte) {
+            $primero = $items->first();
+            $dias = $items->sum(function ($incidencia) use ($desde, $hasta, $corte) {
+                $inicio = max($desde, substr((string) $incidencia->fecha_inicio, 0, 10));
+                $finReal = $incidencia->fecha_fin ? substr((string) $incidencia->fecha_fin, 0, 10) : $corte;
+                $fin = min($hasta, $finReal);
+
+                return $fin < $inicio ? 0 : \Carbon\Carbon::parse($inicio)->diffInDays(\Carbon\Carbon::parse($fin)) + 1;
+            });
+
+            return (object) [
+                'nombre' => Personal::formarNombreCompleto($primero->nombre, $primero->ap_paterno, $primero->ap_materno),
+                'destacamento' => $primero->destacamento,
+                'eventos' => $items->count(),
+                'dias' => (int) $dias,
+                'abiertas' => $items->whereNull('fecha_fin')->count(),
+                'documentadas' => $items->filter(fn ($item) => trim((string) $item->folio) !== '')->count(),
+            ];
+        })->sortByDesc('dias')->values();
+
+        $lineas = [
+            'Personal con incapacidad: ' . $this->formatNumber($ranking->count()),
+            'Eventos registrados: ' . $this->formatNumber($periodos->count()),
+            'Días acumulados en el periodo: ' . $this->formatNumber((int) $ranking->sum('dias')),
+            'Incapacidades abiertas: ' . $this->formatNumber((int) $ranking->sum('abiertas')),
+        ];
+
+        if ($ranking->isEmpty()) {
+            $lineas[] = 'No se encontraron incapacidades en el periodo.';
+        }
+
+        foreach ($ranking->take(10) as $index => $row) {
+            $lineas[] = '#' . ($index + 1) . ' ' . $row->nombre
+                . ' | ' . $row->destacamento
+                . ' | Días ' . $this->formatNumber($row->dias)
+                . ' | Eventos ' . $this->formatNumber($row->eventos)
+                . ' | Abiertas ' . $this->formatNumber($row->abiertas)
+                . ' | Con folio ' . $this->formatNumber($row->documentadas);
+        }
+
+        return [
+            'text' => $this->renderService->renderReporte(
+                4,
+                'Incapacidades del personal de Protección a Carreteras',
+                $desde . ' al ' . $hasta,
+                $lineas
+            ),
+        ];
     }
 
     protected function topPuestasElementosReporte(?int $unidadId, array $filtros): array

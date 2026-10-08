@@ -8,7 +8,10 @@ use App\Models\User;
 use App\Services\WhatsApp\WhatsAppMenuService;
 use App\Services\WhatsApp\WhatsAppQueryService;
 use App\Services\WhatsApp\WhatsAppRenderService;
+use App\Services\WhatsApp\WhatsAppUserResolverService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class WhatsAppPuestasElementosQueryTest extends TestCase
@@ -117,7 +120,7 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $this->assertStringContainsString('SOLO CARRETERAS PROPIO', $propio['text']);
     }
 
-    public function test_menu_de_carreteras_expone_ranking_y_tarjeta_por_posicion(): void
+    public function test_menu_de_carreteras_expone_indicadores_ejecutivos_y_tarjeta_por_posicion(): void
     {
         $menu = new WhatsAppMenuService();
         $packet = $menu->buildModuleMenu(
@@ -129,18 +132,115 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $rows = $packet['interactive']['action']['sections'][0]['rows'];
         $ids = collect($rows)->pluck('id')->all();
 
-        $this->assertContains('action:top_puestas_elementos', $ids);
-        $this->assertContains('action:tarjeta_top_puestas', $ids);
+        $this->assertContains('action:rendimiento_carreteras', $ids);
+        $this->assertContains('action:incapacidades_carreteras', $ids);
+        $this->assertContains('action:detalle_puesta', $ids);
+        $this->assertCount(10, $rows);
 
         $action = $menu->resolveActionSelection(
-            ['value' => 'action:tarjeta_top_puestas'],
+            ['value' => 'action:detalle_puesta'],
             'carreteras',
             $this->contextoCarreteras()
         );
 
-        $this->assertSame('tarjeta_top_puestas', $action['key']);
+        $this->assertSame('detalle_puesta', $action['key']);
         $this->assertTrue($action['requires_param']);
-        $this->assertSame('posicion', $action['param_type']);
+        $this->assertSame('folio', $action['param_type']);
+    }
+
+    public function test_rendimiento_de_carreteras_incluye_resultados_y_respeta_la_unidad(): void
+    {
+        $fecha = '2042-08-02';
+        $propia = $this->crearPuesta(4, $fecha, 'ELEMENTO PRODUCTIVO CARRETERAS', 2);
+        $this->crearPuesta(1, $fecha, 'ELEMENTO AJENO SINIESTROS', 4);
+
+        PuestaDisposicion::query()->whereKey($propia)->update([
+            'numero_detenidos' => 2,
+            'numero_faltas_administrativas' => 1,
+            'numero_aseguramientos' => 3,
+            'motivo' => 'DELITO CONTRA LA SALUD',
+        ]);
+
+        $packet = $this->service()->executeOpenAI(
+            $this->usuarioCarreteras(),
+            $this->contextoCarreteras(),
+            [
+                'accion' => 'rendimiento_carreteras',
+                'unidad_id' => 1,
+                'filtros' => ['fecha' => $fecha],
+            ]
+        );
+
+        $this->assertStringContainsString('Rendimiento operativo', $packet['text']);
+        $this->assertStringContainsString('ELEMENTO PRODUCTIVO CARRETERAS', $packet['text']);
+        $this->assertStringContainsString('Aseguramientos: 03', $packet['text']);
+        $this->assertStringNotContainsString('ELEMENTO AJENO SINIESTROS', $packet['text']);
+    }
+
+    public function test_incapacidades_de_carreteras_muestra_dias_y_no_filtra_otra_unidad(): void
+    {
+        $personal = Personal::query()->create([
+            'unidad_id' => 4,
+            'nombre' => 'MARIA',
+            'ap_paterno' => 'PRUEBA',
+            'ap_materno' => 'INCAPACIDAD',
+            'numero_empleado' => 'WA-INC-2042',
+            'estatus' => 'ACTIVO',
+        ]);
+        $tipoId = DB::table('incidencia_tipos')->insertGetId([
+            'clave' => 'INCAPACIDAD',
+            'nombre' => 'INCAPACIDAD',
+            'activo' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('personal_incidencias')->insert([
+            'personal_id' => $personal->id,
+            'incidencia_tipo_id' => $tipoId,
+            'fecha_inicio' => '2042-08-01',
+            'fecha_fin' => '2042-08-05',
+            'folio' => 'INC-55',
+            'activo' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $packet = $this->service()->executeQuickStat(
+            $this->usuarioCarreteras(),
+            $this->contextoCarreteras(),
+            'incapacidades_carreteras',
+            'este_mes',
+            []
+        );
+
+        $directo = $this->service()->executeOpenAI(
+            $this->usuarioCarreteras(),
+            $this->contextoCarreteras(),
+            [
+                'accion' => 'incapacidades_carreteras',
+                'unidad_id' => 1,
+                'filtros' => ['fecha_inicio' => '2042-08-01', 'fecha_fin' => '2042-08-31'],
+            ]
+        );
+
+        $this->assertIsArray($packet);
+        $this->assertStringContainsString('PRUEBA INCAPACIDAD MARIA', $directo['text']);
+        $this->assertStringContainsString('Días 05', $directo['text']);
+        $this->assertStringContainsString('Con folio 01', $directo['text']);
+    }
+
+    public function test_acceso_de_carreteras_exige_administrador_o_subdirector_de_la_unidad(): void
+    {
+        Role::findOrCreate('Administrador');
+        Role::findOrCreate('Agente Upec');
+        $admin = User::factory()->create(['unidad_id' => 4]);
+        $admin->assignRole('Administrador');
+        $agente = User::factory()->create(['unidad_id' => 4]);
+        $agente->assignRole('Agente Upec');
+        $resolver = new WhatsAppUserResolverService();
+
+        $this->assertSame(['carreteras'], $resolver->resolveContext($admin->fresh(['unidad', 'roles']))['modules']);
+        $this->assertSame([], $resolver->resolveContext($agente->fresh(['unidad', 'roles']))['modules']);
     }
 
     private function service(): WhatsAppQueryService
@@ -170,7 +270,7 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         ];
     }
 
-    private function crearPuesta(int $unidadId, string $fecha, string $elemento, int $cantidad): void
+    private function crearPuesta(int $unidadId, string $fecha, string $elemento, int $cantidad): int
     {
         $anio = (int) substr($fecha, 0, 4);
         $numeroBase = (int) PuestaDisposicion::query()
@@ -179,7 +279,7 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
             ->max('numero_puesta') + 100;
 
         for ($i = 0; $i < $cantidad; $i++) {
-            PuestaDisposicion::query()->create([
+            $puesta = PuestaDisposicion::query()->create([
                 'numero_puesta' => $numeroBase + $i,
                 'anio' => $anio,
                 'tipo_puesta' => 'PERSONA',
@@ -191,5 +291,7 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
                 'unidad_id' => $unidadId,
             ]);
         }
+
+        return (int) $puesta->id;
     }
 }

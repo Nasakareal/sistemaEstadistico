@@ -91,8 +91,9 @@ class WhatsAppMenuService
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
                 ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
                 ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
-                ['id' => 'action:top_puestas_elementos', 'title' => 'Top de puestas', 'description' => 'Ranking por elemento'],
-                ['id' => 'action:tarjeta_top_puestas', 'title' => 'Tarjeta del top', 'description' => 'Expediente por posición'],
+                ['id' => 'action:rendimiento_carreteras', 'title' => 'Rendimiento operativo', 'description' => 'Puestas, actividad y resultados'],
+                ['id' => 'action:incapacidades_carreteras', 'title' => 'Incapacidades', 'description' => 'Frecuencia y días acumulados'],
+                ['id' => 'action:detalle_puesta', 'title' => 'Detalle de puesta', 'description' => 'Consulta por ID o número'],
             ];
         } elseif ($module === 'vialidades') {
             $rows = [
@@ -493,7 +494,10 @@ class WhatsAppMenuService
             'operativos_tipo' => ['key' => 'operativos_tipo', 'requires_param' => true, 'param_type' => 'tipo_operativo'],
             'puestas_hoy' => ['key' => 'puestas_hoy', 'requires_param' => false],
             'top_puestas_elementos' => ['key' => 'top_puestas_elementos', 'requires_param' => false],
+            'rendimiento_carreteras' => ['key' => 'rendimiento_carreteras', 'requires_param' => false],
+            'incapacidades_carreteras' => ['key' => 'incapacidades_carreteras', 'requires_param' => false],
             'tarjeta_top_puestas' => ['key' => 'tarjeta_top_puestas', 'requires_param' => true, 'param_type' => 'posicion'],
+            'detalle_puesta' => ['key' => 'detalle_puesta', 'requires_param' => true, 'param_type' => 'folio'],
             'no_disponible' => ['key' => 'no_disponible', 'requires_param' => false],
         ];
 
@@ -554,6 +558,8 @@ class WhatsAppMenuService
             $text = "Escribe el nombre, número de empleado, CUP, CUIP, CURP o RFC.\n\nEjemplo:\nJuan Pérez";
         } elseif ($action === 'tarjeta_top_puestas') {
             $text = "Escribe la posición del elemento en el top, del 1 al 20.\n\nEjemplo:\n1";
+        } elseif ($action === 'detalle_puesta') {
+            $text = "Escribe el ID o número de la puesta a disposición.\n\nEjemplo:\n125";
         } elseif (in_array($action, [
             'estadistica_resumen_general',
             'estadistica_motocicletas',

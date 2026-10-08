@@ -68,6 +68,13 @@ class WhatsAppUserResolverService
             ];
         }
 
+        // La consulta ejecutiva de Carreteras contiene expedientes e incidencias
+        // sensibles. Solo la administración y la subdirección de esa unidad
+        // pueden abrirla desde WhatsApp.
+        if ($module === 'carreteras' && !$user->hasAnyRole(['Administrador', 'Subdirector'])) {
+            $module = null;
+        }
+
         return [
             'acceso_total' => false,
             'modules' => $module ? [$module] : [],

@@ -82,6 +82,10 @@ class OpenAIService
         $filtrosBusquedaHechos = $this->resolverFiltrosBusquedaHechosLocal($mensajeOriginal, $texto);
         $id = null;
 
+        if (preg_match('/\b(?:detalle\s+(?:de\s+(?:la\s+)?)?puesta|puesta(?:\s+a\s+disposicion)?)(?:\s+(?:numero|num|no\.?|id))?\s*(\d+)\b/u', $texto, $matches)) {
+            return $this->respuestaLocal('detalle_puesta_disposicion', $unidadId, (int) $matches[1], $filtros);
+        }
+
         if (preg_match('/\b(?:hecho|folio|id)\s*(?:numero|num|no\.?)?\s*(\d+)\b/u', $texto, $matches)) {
             $id = (int) $matches[1];
 
@@ -109,6 +113,14 @@ class OpenAIService
                 'posicion' => $this->resolverPosicionTopLocal($texto),
                 'filtros' => $filtros,
             ]);
+        }
+
+        if ($this->contieneAlguno($texto, ['rendimiento de carreteras', 'rendimiento carreteras', 'rendimiento operativo de carreteras', 'desempeno de carreteras'])) {
+            return $this->respuestaLocal('rendimiento_carreteras', $unidadId ?: 4, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['incapacidades de carreteras', 'incapacidades carreteras', 'personal incapacitado de carreteras', 'incapacitados de carreteras'])) {
+            return $this->respuestaLocal('incapacidades_carreteras', $unidadId ?: 4, null, $filtros);
         }
 
         if ($this->contieneAlguno($texto, ['lesionados', 'lesionado'])) {
@@ -249,6 +261,8 @@ ACCIONES VÁLIDAS:
 - detalle_personal
 - top_puestas_elementos
 - tarjeta_top_puestas
+- rendimiento_carreteras
+- incapacidades_carreteras
 - estadistica_resumen_general
 - estadistica_motocicletas
 - estadistica_lesionados
@@ -304,6 +318,8 @@ REGLAS DE ACCIÓN:
 - Si pide expediente, ficha, perfil, tarjeta, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUP, CUIP, CURP o RFC.
 - Si pide el top, ranking o elementos con más puestas a disposición, usa top_puestas_elementos.
 - Si pide la tarjeta, ficha o expediente de una posición del top de puestas a disposición, usa tarjeta_top_puestas y llena posicion con un número del 1 al 20.
+- Si pide rendimiento, productividad o desempeño operativo de Carreteras, usa rendimiento_carreteras y unidad_id = 4.
+- Si pide incapacidades o personal incapacitado de Carreteras, usa incapacidades_carreteras y unidad_id = 4.
 - Si pide resumen general de hechos, usa estadistica_resumen_general.
 - Si pide lesionados, usa estadistica_lesionados.
 - Si pide fallecidos, usa estadistica_fallecidos.
@@ -462,6 +478,8 @@ PROMPT;
             'detalle_personal',
             'top_puestas_elementos',
             'tarjeta_top_puestas',
+            'rendimiento_carreteras',
+            'incapacidades_carreteras',
             'estadistica_resumen_general',
             'estadistica_motocicletas',
             'estadistica_lesionados',

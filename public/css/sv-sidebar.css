@@ -76,9 +76,7 @@
 
 /* Buscador del menú. */
 .sv-sidebar-nav > li:not(.nav-item) {
-    position: sticky;
-    top: 74px;
-    z-index: 7;
+    position: relative;
     margin: 0 1px 8px;
     padding: 3px 0 5px;
     background: rgba(6, 15, 28, .96);

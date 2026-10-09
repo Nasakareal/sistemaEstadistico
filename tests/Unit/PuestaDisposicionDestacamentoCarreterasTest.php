@@ -17,6 +17,17 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_selector_de_destacamento_usa_el_mismo_tema_oscuro_que_los_demais_catalogos(): void
+    {
+        foreach (['create', 'edit'] as $view) {
+            $source = file_get_contents(resource_path('views/puestas_disposicion/' . $view . '.blade.php'));
+
+            $this->assertStringContainsString('#destacamento_id option', $source);
+            $this->assertStringContainsString('#destacamento_id option:checked', $source);
+            $this->assertStringContainsString('background-color: #12263c !important;', $source);
+        }
+    }
+
     public function test_creacion_de_carreteras_muestra_y_guarda_el_destacamento_seleccionado(): void
     {
         [$usuario, $destacamentoActual, $destacamentoSeleccionado] = $this->escenarioCarreteras();

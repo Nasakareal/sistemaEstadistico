@@ -236,7 +236,9 @@
                                         <label for="destacamento_id">Destacamento</label>
                                         <select name="destacamento_id" id="destacamento_id"
                                                 class="form-control @error('destacamento_id') is-invalid @enderror" required>
-                                            <option value="">Seleccione un destacamento</option>
+                                            <option value="" disabled {{ old('destacamento_id', $puestaDisposicion->destacamento_id) ? '' : 'selected' }}>
+                                                Seleccione un destacamento
+                                            </option>
                                             @foreach($destacamentos as $destacamento)
                                                 <option value="{{ $destacamento->id }}"
                                                         {{ (int)old('destacamento_id', $puestaDisposicion->destacamento_id) === (int)$destacamento->id ? 'selected' : '' }}>
@@ -465,7 +467,8 @@
 
         /* ===== SELECTS PRINCIPALES ===== */
         #tipo_puesta,
-        #motivo {
+        #motivo,
+        #destacamento_id {
             background-color: #12263c !important;
             color: #f8fafc !important;
             border: 1px solid rgba(125, 178, 225, .45) !important;
@@ -479,7 +482,8 @@
         }
 
         #tipo_puesta:focus,
-        #motivo:focus {
+        #motivo:focus,
+        #destacamento_id:focus {
             background-color: #12263c !important;
             color: #ffffff !important;
             border-color: #64b5f6 !important;
@@ -489,19 +493,22 @@
         }
 
         #tipo_puesta option,
-        #motivo option {
+        #motivo option,
+        #destacamento_id option {
             background-color: #12263c !important;
             color: #f8fafc !important;
         }
 
         #tipo_puesta option:checked,
-        #motivo option:checked {
+        #motivo option:checked,
+        #destacamento_id option:checked {
             background-color: #2563d8 !important;
             color: #ffffff !important;
         }
 
         #tipo_puesta option:disabled,
-        #motivo option:disabled {
+        #motivo option:disabled,
+        #destacamento_id option:disabled {
             color: #94a3b8 !important;
         }
 

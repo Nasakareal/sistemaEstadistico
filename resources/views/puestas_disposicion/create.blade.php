@@ -245,7 +245,9 @@
                                         <label for="destacamento_id">Destacamento</label>
                                         <select name="destacamento_id" id="destacamento_id"
                                                 class="form-control @error('destacamento_id') is-invalid @enderror" required>
-                                            <option value="">Seleccione un destacamento</option>
+                                            <option value="" disabled {{ old('destacamento_id', auth()->user()->destacamento_id) ? '' : 'selected' }}>
+                                                Seleccione un destacamento
+                                            </option>
                                             @foreach($destacamentos as $destacamento)
                                                 <option value="{{ $destacamento->id }}"
                                                         {{ (int)old('destacamento_id', auth()->user()->destacamento_id) === (int)$destacamento->id ? 'selected' : '' }}>
@@ -581,6 +583,7 @@
         #tipo_puesta,
         #motivo,
         #unidad_id,
+        #destacamento_id,
         #hecho_id {
             background-color: #12263c !important;
             color: #f8fafc !important;
@@ -597,6 +600,7 @@
         #tipo_puesta:focus,
         #motivo:focus,
         #unidad_id:focus,
+        #destacamento_id:focus,
         #hecho_id:focus {
             background-color: #12263c !important;
             color: #ffffff !important;
@@ -609,6 +613,7 @@
         #tipo_puesta option,
         #motivo option,
         #unidad_id option,
+        #destacamento_id option,
         #hecho_id option {
             background-color: #12263c !important;
             color: #f8fafc !important;
@@ -617,6 +622,7 @@
         #tipo_puesta option:checked,
         #motivo option:checked,
         #unidad_id option:checked,
+        #destacamento_id option:checked,
         #hecho_id option:checked {
             background-color: #2563d8 !important;
             color: #ffffff !important;
@@ -625,6 +631,7 @@
         #tipo_puesta option:disabled,
         #motivo option:disabled,
         #unidad_id option:disabled,
+        #destacamento_id option:disabled,
         #hecho_id option:disabled {
             color: #94a3b8 !important;
         }

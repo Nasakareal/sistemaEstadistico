@@ -155,6 +155,26 @@ class WhatsAppWebhookAuthorizationTest extends TestCase
         $this->assertContains('4431234567', $variants);
     }
 
+    public function test_divide_respuestas_largas_sin_rebasar_el_limite_de_whatsapp(): void
+    {
+        $reflection = new \ReflectionClass(WhatsAppWebhookController::class);
+        $controller = $reflection->newInstanceWithoutConstructor();
+        $method = $reflection->getMethod('splitTextForWhatsApp');
+        $texto = implode("\n", array_map(
+            fn (int $numero) => 'Línea completa ' . $numero . ' con información de la puesta.',
+            range(1, 20)
+        ));
+
+        $chunks = $method->invoke($controller, $texto, 180);
+
+        $this->assertGreaterThan(1, count($chunks));
+        foreach ($chunks as $chunk) {
+            $this->assertLessThanOrEqual(180, mb_strlen($chunk, 'UTF-8'));
+        }
+        $this->assertStringContainsString('Línea completa 1 ', $chunks[0]);
+        $this->assertStringContainsString('Línea completa 20 ', end($chunks));
+    }
+
     public function test_numero_externo_recibe_menu_de_reporte_ciudadano_desde_el_primer_mensaje(): void
     {
         config(['services.whatsapp.citizen_reports.enabled' => true]);

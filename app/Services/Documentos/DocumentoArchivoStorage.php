@@ -202,6 +202,82 @@ class DocumentoArchivoStorage
         return Storage::disk('public')->exists($path);
     }
 
+    public function withLocalFile(?string $path, callable $callback)
+    {
+        $path = $this->normalizePath($path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (!$this->usesAzure() && Storage::disk('public')->exists($path)) {
+            $disk = Storage::disk('public');
+
+            return $callback(
+                $disk->path($path),
+                $disk->mimeType($path) ?: 'application/octet-stream'
+            );
+        }
+
+        if ($this->usesAzure()) {
+            try {
+                $blob = $this->client()->getBlob($this->container(), $path);
+                $stream = $blob->getContentStream();
+                $temporaryPath = tempnam(sys_get_temp_dir(), 'wa_documento_');
+
+                if ($temporaryPath === false) {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                    throw new RuntimeException('No se pudo crear el archivo temporal para WhatsApp.');
+                }
+
+                try {
+                    $destination = fopen($temporaryPath, 'wb');
+
+                    if ($destination === false) {
+                        throw new RuntimeException('No se pudo abrir el archivo temporal para WhatsApp.');
+                    }
+
+                    try {
+                        stream_copy_to_stream($stream, $destination);
+                    } finally {
+                        fclose($destination);
+                    }
+
+                    $properties = $blob->getProperties();
+                    $mimeType = $properties && $properties->getContentType()
+                        ? $properties->getContentType()
+                        : 'application/octet-stream';
+
+                    return $callback($temporaryPath, $mimeType);
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                    if (is_file($temporaryPath)) {
+                        @unlink($temporaryPath);
+                    }
+                }
+            } catch (\Throwable $e) {
+                if (!$this->isNotFound($e)) {
+                    throw $e;
+                }
+            }
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            $disk = Storage::disk('public');
+
+            return $callback(
+                $disk->path($path),
+                $disk->mimeType($path) ?: 'application/octet-stream'
+            );
+        }
+
+        return null;
+    }
+
     private function putAzureStream(string $path, $stream, string $contentType): void
     {
         $optionsClass = '\\MicrosoftAzure\\Storage\\Blob\\Models\\CreateBlockBlobOptions';

@@ -229,6 +229,29 @@
                             </div>
                         </div>
 
+                        @if($puedeSeleccionarDestacamento ?? false)
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="destacamento_id">Destacamento</label>
+                                        <select name="destacamento_id" id="destacamento_id"
+                                                class="form-control @error('destacamento_id') is-invalid @enderror" required>
+                                            <option value="">Seleccione un destacamento</option>
+                                            @foreach($destacamentos as $destacamento)
+                                                <option value="{{ $destacamento->id }}"
+                                                        {{ (int)old('destacamento_id', $puestaDisposicion->destacamento_id) === (int)$destacamento->id ? 'selected' : '' }}>
+                                                    {{ $destacamento->nombre }}{{ $destacamento->municipio ? ' — ' . $destacamento->municipio : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('destacamento_id')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @if(auth()->user()->hasRole('Superadmin'))
                             <div class="row">
                                 <div class="col-md-4">
@@ -255,17 +278,19 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="destacamento_id">Destacamento</label>
-                                        <input type="number" name="destacamento_id" id="destacamento_id"
-                                               class="form-control @error('destacamento_id') is-invalid @enderror"
-                                               value="{{ old('destacamento_id', $puestaDisposicion->destacamento_id) }}">
-                                        @error('destacamento_id')
-                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                        @enderror
+                                @unless($puedeSeleccionarDestacamento ?? false)
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="destacamento_id">Destacamento</label>
+                                            <input type="number" name="destacamento_id" id="destacamento_id"
+                                                   class="form-control @error('destacamento_id') is-invalid @enderror"
+                                                   value="{{ old('destacamento_id', $puestaDisposicion->destacamento_id) }}">
+                                            @error('destacamento_id')
+                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
                                     </div>
-                                </div>
+                                @endunless
                             </div>
                         @endif
 

@@ -125,6 +125,29 @@ class PdfCompressorTest extends TestCase
         $this->assertFileDoesNotExist($compressed);
     }
 
+    public function test_almacenamiento_entrega_una_ruta_local_para_enviar_documentos_por_whatsapp(): void
+    {
+        Storage::fake('public');
+        config()->set('services.azure_storage.documentos_enabled', false);
+        Storage::disk('public')->put('puestas_disposicion/iph-prueba.pdf', "%PDF-1.7\nIPH\n%%EOF");
+        $storage = new DocumentoArchivoStorage($this->createMock(PdfCompressor::class));
+
+        $result = $storage->withLocalFile(
+            'puestas_disposicion/iph-prueba.pdf',
+            function (string $path, string $mimeType): array {
+                return [
+                    'exists' => is_file($path),
+                    'content' => file_get_contents($path),
+                    'mime_type' => $mimeType,
+                ];
+            }
+        );
+
+        $this->assertTrue($result['exists']);
+        $this->assertStringContainsString('IPH', $result['content']);
+        $this->assertSame('application/pdf', $result['mime_type']);
+    }
+
     private function configureCompression(): void
     {
         config()->set('pdf_compression.enabled', true);

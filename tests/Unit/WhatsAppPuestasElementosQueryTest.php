@@ -232,6 +232,109 @@ class WhatsAppPuestasElementosQueryTest extends TestCase
         $this->assertSame('folio', $action['param_type']);
     }
 
+    public function test_detalle_de_puesta_incluye_datos_generales_personas_vehiculos_y_objetos(): void
+    {
+        $numero = (int) PuestaDisposicion::query()
+            ->where('anio', 2042)
+            ->where('unidad_id', 4)
+            ->max('numero_puesta') + 500;
+
+        $puesta = PuestaDisposicion::query()->create([
+            'numero_puesta' => $numero,
+            'anio' => 2042,
+            'tipo_puesta' => 'PERSONA Y VEHÍCULO',
+            'motivo' => 'HECHOS DELICTIVOS',
+            'estatus' => 'ACTIVA',
+            'nombre_policia' => 'OFICIAL RESPONSABLE',
+            'nombre_mp' => 'LIC. MINISTERIO PÚBLICO',
+            'autoridad_receptora' => 'FISCALÍA REGIONAL',
+            'area' => 'UNIDAD DE INVESTIGACIÓN',
+            'carpeta_investigacion' => 'CI-2042-99',
+            'oficio' => 'OF-2042-77',
+            'fecha_puesta' => '2042-08-03',
+            'hora_puesta' => '14:35:00',
+            'lugar_puesta' => 'MORELIA',
+            'narrativa' => 'NARRATIVA COMPLETA DE PRUEBA',
+            'observaciones' => 'OBSERVACIÓN GENERAL DE PRUEBA',
+            'unidad_id' => 4,
+            'personal_participante' => 'ELEMENTO DE APOYO',
+            'rnd' => 'RND-2042-55',
+            'numero_detenidos' => 1,
+            'numero_aseguramientos' => 2,
+            'detenidos_descripcion' => 'UNA PERSONA DETENIDA',
+            'archivo_puesta' => 'puestas_disposicion/2042/iph-prueba.pdf',
+            'archivo_uso_fuerza' => 'puestas_disposicion/uso-fuerza-prueba.pdf',
+        ]);
+
+        $puesta->personas()->create([
+            'nombre_completo' => 'PERSONA DETENIDA PRUEBA',
+            'alias' => 'EL PRUEBA',
+            'edad' => 31,
+            'sexo' => 'MASCULINO',
+            'fecha_nacimiento' => '2011-01-02',
+            'curp' => 'CURP-DETENIDO-PRUEBA',
+            'rfc' => 'RFC-DETENIDO',
+            'domicilio' => 'DOMICILIO DE PRUEBA',
+            'calidad' => 'DETENIDO',
+            'delito_o_motivo' => 'ROBO',
+            'orden_aprehension' => true,
+            'mandamiento_judicial' => 'MANDAMIENTO-55',
+            'observaciones' => 'OBSERVACIÓN DE PERSONA',
+            'archivo_uso_fuerza' => 'puestas_disposicion/uso-fuerza-persona-prueba.pdf',
+        ]);
+        $puesta->vehiculos()->create([
+            'tipo' => 'CAMIONETA',
+            'marca' => 'MARCA PRUEBA',
+            'submarca' => 'LÍNEA PRUEBA',
+            'modelo' => '2040',
+            'color' => 'AZUL',
+            'placas' => 'ABC-2042',
+            'serie' => 'SERIE-VEHÍCULO-2042',
+            'calidad' => 'ASEGURADO',
+            'motivo_relacion' => 'INSTRUMENTO DEL DELITO',
+            'con_reporte_robo' => true,
+            'numero_reporte_robo' => 'REPORTE-ROBO-77',
+            'observaciones' => 'OBSERVACIÓN DE VEHÍCULO',
+        ]);
+        $puesta->objetos()->create([
+            'tipo_objeto' => 'ARMA',
+            'descripcion' => 'OBJETO ASEGURADO DE PRUEBA',
+            'cantidad' => 2,
+            'unidad_medida' => 'PIEZAS',
+            'cadena_custodia' => 'CADENA-2042-88',
+            'observaciones' => 'OBSERVACIÓN DE OBJETO',
+        ]);
+        $puesta->fotos()->create([
+            'ruta' => 'puestas_disposicion/2042/foto-prueba.jpg',
+            'orden' => 0,
+        ]);
+
+        $packet = $this->service()->executeOpenAI(
+            $this->usuarioCarreteras(),
+            $this->contextoCarreteras(),
+            [
+                'accion' => 'detalle_puesta_disposicion',
+                'id' => $puesta->id,
+                'unidad_id' => 1,
+            ]
+        );
+
+        $this->assertStringContainsString('CI-2042-99', $packet['text']);
+        $this->assertStringContainsString('NARRATIVA COMPLETA DE PRUEBA', $packet['text']);
+        $this->assertStringContainsString('PERSONA DETENIDA PRUEBA', $packet['text']);
+        $this->assertStringContainsString('CURP-DETENIDO-PRUEBA', $packet['text']);
+        $this->assertStringContainsString('ABC-2042', $packet['text']);
+        $this->assertStringContainsString('REPORTE-ROBO-77', $packet['text']);
+        $this->assertStringContainsString('OBJETO ASEGURADO DE PRUEBA', $packet['text']);
+        $this->assertStringContainsString('CADENA-2042-88', $packet['text']);
+        $this->assertStringContainsString('PERSONAS (01)', $packet['text']);
+        $this->assertCount(3, $packet['documents']);
+        $this->assertSame('Puesta_disposicion_' . $numero . '_2042.pdf', $packet['documents'][0]['filename']);
+        $this->assertCount(1, $packet['images']);
+        $this->assertStringContainsString('/hechos-fotos/archivo-temporal/', $packet['images'][0]);
+        $this->assertStringContainsString('signature=', $packet['images'][0]);
+    }
+
     public function test_rendimiento_de_carreteras_incluye_resultados_y_respeta_la_unidad(): void
     {
         $fecha = '2042-08-02';

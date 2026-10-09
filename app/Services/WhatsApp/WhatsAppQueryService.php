@@ -9,6 +9,7 @@ use App\Models\OperativoDispositivo;
 use App\Models\Personal;
 use App\Models\PersonalAsignacion;
 use App\Models\PuestaDisposicion;
+use App\Services\Fotos\HechoFotoStorage;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -346,6 +347,53 @@ class WhatsAppQueryService
                 $lineas
             ),
         ];
+    }
+
+    protected function documentosPuestaWhatsApp(PuestaDisposicion $puesta): array
+    {
+        $folio = ($puesta->numero_puesta ?: $puesta->id) . '_' . ($puesta->anio ?: 'SA');
+        $documentos = [];
+
+        if ($puesta->archivo_puesta) {
+            $documentos[] = [
+                'path' => $puesta->archivo_puesta,
+                'filename' => 'Puesta_disposicion_' . $folio . '.pdf',
+                'caption' => 'IPH / puesta a disposición ' . str_replace('_', '/', $folio),
+            ];
+        }
+
+        if ($puesta->archivo_uso_fuerza) {
+            $documentos[] = [
+                'path' => $puesta->archivo_uso_fuerza,
+                'filename' => 'Uso_fuerza_' . $folio . '.pdf',
+                'caption' => 'Uso de la fuerza de la puesta ' . str_replace('_', '/', $folio),
+            ];
+        }
+
+        foreach ($puesta->personas as $indice => $persona) {
+            if (!$persona->archivo_uso_fuerza) {
+                continue;
+            }
+
+            $documentos[] = [
+                'path' => $persona->archivo_uso_fuerza,
+                'filename' => 'Uso_fuerza_' . $folio . '_persona_' . ($indice + 1) . '.pdf',
+                'caption' => 'Uso de la fuerza: ' . $this->datoPuesta($persona->nombre_completo),
+            ];
+        }
+
+        return $documentos;
+    }
+
+    protected function fotosPuestaWhatsApp(PuestaDisposicion $puesta): array
+    {
+        $storage = app(HechoFotoStorage::class);
+
+        return $puesta->fotos
+            ->map(fn ($foto) => $storage->url($foto->ruta))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     protected function listaHechos($user, array $context, array $json): array
@@ -702,7 +750,7 @@ class WhatsAppQueryService
         }
 
         $query = PuestaDisposicion::query()
-            ->with(['personas', 'vehiculos', 'objetos', 'destacamento'])
+            ->with(['personas', 'vehiculos', 'objetos', 'fotos', 'unidad', 'delegacion', 'destacamento'])
             ->where(function ($q) use ($puestaId) {
                 $q->where('id', $puestaId)
                     ->orWhere('numero_puesta', $puestaId);
@@ -718,6 +766,56 @@ class WhatsAppQueryService
             ];
         }
 
+        $lineas = [
+            'DATOS GENERALES',
+            'ID: ' . $puesta->id,
+            'Número: ' . ($puesta->numero_puesta ?: 'S/N') . '/' . ($puesta->anio ?: 'S/A'),
+            'Fecha: ' . $this->formatDate($puesta->fecha_puesta),
+            'Hora: ' . $this->formatTime($puesta->hora_puesta),
+            'Tipo: ' . ($puesta->tipo_puesta ?: 'SIN TIPO'),
+            'Estatus: ' . ($puesta->estatus ?: 'SIN ESTATUS'),
+            'Motivo: ' . $this->datoPuesta($puesta->motivo),
+            'Lugar: ' . $this->datoPuesta($puesta->lugar_puesta),
+            'Unidad: ' . $this->datoPuesta(optional($puesta->unidad)->nombre),
+            'Delegación: ' . $this->datoPuesta(optional($puesta->delegacion)->nombre),
+            'Destacamento: ' . $this->datoPuesta(optional($puesta->destacamento)->nombre),
+            'Policía: ' . $this->datoPuesta($puesta->nombre_policia),
+            'Personal participante: ' . $this->datoPuesta($puesta->personal_participante),
+            'MP: ' . $this->datoPuesta($puesta->nombre_mp),
+            'Autoridad receptora: ' . $this->datoPuesta($puesta->autoridad_receptora),
+            'Área: ' . $this->datoPuesta($puesta->area),
+            'Carpeta de investigación: ' . $this->datoPuesta($puesta->carpeta_investigacion),
+            'Oficio: ' . $this->datoPuesta($puesta->oficio),
+            'Narrativa: ' . $this->datoPuesta($puesta->narrativa),
+            'Observaciones: ' . $this->datoPuesta($puesta->observaciones),
+            'Hecho vinculado: ' . ($puesta->hecho_id ?: 'SIN DATO'),
+            'Actividad vinculada: ' . ($puesta->actividad_id ?: 'SIN DATO'),
+            'PDF de puesta: ' . ($puesta->archivo_puesta ? 'SÍ' : 'NO'),
+            'PDF de uso de fuerza: ' . ($puesta->archivo_uso_fuerza ? 'SÍ' : 'NO'),
+            'Fotografías: ' . $this->formatNumber($puesta->fotos->count()),
+            '',
+            'DATOS DE ORIGEN Y TOTALES',
+            'Fuente de importación: ' . $this->datoPuesta($puesta->fuente_importacion),
+            'Secuencia de origen: ' . $this->datoPuesta($puesta->secuencia_origen),
+            'Folio de origen: ' . $this->datoPuesta($puesta->folio_origen),
+            'Número de origen: ' . $this->datoPuesta($puesta->numero_origen),
+            'Descripción original: ' . $this->datoPuesta($puesta->descripcion_origen),
+            'RND: ' . $this->datoPuesta($puesta->rnd),
+            'Detenidos: ' . $this->formatNumber((int) ($puesta->numero_detenidos ?? 0)),
+            'Faltas administrativas: ' . $this->formatNumber((int) ($puesta->numero_faltas_administrativas ?? 0)),
+            'Aseguramientos: ' . $this->formatNumber((int) ($puesta->numero_aseguramientos ?? 0)),
+            'Menores: ' . $this->formatNumber((int) ($puesta->numero_menores ?? 0)),
+            'Sexo reportado: ' . $this->datoPuesta($puesta->sexo_resumen),
+            'Descripción de detenidos: ' . $this->datoPuesta($puesta->detenidos_descripcion),
+        ];
+
+        $lineas = array_merge(
+            $lineas,
+            $this->detallePersonasPuesta($puesta),
+            $this->detalleVehiculosPuesta($puesta),
+            $this->detalleObjetosPuesta($puesta)
+        );
+
         return [
             'text' => $this->renderService->renderReporte(
                 $unidadId,
@@ -727,33 +825,97 @@ class WhatsAppQueryService
                     'hora_inicio' => null,
                     'hora_fin' => null,
                 ]),
-                [
-                    'ID: ' . $puesta->id,
-                    'Número: ' . ($puesta->numero_puesta ?: 'S/N'),
-                    'Tipo: ' . ($puesta->tipo_puesta ?: 'SIN TIPO'),
-                    'Estatus: ' . ($puesta->estatus ?: 'SIN ESTATUS'),
-                    'Policía: ' . ($puesta->nombre_policia ?: 'SIN DATO'),
-                    'Personal participante: ' . ($puesta->personal_participante ?: 'SIN DATO'),
-                    'MP: ' . ($puesta->nombre_mp ?: 'SIN DATO'),
-                    'Autoridad receptora: ' . ($puesta->autoridad_receptora ?: 'SIN DATO'),
-                    'Destacamento: ' . (optional($puesta->destacamento)->nombre ?: 'SIN DATO'),
-                    'Motivo: ' . ($puesta->motivo ?: 'SIN DATO'),
-                    'Lugar: ' . ($puesta->lugar_puesta ?: 'SIN DATO'),
-                    'Folio de origen: ' . ($puesta->folio_origen ?: 'SIN DATO'),
-                    'Número de origen: ' . ($puesta->numero_origen ?: 'SIN DATO'),
-                    'RND: ' . ($puesta->rnd ?: 'SIN DATO'),
-                    'Detenidos: ' . $this->formatNumber((int) ($puesta->numero_detenidos ?? 0)),
-                    'Faltas administrativas: ' . $this->formatNumber((int) ($puesta->numero_faltas_administrativas ?? 0)),
-                    'Aseguramientos: ' . $this->formatNumber((int) ($puesta->numero_aseguramientos ?? 0)),
-                    'Menores: ' . $this->formatNumber((int) ($puesta->numero_menores ?? 0)),
-                    'Sexo: ' . ($puesta->sexo_resumen ?: 'SIN DATO'),
-                    'Descripción de detenidos: ' . ($puesta->detenidos_descripcion ?: 'SIN DATO'),
-                    'Personas: ' . $this->formatNumber($puesta->personas->count()),
-                    'Vehículos: ' . $this->formatNumber($puesta->vehiculos->count()),
-                    'Objetos: ' . $this->formatNumber($puesta->objetos->count()),
-                ]
+                $lineas
             ),
+            'documents' => $this->documentosPuestaWhatsApp($puesta),
+            'images' => $this->fotosPuestaWhatsApp($puesta),
         ];
+    }
+
+    protected function detallePersonasPuesta(PuestaDisposicion $puesta): array
+    {
+        $lineas = ['', 'PERSONAS (' . $this->formatNumber($puesta->personas->count()) . ')'];
+
+        if ($puesta->personas->isEmpty()) {
+            return array_merge($lineas, ['Sin personas registradas.']);
+        }
+
+        foreach ($puesta->personas as $indice => $persona) {
+            $lineas[] = 'PERSONA ' . ($indice + 1);
+            $lineas[] = 'Nombre completo: ' . $this->datoPuesta($persona->nombre_completo);
+            $lineas[] = 'Alias: ' . $this->datoPuesta($persona->alias);
+            $lineas[] = 'Edad: ' . $this->datoPuesta($persona->edad);
+            $lineas[] = 'Sexo: ' . $this->datoPuesta($persona->sexo);
+            $lineas[] = 'Fecha de nacimiento: ' . ($persona->fecha_nacimiento ? $this->formatDate($persona->fecha_nacimiento) : 'SIN DATO');
+            $lineas[] = 'CURP: ' . $this->datoPuesta($persona->curp);
+            $lineas[] = 'RFC: ' . $this->datoPuesta($persona->rfc);
+            $lineas[] = 'Domicilio: ' . $this->datoPuesta($persona->domicilio);
+            $lineas[] = 'Calidad: ' . $this->datoPuesta($persona->calidad);
+            $lineas[] = 'Delito o motivo: ' . $this->datoPuesta($persona->delito_o_motivo);
+            $lineas[] = 'Orden de aprehensión: ' . ($persona->orden_aprehension ? 'SÍ' : 'NO');
+            $lineas[] = 'Mandamiento judicial: ' . $this->datoPuesta($persona->mandamiento_judicial);
+            $lineas[] = 'Observaciones: ' . $this->datoPuesta($persona->observaciones);
+            $lineas[] = 'PDF de uso de fuerza: ' . ($persona->archivo_uso_fuerza ? 'SÍ' : 'NO');
+        }
+
+        return $lineas;
+    }
+
+    protected function detalleVehiculosPuesta(PuestaDisposicion $puesta): array
+    {
+        $lineas = ['', 'VEHÍCULOS (' . $this->formatNumber($puesta->vehiculos->count()) . ')'];
+
+        if ($puesta->vehiculos->isEmpty()) {
+            return array_merge($lineas, ['Sin vehículos registrados.']);
+        }
+
+        foreach ($puesta->vehiculos as $indice => $vehiculo) {
+            $lineas[] = 'VEHÍCULO ' . ($indice + 1);
+            $lineas[] = 'Tipo: ' . $this->datoPuesta($vehiculo->tipo);
+            $lineas[] = 'Marca: ' . $this->datoPuesta($vehiculo->marca);
+            $lineas[] = 'Submarca: ' . $this->datoPuesta($vehiculo->submarca);
+            $lineas[] = 'Modelo: ' . $this->datoPuesta($vehiculo->modelo);
+            $lineas[] = 'Color: ' . $this->datoPuesta($vehiculo->color);
+            $lineas[] = 'Placas: ' . $this->datoPuesta($vehiculo->placas);
+            $lineas[] = 'Serie: ' . $this->datoPuesta($vehiculo->serie);
+            $lineas[] = 'Calidad: ' . $this->datoPuesta($vehiculo->calidad);
+            $lineas[] = 'Motivo de relación: ' . $this->datoPuesta($vehiculo->motivo_relacion);
+            $lineas[] = 'Con reporte de robo: ' . ($vehiculo->con_reporte_robo ? 'SÍ' : 'NO');
+            $lineas[] = 'Número de reporte de robo: ' . $this->datoPuesta($vehiculo->numero_reporte_robo);
+            $lineas[] = 'Observaciones: ' . $this->datoPuesta($vehiculo->observaciones);
+        }
+
+        return $lineas;
+    }
+
+    protected function detalleObjetosPuesta(PuestaDisposicion $puesta): array
+    {
+        $lineas = ['', 'OBJETOS (' . $this->formatNumber($puesta->objetos->count()) . ')'];
+
+        if ($puesta->objetos->isEmpty()) {
+            return array_merge($lineas, ['Sin objetos registrados.']);
+        }
+
+        foreach ($puesta->objetos as $indice => $objeto) {
+            $lineas[] = 'OBJETO ' . ($indice + 1);
+            $lineas[] = 'Tipo: ' . $this->datoPuesta($objeto->tipo_objeto);
+            $lineas[] = 'Descripción: ' . $this->datoPuesta($objeto->descripcion);
+            $lineas[] = 'Cantidad: ' . $this->datoPuesta($objeto->cantidad);
+            $lineas[] = 'Unidad de medida: ' . $this->datoPuesta($objeto->unidad_medida);
+            $lineas[] = 'Cadena de custodia: ' . $this->datoPuesta($objeto->cadena_custodia);
+            $lineas[] = 'Observaciones: ' . $this->datoPuesta($objeto->observaciones);
+        }
+
+        return $lineas;
+    }
+
+    protected function datoPuesta($valor): string
+    {
+        if ($valor === null || trim((string) $valor) === '') {
+            return 'SIN DATO';
+        }
+
+        return trim((string) $valor);
     }
 
     protected function hechosHoy($user, array $context, string $module, bool $soloPropios): array

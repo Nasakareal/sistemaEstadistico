@@ -14,6 +14,7 @@ use App\Services\WhatsApp\WhatsAppMenuService;
 use App\Services\WhatsApp\WhatsAppStateService;
 use App\Services\WhatsApp\WhatsAppQueryService;
 use App\Services\WhatsApp\CitizenIncidentReportService;
+use App\Services\Documentos\DocumentoArchivoStorage;
 
 class WhatsAppWebhookController extends Controller
 {
@@ -1050,11 +1051,49 @@ class WhatsAppWebhookController extends Controller
     protected function sendPacket(string $to, array $packet): void
     {
         if (!empty($packet['text'])) {
-            $this->sendText($to, (string) $packet['text']);
+            foreach ($this->splitTextForWhatsApp((string) $packet['text']) as $text) {
+                $this->sendText($to, $text);
+            }
         }
 
         if (!empty($packet['interactive']) && is_array($packet['interactive'])) {
             $this->sendInteractive($to, $packet['interactive']);
+        }
+
+        if (!empty($packet['documents']) && is_array($packet['documents'])) {
+            foreach ($packet['documents'] as $document) {
+                $path = trim((string) ($document['path'] ?? ''));
+
+                if ($path === '') {
+                    continue;
+                }
+
+                try {
+                    $result = app(DocumentoArchivoStorage::class)->withLocalFile(
+                        $path,
+                        function (string $localPath, string $mimeType) use ($to, $document) {
+                            return $this->cloudService->sendDocumentFromPath(
+                                $to,
+                                $localPath,
+                                (string) ($document['filename'] ?? basename($localPath)),
+                                isset($document['caption']) ? (string) $document['caption'] : null,
+                                $mimeType
+                            );
+                        }
+                    );
+
+                    if ($result === null) {
+                        Log::warning('WA documento de puesta no encontrado en almacenamiento', [
+                            'file' => basename(str_replace('\\', '/', $path)),
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('WA no pudo enviar documento de puesta', [
+                        'file' => basename(str_replace('\\', '/', $path)),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
 
         if (!empty($packet['images']) && is_array($packet['images'])) {
@@ -1291,6 +1330,34 @@ class WhatsAppWebhookController extends Controller
 
             return false;
         }
+    }
+
+    protected function splitTextForWhatsApp(string $text, int $maxLength = 3900): array
+    {
+        $remaining = trim($text);
+        $chunks = [];
+
+        while (mb_strlen($remaining, 'UTF-8') > $maxLength) {
+            $candidate = mb_substr($remaining, 0, $maxLength, 'UTF-8');
+            $cut = mb_strrpos($candidate, "\n", 0, 'UTF-8');
+
+            if ($cut === false || $cut < (int) ($maxLength * 0.6)) {
+                $cut = mb_strrpos($candidate, ' ', 0, 'UTF-8');
+            }
+
+            if ($cut === false || $cut < 1) {
+                $cut = $maxLength;
+            }
+
+            $chunks[] = trim(mb_substr($remaining, 0, $cut, 'UTF-8'));
+            $remaining = trim(mb_substr($remaining, $cut, null, 'UTF-8'));
+        }
+
+        if ($remaining !== '') {
+            $chunks[] = $remaining;
+        }
+
+        return $chunks;
     }
 
     protected function isResetCommand(string $value): bool

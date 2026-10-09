@@ -8,6 +8,7 @@ use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
 use App\Models\Delegacion;
+use App\Models\Destacamento;
 use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
@@ -18,9 +19,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class PuestaDisposicionController extends Controller
 {
+    private const UNIDAD_CARRETERAS_ID = 4;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -90,7 +94,7 @@ class PuestaDisposicionController extends Controller
             }
         }
 
-        if (!is_null($usuario->destacamento_id)) {
+        if (!is_null($usuario->destacamento_id) && (int)$usuario->unidad_id !== self::UNIDAD_CARRETERAS_ID) {
             $query->where('destacamento_id', $usuario->destacamento_id);
         }
 
@@ -175,6 +179,28 @@ class PuestaDisposicionController extends Controller
             ->where('activa', 1)
             ->orderBy('id')
             ->get(['id', 'nombre']);
+    }
+
+    private function puedeSeleccionarDestacamentoCarreteras($usuario, int $unidadId): bool
+    {
+        return $unidadId === self::UNIDAD_CARRETERAS_ID
+            && ($this->esSuperadmin($usuario) || (int)($usuario->unidad_id ?? 0) === self::UNIDAD_CARRETERAS_ID);
+    }
+
+    private function destacamentosActivosDeUnidad(int $unidadId)
+    {
+        return Destacamento::query()
+            ->where('unidad_id', $unidadId)
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'clave', 'nombre', 'municipio']);
+    }
+
+    private function reglaDestacamentoCarreteras(int $unidadId)
+    {
+        return Rule::exists('destacamentos', 'id')->where(function ($query) use ($unidadId) {
+            $query->where('unidad_id', $unidadId)->where('activo', 1);
+        });
     }
 
     private function resolverUnidadRegistro(Request $request, $usuario): int
@@ -561,6 +587,10 @@ class PuestaDisposicionController extends Controller
         $motivosPuestaOptions = PuestaDisposicionRules::motivosCatalogo();
         $hechosTurnadosDisponibles = $hechoOrigen ? [] : $this->hechosTurnadosDisponiblesPayload($usuario);
         $unidadDelegacionesId = PuestaDisposicionRules::UNIDAD_DELEGACIONES_ID;
+        $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras($usuario, $unidadSeleccionadaId);
+        $destacamentos = $puedeSeleccionarDestacamento
+            ? $this->destacamentosActivosDeUnidad($unidadSeleccionadaId)
+            : collect();
 
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
@@ -598,7 +628,9 @@ class PuestaDisposicionController extends Controller
             'vehiculosHechoPuesta',
             'motivosPuestaOptions',
             'hechosTurnadosDisponibles',
-            'unidadDelegacionesId'
+            'unidadDelegacionesId',
+            'puedeSeleccionarDestacamento',
+            'destacamentos'
         ));
     }
 
@@ -614,6 +646,7 @@ class PuestaDisposicionController extends Controller
 
         $unidadRegistroId = $this->unidadIdDesdeHecho($hechoOrigen)
             ?: $this->resolverUnidadRegistro($request, $usuario);
+        $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras($usuario, $unidadRegistroId);
 
         $request->merge([
             'hecho_id'              => $hechoOrigen ? $hechoOrigen->id : null,
@@ -647,6 +680,9 @@ class PuestaDisposicionController extends Controller
             'estatus'               => 'nullable|string|max:100',
             'nombre_policia'        => 'required|string|max:255',
             'unidad_id'             => $this->puedeSeleccionarUnidadRegistro($usuario) ? 'required|integer|exists:unidades,id' : 'nullable',
+            'destacamento_id'       => $puedeSeleccionarDestacamento
+                ? ['required', 'integer', $this->reglaDestacamentoCarreteras($unidadRegistroId)]
+                : ['nullable'],
             'nombre_mp'             => 'nullable|string|max:255',
             'autoridad_receptora'   => 'nullable|string|max:255',
             'area'                  => 'nullable|string|max:255',
@@ -752,7 +788,9 @@ class PuestaDisposicionController extends Controller
                 'observaciones'         => $request->input('observaciones'),
                 'unidad_id'             => $unidadRegistroId,
                 'delegacion_id'         => $hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
-                'destacamento_id'       => $usuario->destacamento_id,
+                'destacamento_id'       => $puedeSeleccionarDestacamento
+                    ? (int)$request->input('destacamento_id')
+                    : $usuario->destacamento_id,
                 'archivo_puesta'        => $archivoPuesta,
                 'archivo_uso_fuerza'    => $archivoUsoFuerzaGeneral,
                 'created_by'            => $usuario->id,
@@ -925,8 +963,20 @@ class PuestaDisposicionController extends Controller
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
         $motivosPuestaOptions = PuestaDisposicionRules::motivosCatalogo();
+        $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras(
+            $usuario,
+            (int)$puestaDisposicion->unidad_id
+        );
+        $destacamentos = $puedeSeleccionarDestacamento
+            ? $this->destacamentosActivosDeUnidad((int)$puestaDisposicion->unidad_id)
+            : collect();
 
-        return view('puestas_disposicion.edit', compact('puestaDisposicion', 'motivosPuestaOptions'));
+        return view('puestas_disposicion.edit', compact(
+            'puestaDisposicion',
+            'motivosPuestaOptions',
+            'puedeSeleccionarDestacamento',
+            'destacamentos'
+        ));
     }
 
     public function update(Request $request, PuestaDisposicion $puestaDisposicion)
@@ -937,6 +987,10 @@ class PuestaDisposicionController extends Controller
         $hechoOrigen = $puestaDisposicion->hecho_id
             ? $puestaDisposicion->hecho()->with('vehiculos')->first()
             : null;
+        $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras(
+            $usuario,
+            (int)$puestaDisposicion->unidad_id
+        );
 
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
@@ -960,6 +1014,9 @@ class PuestaDisposicionController extends Controller
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
             'nombre_policia'        => 'required|string|max:255',
+            'destacamento_id'       => $puedeSeleccionarDestacamento
+                ? ['required', 'integer', $this->reglaDestacamentoCarreteras((int)$puestaDisposicion->unidad_id)]
+                : ['nullable'],
             'nombre_mp'             => 'nullable|string|max:255',
             'autoridad_receptora'   => 'nullable|string|max:255',
             'area'                  => 'nullable|string|max:255',
@@ -1103,6 +1160,10 @@ class PuestaDisposicionController extends Controller
                 $dataUpdate['unidad_id']       = $puestaDisposicion->unidad_id;
                 $dataUpdate['delegacion_id']   = $puestaDisposicion->delegacion_id;
                 $dataUpdate['destacamento_id'] = $puestaDisposicion->destacamento_id;
+            }
+
+            if ($puedeSeleccionarDestacamento) {
+                $dataUpdate['destacamento_id'] = (int)$request->input('destacamento_id');
             }
 
             $puestaDisposicion->update($dataUpdate);

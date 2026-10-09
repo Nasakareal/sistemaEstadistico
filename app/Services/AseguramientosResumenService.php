@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Delegacion;
 use App\Models\Destacamento;
+use App\Models\ConduceLegalidadCaptura;
+use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Hechos;
 use App\Models\PuestaDisposicion;
 use App\Models\Unidad;
@@ -25,6 +27,11 @@ class AseguramientosResumenService
             $this->sumarPersonas($resumen, $puesta);
             $this->sumarVehiculos($resumen, $puesta);
             $this->sumarObjetos($resumen, $puesta);
+        }
+
+        foreach ($this->resguardosConduceLegalidad($inicio, $fin, $filters, $usuario, $unidadId) as $captura) {
+            $resumen['fuentes']['conduce_legalidad']++;
+            $this->sumarVehiculosConduceLegalidad($resumen, $captura);
         }
 
         foreach ($this->siniestrosRelevantes($inicio, $fin, $filters, $usuario, $unidadId) as $hecho) {
@@ -231,6 +238,7 @@ class AseguramientosResumenService
             ],
             'fuentes' => [
                 'puestas_disposicion' => 0,
+                'conduce_legalidad' => 0,
             ],
             'descartados' => [],
             'personas' => [
@@ -245,6 +253,7 @@ class AseguramientosResumenService
                 'hechos_delictivos' => 0,
                 'siniestro_transito' => 0,
                 'abandono' => 0,
+                'resguardo_conduce' => 0,
                 'otros' => 0,
             ],
             'armas' => [
@@ -325,6 +334,99 @@ class AseguramientosResumenService
             ->filter(fn (Hechos $hecho) => $this->coincideBusquedaHecho($hecho, $filters['q'] ?? null))
             ->filter(fn (Hechos $hecho) => $this->debeIncluirSiniestroRelevante($hecho))
             ->values();
+    }
+
+    private function resguardosConduceLegalidad(
+        Carbon $inicio,
+        Carbon $fin,
+        array $filters,
+        $usuario,
+        ?int $unidadId
+    ): Collection {
+        if (!$this->hasTable('conduce_legalidad_capturas')
+            || !$this->hasTable('conduce_legalidad_operativos')
+            || !$this->hasTable('conduce_legalidad_vehiculos')) {
+            return collect();
+        }
+
+        $query = ConduceLegalidadCaptura::query()
+            ->select('conduce_legalidad_capturas.*')
+            ->join(
+                'conduce_legalidad_operativos',
+                'conduce_legalidad_operativos.id',
+                '=',
+                'conduce_legalidad_capturas.operativo_id'
+            )
+            ->with(['operativo', 'vehiculos', 'unidad', 'delegacion', 'creador.destacamento'])
+            ->where('conduce_legalidad_operativos.tipo_operativo', 'conduce_legalidad')
+            ->whereRaw(
+                "TIMESTAMP(DATE(COALESCE(conduce_legalidad_capturas.fecha, conduce_legalidad_operativos.fecha)), COALESCE(TIME(conduce_legalidad_capturas.hora), TIME(conduce_legalidad_operativos.hora_inicio), '00:00:00')) >= ?",
+                [$inicio->toDateTimeString()]
+            )
+            ->whereRaw(
+                "TIMESTAMP(DATE(COALESCE(conduce_legalidad_capturas.fecha, conduce_legalidad_operativos.fecha)), COALESCE(TIME(conduce_legalidad_capturas.hora), TIME(conduce_legalidad_operativos.hora_inicio), '00:00:00')) <= ?",
+                [$fin->toDateTimeString()]
+            )
+            ->whereHas('vehiculos', fn ($vehiculos) => $this->scopeVehiculosResguardados($vehiculos));
+
+        if ($unidadId) {
+            $query->whereRaw('COALESCE(NULLIF(conduce_legalidad_capturas.unidad_id, 0), conduce_legalidad_operativos.unidad_id) = ?', [$unidadId]);
+        } elseif (!$this->puedeVerTodasLasUnidades($usuario)) {
+            $query->whereRaw('COALESCE(NULLIF(conduce_legalidad_capturas.unidad_id, 0), conduce_legalidad_operativos.unidad_id) = ?', [
+                (int) ($usuario->unidad_id ?? 0),
+            ]);
+        }
+
+        $delegacionFiltro = (int) ($filters['delegacion_id'] ?? 0);
+        if (!$this->puedeVerTodasLasUnidades($usuario) && $usuario && !is_null($usuario->delegacion_id)) {
+            $ids = $this->delegacionIdsVisibles($usuario);
+            $query->whereIn('conduce_legalidad_capturas.delegacion_id', empty($ids) ? [-1] : $ids);
+        } elseif ($delegacionFiltro > 0) {
+            $query->where('conduce_legalidad_capturas.delegacion_id', $delegacionFiltro);
+        }
+
+        $destacamentoFiltro = !$this->puedeVerTodasLasUnidades($usuario) && $usuario && !is_null($usuario->destacamento_id)
+            ? (int) $usuario->destacamento_id
+            : (int) ($filters['destacamento_id'] ?? 0);
+        if ($destacamentoFiltro > 0) {
+            $query->whereHas('creador', fn ($creador) => $creador->where('destacamento_id', $destacamentoFiltro));
+        }
+
+        // Una captura que ya genero una puesta se cuenta desde esa puesta, no dos veces.
+        if ($this->hasTable('puestas_disposicion')
+            && $this->hasColumn('puestas_disposicion', 'actividad_id')
+            && $this->hasColumn('conduce_legalidad_capturas', 'actividad_id')) {
+            $query->where(function ($sinPuesta) {
+                $sinPuesta->whereNull('conduce_legalidad_capturas.actividad_id')
+                    ->orWhereNotExists(function ($puestas) {
+                        $puestas->selectRaw('1')
+                            ->from('puestas_disposicion as pd')
+                            ->whereColumn('pd.actividad_id', 'conduce_legalidad_capturas.actividad_id');
+                    });
+            });
+        }
+
+        return $query
+            ->orderBy('conduce_legalidad_capturas.fecha')
+            ->orderBy('conduce_legalidad_capturas.hora')
+            ->orderBy('conduce_legalidad_capturas.id')
+            ->get()
+            ->filter(fn (ConduceLegalidadCaptura $captura) => $this->coincideBusquedaCaptura(
+                $captura,
+                $filters['q'] ?? null
+            ))
+            ->values();
+    }
+
+    private function scopeVehiculosResguardados($query): void
+    {
+        $query->where(function ($resguardados) {
+            $resguardados->where('retencion_vehiculo', 1)
+                ->orWhereNotNull('grua_id')
+                ->orWhereNotNull('corralon_id')
+                ->orWhereRaw("NULLIF(TRIM(grua), '') IS NOT NULL")
+                ->orWhereRaw("NULLIF(TRIM(corralon), '') IS NOT NULL");
+        });
     }
 
     private function aplicarScopePuestas($query, array $filters, $usuario, ?int $unidadId): void
@@ -488,6 +590,51 @@ class AseguramientosResumenService
         }
     }
 
+    private function sumarVehiculosConduceLegalidad(
+        array &$resumen,
+        ConduceLegalidadCaptura $captura
+    ): void {
+        $vehiculos = $captura->relationLoaded('vehiculos') ? $captura->vehiculos : collect();
+
+        foreach ($vehiculos->filter(fn (ConduceLegalidadVehiculo $vehiculo) => $this->vehiculoConduceResguardado($vehiculo)) as $vehiculo) {
+            $tipo = $this->labelVehiculo($vehiculo->tipo ?: $vehiculo->tipo_general);
+            $resumen['vehiculos']['total']++;
+            $resumen['vehiculos']['tipos'][$tipo] = ($resumen['vehiculos']['tipos'][$tipo] ?? 0) + 1;
+            $resumen['vehiculos']['resguardo_conduce']++;
+
+            $descripcion = trim(implode(' · ', array_filter([
+                $vehiculo->tipo ?: $vehiculo->tipo_general,
+                $vehiculo->marca,
+                $vehiculo->linea,
+                $vehiculo->placas ? 'Placas ' . $vehiculo->placas : null,
+                $vehiculo->serie ? 'Serie ' . $vehiculo->serie : null,
+                $vehiculo->motivo_retencion,
+                $vehiculo->corralon,
+            ])));
+
+            $detalle = array_merge($this->detalleCapturaBase($captura), [
+                'tipo' => 'vehiculo',
+                'vehiculo_conduce_id' => $vehiculo->id,
+                'clasificacion' => $this->vehiculoCategoriaLabel('resguardo_conduce'),
+                'descripcion' => $descripcion,
+                'cantidad' => 1,
+                'unidad_medida' => 'vehiculo',
+            ]);
+
+            $this->agregarDetalle($resumen, 'vehiculos.total', $detalle);
+            $this->agregarDetalle($resumen, 'vehiculos.resguardo_conduce', $detalle);
+        }
+    }
+
+    private function vehiculoConduceResguardado(ConduceLegalidadVehiculo $vehiculo): bool
+    {
+        return (bool) $vehiculo->retencion_vehiculo
+            || !empty($vehiculo->grua_id)
+            || !empty($vehiculo->corralon_id)
+            || trim((string) ($vehiculo->grua ?? '')) !== ''
+            || trim((string) ($vehiculo->corralon ?? '')) !== '';
+    }
+
     private function sumarObjetos(array &$resumen, PuestaDisposicion $puesta): void
     {
         $objetos = $puesta->relationLoaded('objetos') ? $puesta->objetos : collect();
@@ -617,6 +764,30 @@ class AseguramientosResumenService
         ];
     }
 
+    private function detalleCapturaBase(ConduceLegalidadCaptura $captura): array
+    {
+        $operativo = $captura->operativo;
+        $unidadId = $captura->unidad_id ?: optional($operativo)->unidad_id;
+        $fecha = optional($captura->fecha)->toDateString()
+            ?: optional(optional($operativo)->fecha)->toDateString()
+            ?: (string) ($captura->fecha ?? optional($operativo)->fecha ?? '');
+        $hora = (string) ($captura->hora ?: optional($operativo)->hora_inicio ?: '');
+
+        return [
+            'captura_id' => $captura->id,
+            'operativo_id' => $captura->operativo_id,
+            'actividad_id' => $captura->actividad_id,
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'unidad' => optional($captura->unidad)->nombre ?: $this->nombreUnidad($unidadId),
+            'delegacion' => optional($captura->delegacion)->nombre,
+            'destacamento' => optional(optional($captura->creador)->destacamento)->nombre,
+            'motivo' => 'Resguardo derivado de Conduce con Legalidad',
+            'tipo_puesta' => 'RESGUARDO CONDUCE CON LEGALIDAD',
+            'url' => $captura->actividad_id ? route('actividades.show', $captura->actividad_id) : null,
+        ];
+    }
+
     private function agregarDetalle(array &$resumen, string $key, array $detalle): void
     {
         $detalle['detalle_key'] = $key;
@@ -631,9 +802,10 @@ class AseguramientosResumenService
 
         return [
             'puestas' => [
-                'label' => 'Puestas revisadas',
-                'value' => (int) $resumen['fuentes']['puestas_disposicion'],
-                'hint' => 'Puestas a disposición incluidas en el periodo.',
+                'label' => 'Registros revisados',
+                'value' => (int) $resumen['fuentes']['puestas_disposicion']
+                    + (int) $resumen['fuentes']['conduce_legalidad'],
+                'hint' => 'Puestas a disposición y capturas con vehículo resguardado incluidas en el periodo.',
             ],
             'personas' => [
                 'label' => 'Personas',
@@ -690,6 +862,7 @@ class AseguramientosResumenService
                 ['label' => 'Hechos delictivos', 'total' => (int) $resumen['vehiculos']['hechos_delictivos']],
                 ['label' => 'Siniestro transito', 'total' => (int) $resumen['vehiculos']['siniestro_transito']],
                 ['label' => 'Abandono', 'total' => (int) $resumen['vehiculos']['abandono']],
+                ['label' => 'Resguardo Conduce', 'total' => (int) $resumen['vehiculos']['resguardo_conduce']],
                 ['label' => 'Otros', 'total' => (int) $resumen['vehiculos']['otros']],
             ],
             'armas' => [
@@ -719,6 +892,7 @@ class AseguramientosResumenService
             'vehiculos.hechos_delictivos' => 'Vehiculos · Hechos delictivos',
             'vehiculos.siniestro_transito' => 'Vehiculos · Siniestro de transito',
             'vehiculos.abandono' => 'Vehiculos · Abandono',
+            'vehiculos.resguardo_conduce' => 'Vehiculos · Resguardo Conduce con Legalidad',
             'vehiculos.otros' => 'Vehiculos · Otros motivos',
             'armas.corta' => 'Armas · Corta',
             'armas.larga' => 'Armas · Larga',
@@ -757,6 +931,7 @@ class AseguramientosResumenService
             'vehiculos.hechos_delictivos' => 'Cuenta vehiculos cuyo texto menciona delito, hecho delictivo, robo, posesion o detenido, siempre que no haya entrado en categorias previas.',
             'vehiculos.siniestro_transito' => 'Cuenta vehiculos de puestas cuyo motivo o tipo corresponde a transito o siniestro. Las puestas se cuentan completas.',
             'vehiculos.abandono' => 'Cuenta vehiculos cuyo texto menciona abandono, siempre que no haya entrado en categorias previas.',
+            'vehiculos.resguardo_conduce' => 'Cuenta vehiculos remitidos o resguardados en capturas de Conduce con Legalidad, incluyendo los que tienen retencion, grua o corralon.',
             'vehiculos.otros' => 'Cuenta vehiculos incluidos en puestas que no coinciden con las categorias anteriores.',
             'armas.corta' => 'Cuenta objetos con texto arma corta, corta, pistola o revolver.',
             'armas.larga' => 'Cuenta objetos con texto arma larga, larga, rifle o escopeta.',
@@ -930,6 +1105,40 @@ class AseguramientosResumenService
             $textos[] = $objeto->tipo_objeto;
             $textos[] = $objeto->descripcion;
             $textos[] = $objeto->cadena_custodia;
+        }
+
+        return strpos($this->normalizar(implode(' ', $textos)), $this->normalizar($search)) !== false;
+    }
+
+    private function coincideBusquedaCaptura(ConduceLegalidadCaptura $captura, $search): bool
+    {
+        $search = trim((string) $search);
+
+        if ($search === '') {
+            return true;
+        }
+
+        $textos = [
+            'CL-' . $captura->operativo_id . '-' . $captura->id,
+            $captura->municipio,
+            $captura->lugar,
+            $captura->narrativa,
+            $captura->observaciones,
+            optional($captura->operativo)->nombre,
+            optional($captura->unidad)->nombre,
+            optional($captura->delegacion)->nombre,
+        ];
+
+        foreach ($captura->vehiculos ?? [] as $vehiculo) {
+            $textos[] = $vehiculo->tipo;
+            $textos[] = $vehiculo->tipo_general;
+            $textos[] = $vehiculo->marca;
+            $textos[] = $vehiculo->linea;
+            $textos[] = $vehiculo->placas;
+            $textos[] = $vehiculo->serie;
+            $textos[] = $vehiculo->motivo_retencion;
+            $textos[] = $vehiculo->grua;
+            $textos[] = $vehiculo->corralon;
         }
 
         return strpos($this->normalizar(implode(' ', $textos)), $this->normalizar($search)) !== false;
@@ -1322,6 +1531,7 @@ class AseguramientosResumenService
             'hechos_delictivos' => 'Hechos delictivos',
             'siniestro_transito' => 'Siniestro de transito',
             'abandono' => 'Abandono',
+            'resguardo_conduce' => 'Resguardo Conduce con Legalidad',
             'otros' => 'Otros motivos',
         ][$key] ?? 'Otros motivos';
     }

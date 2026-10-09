@@ -88,7 +88,7 @@
                     </div>
 
                     <div class="sv-hint">
-                        * El tablero cuenta completas las puestas a disposición y separa cada número por rubro. El criterio relevante aplica solo al bloque de hechos/siniestros.
+                        * El tablero incluye las puestas a disposición y los vehículos remitidos o resguardados desde Conduce con Legalidad. El criterio relevante aplica solo al bloque de hechos/siniestros.
                     </div>
                 </div>
             </div>
@@ -100,7 +100,7 @@
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-navy"><i class="fa-solid fa-folder-open"></i></div>
                 <div class="sv-kpi__body">
-                    <div class="sv-kpi__label">Puestas revisadas</div>
+                    <div class="sv-kpi__label">Registros revisados</div>
                     <div class="sv-kpi__value" id="k_puestas">—</div>
                 </div>
             </div>
@@ -629,7 +629,9 @@
         tbody.innerHTML = rows.map(row => {
             const source = row.puesta_id
                 ? `Puesta #${row.numero_puesta || row.puesta_id}`
-                : `Hecho #${row.hecho_id || ''}`;
+                : (row.captura_id
+                    ? `Conduce CL-${row.operativo_id || 0}-${row.captura_id}`
+                    : `Hecho #${row.hecho_id || ''}`);
             const cantidad = `${formatNumber(row.cantidad)} ${row.unidad_medida || ''}`.trim();
             const ubicacion = [row.unidad, row.delegacion, row.destacamento].filter(Boolean).join(' / ');
 

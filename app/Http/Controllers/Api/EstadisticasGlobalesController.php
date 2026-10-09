@@ -156,14 +156,14 @@ class EstadisticasGlobalesController extends Controller
         return $this->cached($request, 'seriesVehiculosTipo', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
-            $raw = $q->selectRaw("vehiculos.tipo_general as tipo_general, COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as tipo, COUNT(DISTINCT vehiculos.id) as total")
-                ->groupBy('vehiculos.tipo_general', 'tipo')
+            $raw = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as tipo, COUNT(DISTINCT vehiculos.id) as total")
+                ->groupBy('tipo')
                 ->get();
 
             $totals = [];
             foreach ($raw as $row) {
                 $general = $this->tipoGeneralVehiculo(
-                    (string) ($row->tipo_general ?? ''),
+                    '',
                     (string) ($row->tipo ?? '')
                 );
                 $totals[$general] = ($totals[$general] ?? 0) + (int) ($row->total ?? 0);
@@ -174,7 +174,7 @@ class EstadisticasGlobalesController extends Controller
                 ->map(fn ($total, $label) => ['label' => $label, 'total' => (int) $total])
                 ->values();
 
-            return response()->json(['field' => 'vehiculos.tipo_general', 'series' => $rows]);
+            return response()->json(['field' => 'vehiculos.tipo', 'series' => $rows]);
         });
     }
 
@@ -433,13 +433,10 @@ class EstadisticasGlobalesController extends Controller
         $carrocerias = $this->carroceriasTipoGeneral($general);
 
         $q->where(function ($where) use ($general, $carrocerias) {
-            $where->whereRaw(
-                "LOWER(TRIM(COALESCE(vehiculos.tipo_general, ''))) = ?",
-                [$general]
-            );
-
+            $hasCondition = false;
             if (!empty($carrocerias)) {
-                $where->orWhereIn('vehiculos.tipo', $carrocerias);
+                $where->whereIn('vehiculos.tipo', $carrocerias);
+                $hasCondition = true;
             }
 
             $legacyLikeMap = [
@@ -456,10 +453,22 @@ class EstadisticasGlobalesController extends Controller
             $legacyLike = $legacyLikeMap[$general] ?? [];
 
             foreach ($legacyLike as $pattern) {
-                $where->orWhereRaw(
-                    "UPPER(TRIM(COALESCE(vehiculos.tipo, ''))) LIKE ?",
-                    [$pattern]
-                );
+                if ($hasCondition) {
+                    $where->orWhereRaw(
+                        "UPPER(TRIM(COALESCE(vehiculos.tipo, ''))) LIKE ?",
+                        [$pattern]
+                    );
+                } else {
+                    $where->whereRaw(
+                        "UPPER(TRIM(COALESCE(vehiculos.tipo, ''))) LIKE ?",
+                        [$pattern]
+                    );
+                    $hasCondition = true;
+                }
+            }
+
+            if (!$hasCondition) {
+                $where->whereRaw('1 = 0');
             }
         });
     }

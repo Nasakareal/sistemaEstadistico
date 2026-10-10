@@ -146,6 +146,9 @@ class IphPuestaDisposicionDocxService
             '$apellidoPaterno' => $nombrePartes['apellido_paterno'],
             '$apellidoMaterno' => $nombrePartes['apellido_materno'],
             '$apellido' => trim($nombrePartes['apellido_paterno'] . ' ' . $nombrePartes['apellido_materno']),
+            '$apellidoPaternoquien' => $this->clean($data['puesta']['firmante_iph_apellido_paterno'] ?? null),
+            '$apellidoMaternoquien' => $this->clean($data['puesta']['firmante_iph_apellido_materno'] ?? null),
+            '$nombrequien' => $this->clean($data['puesta']['firmante_iph_nombres'] ?? null),
             '$narrativa' => $this->clean($data['narrativa_operativa'] ?? null) ?: $this->clean($data['dinamica_hecho'] ?? null),
             '$nombre' => $nombrePartes['nombre'],
             '$unidad' => $this->clean($data['hecho']['unidad_org_nombre'] ?? null) ?: $this->clean($data['puesta']['unidad_nombre'] ?? null) ?: $this->clean($data['oficina'] ?? null),
@@ -234,8 +237,18 @@ class IphPuestaDisposicionDocxService
             throw new \RuntimeException('La plantilla IPH no contiene word/document.xml.');
         }
 
-        $placeholders = ['$apellidoPaterno', '$apellidoMaterno', '$nombre'];
-        $xml = $this->unirVariablesPartidasDocx($xml, $placeholders);
+        $placeholdersQuien = [
+            '$apellidoPaternoquien',
+            '$apellidoMaternoquien',
+            '$nombrequien',
+        ];
+        $placeholdersAgente = [
+            '$apellidoPaterno',
+            '$apellidoMaterno',
+            '$nombre',
+        ];
+        $xml = $this->unirVariablesPartidasDocx($xml, $placeholdersQuien);
+        $xml = $this->unirVariablesPartidasDocx($xml, $placeholdersAgente);
 
         $agenteIph = $this->partesPoliciaIph($data);
         $agente = [
@@ -271,7 +284,7 @@ class IphPuestaDisposicionDocxService
 
         foreach ($sequences as $placeholder => $values) {
             $index = 0;
-            $pattern = '/' . preg_quote($placeholder, '/') . '/u';
+            $pattern = '/' . preg_quote($placeholder, '/') . '(?!quien)/u';
             $xml = preg_replace_callback($pattern, function () use (&$index, $values) {
                 $value = $values[$index] ?? '';
                 $index++;
@@ -430,8 +443,14 @@ class IphPuestaDisposicionDocxService
             $indices = [];
 
             for ($j = $i + 1; $j < min($count, $i + 6); $j++) {
-                $combined .= (string) $nodes[$j]->textContent;
+                $fragment = (string) $nodes[$j]->textContent;
                 $indices[] = $j;
+
+                if (trim($fragment) === '') {
+                    continue;
+                }
+
+                $combined .= $fragment;
 
                 if (in_array($combined, $placeholders, true)) {
                     $nodes[$i]->nodeValue = $prefix . $combined;

@@ -341,6 +341,7 @@ class ConduceLegalidadController extends Controller
             $validated['nombre'] ?? null,
             $validated['objetivo'] ?? null
         );
+        $this->assertFirmanteIphPresente($validated, $tipoOperativo);
 
         $operativo = ConduceLegalidadOperativo::create([
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
@@ -357,6 +358,9 @@ class ConduceLegalidadController extends Controller
             'lng' => $validated['lng'] ?? null,
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
             'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
+            'firmante_iph_nombres' => $this->nullableString($validated['firmante_iph_nombres'] ?? null),
+            'firmante_iph_apellido_paterno' => $this->nullableString($validated['firmante_iph_apellido_paterno'] ?? null),
+            'firmante_iph_apellido_materno' => $this->nullableString($validated['firmante_iph_apellido_materno'] ?? null),
             'estado' => $validated['estado'] ?? 'activo',
             'unidad_id' => $scope['unidad_id'],
             'delegacion_id' => $scope['delegacion_id'],
@@ -445,6 +449,9 @@ class ConduceLegalidadController extends Controller
             'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng,
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
             'objetivo' => array_key_exists('objetivo', $validated) ? $this->nullableString($validated['objetivo']) : $operativo->objetivo,
+            'firmante_iph_nombres' => array_key_exists('firmante_iph_nombres', $validated) ? $this->nullableString($validated['firmante_iph_nombres']) : $operativo->firmante_iph_nombres,
+            'firmante_iph_apellido_paterno' => array_key_exists('firmante_iph_apellido_paterno', $validated) ? $this->nullableString($validated['firmante_iph_apellido_paterno']) : $operativo->firmante_iph_apellido_paterno,
+            'firmante_iph_apellido_materno' => array_key_exists('firmante_iph_apellido_materno', $validated) ? $this->nullableString($validated['firmante_iph_apellido_materno']) : $operativo->firmante_iph_apellido_materno,
             'estado' => $validated['estado'] ?? $operativo->estado,
             'unidad_id' => $scope['unidad_id'],
             'delegacion_id' => $scope['delegacion_id'],
@@ -1489,6 +1496,11 @@ class ConduceLegalidadController extends Controller
             ?: $this->nullableString($user->name ?? null)
             ?: 'Elemento actuante';
         $agentePartes = $this->partesAgenteCaptura($agenteNombre, $captura);
+        $firmanteIph = [
+            'nombres' => $this->nullableString($operativo->firmante_iph_nombres) ?: $agentePartes['nombres'],
+            'apellido_paterno' => $this->nullableString($operativo->firmante_iph_apellido_paterno) ?: $agentePartes['apellido_paterno'],
+            'apellido_materno' => $this->nullableString($operativo->firmante_iph_apellido_materno) ?: $agentePartes['apellido_materno'],
+        ];
         $narrativaOperativa = $this->narrativaIphConduceLegalidad($operativo, $captura);
         $dinamica = $this->dinamicaIphConduceLegalidad($operativo, $captura, $narrativaOperativa);
         $fundamento = $this->fundamentosIphCaptura($captura);
@@ -1551,6 +1563,9 @@ class ConduceLegalidadController extends Controller
                 'agente_apellido_paterno' => $agentePartes['apellido_paterno'],
                 'agente_apellido_materno' => $agentePartes['apellido_materno'],
                 'agente_numero_placa' => $this->nullableString($captura->agente_numero_placa),
+                'firmante_iph_nombres' => $firmanteIph['nombres'],
+                'firmante_iph_apellido_paterno' => $firmanteIph['apellido_paterno'],
+                'firmante_iph_apellido_materno' => $firmanteIph['apellido_materno'],
                 'nombre_mp' => '',
                 'autoridad_receptora' => 'AUTORIDAD COMPETENTE PARA LOS FINES LEGALES PROCEDENTES',
                 'area' => $unidadNombre,
@@ -2445,8 +2460,33 @@ class ConduceLegalidadController extends Controller
             'lat' => array_merge($locationRequired, ['numeric', 'between:-90,90']),
             'lng' => array_merge($locationRequired, ['numeric', 'between:-180,180']),
             'coordenadas_texto' => array_merge($locationRequired, ['string', 'max:255']),
+            'firmante_iph_nombres' => ['nullable', 'string', 'max:120'],
+            'firmante_iph_apellido_paterno' => ['nullable', 'string', 'max:80'],
+            'firmante_iph_apellido_materno' => ['nullable', 'string', 'max:80'],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ];
+    }
+
+    private function assertFirmanteIphPresente(array $validated, string $tipoOperativo): void
+    {
+        if ($tipoOperativo !== 'conduce_legalidad') {
+            return;
+        }
+
+        $errors = [];
+        foreach ([
+            'firmante_iph_nombres' => 'El nombre de quien firma el IPH es obligatorio.',
+            'firmante_iph_apellido_paterno' => 'El apellido paterno de quien firma el IPH es obligatorio.',
+            'firmante_iph_apellido_materno' => 'El apellido materno de quien firma el IPH es obligatorio.',
+        ] as $field => $message) {
+            if ($this->nullableString($validated[$field] ?? null) === null) {
+                $errors[$field] = [$message];
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     private function agenteCapturaData(
@@ -3423,6 +3463,9 @@ class ConduceLegalidadController extends Controller
             'objetivo' => $operativo->objetivo,
             'narrativa' => $operativo->narrativa,
             'observaciones' => $operativo->observaciones,
+            'firmante_iph_nombres' => $operativo->firmante_iph_nombres,
+            'firmante_iph_apellido_paterno' => $operativo->firmante_iph_apellido_paterno,
+            'firmante_iph_apellido_materno' => $operativo->firmante_iph_apellido_materno,
             'estado' => $operativo->estado,
             'can_feed' => $this->puedeAlimentarOperativo($operativo, $user),
             'alimentacion_cierra_en' => optional($alimentacionCierraEn)->toISOString(),

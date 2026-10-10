@@ -238,6 +238,21 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="personal_participante">Personal participante</label>
+                                    <input type="text" name="personal_participante" id="personal_participante"
+                                           class="form-control @error('personal_participante') is-invalid @enderror"
+                                           value="{{ old('personal_participante') }}"
+                                           placeholder="Escriba los nombres separados por comas">
+                                    @error('personal_participante')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
                         @if($puedeSeleccionarDestacamento ?? false)
                             <div class="row">
                                 <div class="col-md-4">
@@ -452,21 +467,6 @@
                                 </div>
                             </div>
                         @endif
-
-                        <div class="card card-outline card-info">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <div class="sv-card-heading">
-                                    <h3 class="card-title mb-0">Personal participante</h3>
-                                    <small class="text-muted d-block">Registre por separado a cada elemento policial que participó en la puesta a disposición.</small>
-                                </div>
-                                <button type="button" class="btn btn-success btn-sm" id="btnAgregarParticipante">
-                                    <i class="fa-solid fa-plus"></i> Agregar participante
-                                </button>
-                            </div>
-                            <div class="card-body">
-                                <div id="contenedorParticipantes"></div>
-                            </div>
-                        </div>
 
                         <div class="card card-outline card-info">
                             <div class="card-header d-flex justify-content-between align-items-center">
@@ -817,17 +817,6 @@
             font-weight: 600 !important;
         }
 
-        .sv-card-heading .card-title {
-            float: none !important;
-            display: block !important;
-        }
-
-        .sv-card-heading small {
-            clear: both;
-            color: #cbd5e1 !important;
-            margin-top: 4px;
-        }
-
         @media (max-width: 768px) {
             .content-wrapper .card.card-outline.card-info > .card-body,
             .content-wrapper .card.card-outline.card-warning > .card-body,
@@ -860,19 +849,16 @@
     <script>
         (function () {
             const personasOld = @json(old('personas', []));
-            const participantesOld = @json(old('participantes', []));
             const vehiculosOld = @json(old('vehiculos', []));
             const objetosOld = @json(old('objetos', []));
             const hechoVehiculos = @json($vehiculosHechoPuesta ?? []);
             const hechoConductores = hechoVehiculos.flatMap(v => Array.isArray(v.conductores) ? v.conductores : []);
 
             let personaIndex = 0;
-            let participanteIndex = 0;
             let vehiculoIndex = 0;
             let objetoIndex = 0;
 
             const contenedorPersonas = document.getElementById('contenedorPersonas');
-            const contenedorParticipantes = document.getElementById('contenedorParticipantes');
             const contenedorVehiculos = document.getElementById('contenedorVehiculos');
             const contenedorObjetos = document.getElementById('contenedorObjetos');
             const unidadSelect = document.getElementById('unidad_id');
@@ -1158,27 +1144,6 @@
                 contenedorPersonas.insertAdjacentHTML('beforeend', html);
             }
 
-            function agregarParticipante(data = {}) {
-                const i = participanteIndex++;
-                const html = `
-                    <div class="bloque-dinamico">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Elemento participante</h5>
-                            <button type="button" class="btn btn-danger btn-sm btn-eliminar-bloque">
-                                <i class="fa-solid fa-trash"></i> Quitar
-                            </button>
-                        </div>
-                        <div class="form-group mb-0">
-                            <label>Nombre, grado o indicativo</label>
-                            <input type="text" name="participantes[${i}][nombre]" class="form-control"
-                                   value="${valor(data.nombre)}" maxlength="255" required
-                                   placeholder="Ej. P. JUAN PÉREZ / INDICATIVO 25-7934">
-                        </div>
-                    </div>
-                `;
-                contenedorParticipantes.insertAdjacentHTML('beforeend', html);
-            }
-
             function agregarVehiculo(data = {}) {
                 const i = vehiculoIndex++;
                 const sourceKey = String(data.source_key ?? '').trim();
@@ -1336,10 +1301,6 @@
             }
 
             function inicializarBloques() {
-                if (participantesOld.length) {
-                    participantesOld.forEach(p => agregarParticipante(p));
-                }
-
                 if (personasOld.length) {
                     personasOld.forEach(p => agregarPersona(p));
                 }
@@ -1401,10 +1362,6 @@
 
             document.getElementById('btnAgregarPersona')?.addEventListener('click', function () {
                 agregarPersona();
-            });
-
-            document.getElementById('btnAgregarParticipante')?.addEventListener('click', function () {
-                agregarParticipante();
             });
 
             document.getElementById('btnAgregarVehiculo')?.addEventListener('click', function () {

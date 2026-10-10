@@ -26,10 +26,10 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             $this->assertStringContainsString('#destacamento_id option', $source);
             $this->assertStringContainsString('#destacamento_id option:checked', $source);
             $this->assertStringContainsString('background-color: #12263c !important;', $source);
-            $this->assertStringNotContainsString('name="personal_participante"', $source);
+            $this->assertStringContainsString('name="personal_participante"', $source);
             $this->assertStringContainsString('name="rnd"', $source);
-            $this->assertStringContainsString('participantes[${i}][nombre]', $source);
-            $this->assertStringContainsString('Personal participante', $source);
+            $this->assertStringNotContainsString('participantes[${i}][nombre]', $source);
+            $this->assertStringNotContainsString('btnAgregarParticipante', $source);
             $this->assertStringNotContainsString("['ELEMENTO PARTICIPANTE', 'Elemento participante']", $source);
             $this->assertStringContainsString('personas[${i}][calidad]', $source);
         }
@@ -65,7 +65,7 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'created_by' => $usuario->id,
             'unidad_id' => 4,
             'destacamento_id' => $destacamentoSeleccionado->id,
-            'personal_participante' => 'OFICIAL UNO' . "\n" . 'OFICIAL DOS',
+            'personal_participante' => 'OFICIAL UNO, OFICIAL DOS',
             'rnd' => 'RND-CARRETERAS-123',
         ]);
         $puesta = PuestaDisposicion::query()->where('created_by', $usuario->id)->latest('id')->firstOrFail();
@@ -112,9 +112,7 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
                     'numero_puesta' => $puesta->numero_puesta,
                     'anio' => $puesta->anio,
                     'rnd' => 'RND-EDITADO-456',
-                    'participantes' => [[
-                        'nombre' => 'OFICIAL EDITADO',
-                    ]],
+                    'personal_participante' => 'OFICIAL EDITADO',
                 ])
             ),
             $puesta
@@ -182,10 +180,7 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'fecha_puesta' => now()->toDateString(),
             'destacamento_id' => $destacamentoId,
             'rnd' => 'rnd-carreteras-123',
-            'participantes' => [
-                ['nombre' => 'Oficial Uno'],
-                ['nombre' => 'Oficial Dos'],
-            ],
+            'personal_participante' => 'Oficial Uno, Oficial Dos',
             'personas' => [
                 ['nombre_completo' => 'Persona Detenida', 'calidad' => 'DETENIDA'],
             ],

@@ -260,6 +260,10 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'=>$this->normalizarTextoNullable($request->input('lugar_puesta')),
             'narrativa'=>$this->normalizarTextoLargoNullable($request->input('narrativa')),
             'observaciones'=>$this->normalizarTextoLargoNullable($request->input('observaciones')),
+            'personal_participante'=>$this->normalizarTextoLargoNullable($request->input('personal_participante')),
+            'detenidos_descripcion'=>$this->normalizarTextoLargoNullable($request->input('detenidos_descripcion')),
+            'rnd'=>$this->normalizarTextoLargoNullable($request->input('rnd')),
+            'sexo_resumen'=>$this->normalizarTextoNullable($request->input('sexo_resumen')),
         ]);
     }
 
@@ -284,6 +288,14 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'=>'nullable|string|max:255',
             'narrativa'=>'nullable|string',
             'observaciones'=>'nullable|string',
+            'personal_participante'=>'nullable|string',
+            'detenidos_descripcion'=>'nullable|string',
+            'rnd'=>'nullable|string',
+            'numero_faltas_administrativas'=>'nullable|integer|min:0|max:65535',
+            'numero_detenidos'=>'nullable|integer|min:0|max:65535',
+            'numero_aseguramientos'=>'nullable|integer|min:0|max:65535',
+            'numero_menores'=>'nullable|integer|min:0|max:65535',
+            'sexo_resumen'=>'nullable|string|max:30',
             'archivo_puesta'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'fotos'=>'nullable|array|max:10',
@@ -547,6 +559,14 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'=>$request->input('lugar_puesta'),
                 'narrativa'=>$request->input('narrativa'),
                 'observaciones'=>$request->input('observaciones'),
+                'personal_participante'=>$request->input('personal_participante'),
+                'detenidos_descripcion'=>$request->input('detenidos_descripcion'),
+                'rnd'=>$request->input('rnd'),
+                'numero_faltas_administrativas'=>(int)$request->input('numero_faltas_administrativas',0),
+                'numero_detenidos'=>(int)$request->input('numero_detenidos',0),
+                'numero_aseguramientos'=>(int)$request->input('numero_aseguramientos',0),
+                'numero_menores'=>(int)$request->input('numero_menores',0),
+                'sexo_resumen'=>$request->input('sexo_resumen'),
                 'archivo_puesta'=>$archivo,
                 'archivo_uso_fuerza'=>$archivoUsoFuerzaGeneral,
                 'unidad_id'=>$unidadRegistroId,
@@ -654,6 +674,14 @@ class PuestaDisposicionController extends Controller
             'tipo_puesta'=>'required|string|in:PERSONA,VEHICULO,OBJETO,MIXTA',
             'motivo'=>'required|string|max:150',
             'nombre_policia'=>'required|string|max:255',
+            'personal_participante'=>'nullable|string',
+            'detenidos_descripcion'=>'nullable|string',
+            'rnd'=>'nullable|string',
+            'numero_faltas_administrativas'=>'nullable|integer|min:0|max:65535',
+            'numero_detenidos'=>'nullable|integer|min:0|max:65535',
+            'numero_aseguramientos'=>'nullable|integer|min:0|max:65535',
+            'numero_menores'=>'nullable|integer|min:0|max:65535',
+            'sexo_resumen'=>'nullable|string|max:30',
             'archivo_puesta'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
         ]);
@@ -694,6 +722,30 @@ class PuestaDisposicionController extends Controller
                 'tipo_puesta'=>$this->normalizarTextoRequerido($request->tipo_puesta),
                 'motivo'=>$motivo,
                 'nombre_policia'=>$this->normalizarTextoRequerido($request->nombre_policia),
+                'personal_participante'=>$request->exists('personal_participante')
+                    ? $this->normalizarTextoLargoNullable($request->input('personal_participante'))
+                    : $puesta->personal_participante,
+                'detenidos_descripcion'=>$request->exists('detenidos_descripcion')
+                    ? $this->normalizarTextoLargoNullable($request->input('detenidos_descripcion'))
+                    : $puesta->detenidos_descripcion,
+                'rnd'=>$request->exists('rnd')
+                    ? $this->normalizarTextoLargoNullable($request->input('rnd'))
+                    : $puesta->rnd,
+                'numero_faltas_administrativas'=>$request->exists('numero_faltas_administrativas')
+                    ? (int)$request->input('numero_faltas_administrativas')
+                    : $puesta->numero_faltas_administrativas,
+                'numero_detenidos'=>$request->exists('numero_detenidos')
+                    ? (int)$request->input('numero_detenidos')
+                    : $puesta->numero_detenidos,
+                'numero_aseguramientos'=>$request->exists('numero_aseguramientos')
+                    ? (int)$request->input('numero_aseguramientos')
+                    : $puesta->numero_aseguramientos,
+                'numero_menores'=>$request->exists('numero_menores')
+                    ? (int)$request->input('numero_menores')
+                    : $puesta->numero_menores,
+                'sexo_resumen'=>$request->exists('sexo_resumen')
+                    ? $this->normalizarTextoNullable($request->input('sexo_resumen'))
+                    : $puesta->sexo_resumen,
                 'archivo_puesta'=>$archivoPuesta,
                 'archivo_uso_fuerza'=>$archivoUsoFuerza,
             ]);

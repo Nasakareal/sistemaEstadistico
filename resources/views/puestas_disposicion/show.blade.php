@@ -166,18 +166,19 @@ target="_blank">
 </div>
 </div>
 
-@if($puestaDisposicion->fuente_importacion)
 <div class="card card-outline card-secondary">
 <div class="card-header">
-<h3 class="card-title">Datos del listado histórico</h3>
+<h3 class="card-title">Información operativa y RND</h3>
 </div>
 <div class="card-body">
+@if($puestaDisposicion->fuente_importacion)
 <div class="row">
 <div class="col-md-3 mb-3"><label>Fuente</label><input type="text" class="form-control" value="{{ $puestaDisposicion->fuente_importacion }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Secuencia de origen</label><input type="text" class="form-control" value="{{ $puestaDisposicion->secuencia_origen }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Folio de origen</label><input type="text" class="form-control" value="{{ $puestaDisposicion->folio_origen }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Número de origen</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_origen }}" readonly></div>
 </div>
+@endif
 <div class="row">
 <div class="col-md-3 mb-3"><label>Faltas administrativas</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_faltas_administrativas ?? 0 }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Detenciones</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_detenidos ?? 0 }}" readonly></div>
@@ -190,11 +191,12 @@ target="_blank">
 </div>
 <div class="row">
 <div class="col-md-6 mb-3"><label>RND</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->rnd }}</textarea></div>
+@if($puestaDisposicion->fuente_importacion)
 <div class="col-md-6 mb-3"><label>Descripción original</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->descripcion_origen }}</textarea></div>
-</div>
-</div>
-</div>
 @endif
+</div>
+</div>
+</div>
 
 
 {{-- PERSONAS --}}

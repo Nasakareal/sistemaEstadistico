@@ -346,6 +346,84 @@
                             </div>
                         </div>
 
+                        <div class="card card-outline card-primary">
+                            <div class="card-header">
+                                <h3 class="card-title mb-0">Información operativa y RND</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="personal_participante">Todo el personal participante</label>
+                                            <textarea name="personal_participante" id="personal_participante" rows="3"
+                                                      class="form-control @error('personal_participante') is-invalid @enderror"
+                                                      placeholder="Capture nombre, grado o indicativo de cada participante; puede usar un renglón por elemento.">{{ old('personal_participante', $puestaDisposicion->personal_participante) }}</textarea>
+                                            @error('personal_participante')
+                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="rnd">Registro Nacional de Detenciones (RND)</label>
+                                            <textarea name="rnd" id="rnd" rows="3"
+                                                      class="form-control @error('rnd') is-invalid @enderror"
+                                                      placeholder="Capture aquí el folio o los folios RND; no use Mandamiento judicial.">{{ old('rnd', $puestaDisposicion->rnd) }}</textarea>
+                                            @error('rnd')
+                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label for="detenidos_descripcion">Personas detenidas reportadas</label>
+                                            <textarea name="detenidos_descripcion" id="detenidos_descripcion" rows="3"
+                                                      class="form-control @error('detenidos_descripcion') is-invalid @enderror"
+                                                      placeholder="Resumen o relación de las personas detenidas.">{{ old('detenidos_descripcion', $puestaDisposicion->detenidos_descripcion) }}</textarea>
+                                            @error('detenidos_descripcion')
+                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="sexo_resumen">Sexo reportado</label>
+                                            <input type="text" name="sexo_resumen" id="sexo_resumen" maxlength="30"
+                                                   class="form-control @error('sexo_resumen') is-invalid @enderror"
+                                                   value="{{ old('sexo_resumen', $puestaDisposicion->sexo_resumen) }}" placeholder="H, M o MIXTO">
+                                            @error('sexo_resumen')
+                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    @foreach([
+                                        'numero_faltas_administrativas' => 'Faltas administrativas',
+                                        'numero_detenidos' => 'Personas detenidas',
+                                        'numero_aseguramientos' => 'Aseguramientos',
+                                        'numero_menores' => 'Personas menores de edad',
+                                    ] as $campo => $etiqueta)
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="{{ $campo }}">{{ $etiqueta }}</label>
+                                                <input type="number" name="{{ $campo }}" id="{{ $campo }}" min="0" max="65535"
+                                                       class="form-control @error($campo) is-invalid @enderror"
+                                                       value="{{ old($campo, $puestaDisposicion->{$campo} ?? 0) }}">
+                                                @error($campo)
+                                                    <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                                @enderror
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">

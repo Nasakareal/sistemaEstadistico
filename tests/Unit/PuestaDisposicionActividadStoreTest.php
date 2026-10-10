@@ -58,6 +58,10 @@ class PuestaDisposicionActividadStoreTest extends TestCase
             'motivo' => 'VEHICULO CON REPORTE DE ROBO',
             'nombre_policia' => 'AGENTE DE PRUEBA',
             'fecha_puesta' => now()->toDateString(),
+            'personal_participante' => "AGENTE UNO\nAGENTE DOS",
+            'rnd' => 'RND-API-123',
+            'numero_detenidos' => 2,
+            'numero_aseguramientos' => 1,
         ];
 
         $response = (new PuestaDisposicionController())->store(
@@ -70,6 +74,10 @@ class PuestaDisposicionActividadStoreTest extends TestCase
             'actividad_id' => $actividad->id,
             'hecho_id' => null,
             'unidad_id' => 3,
+            'personal_participante' => "AGENTE UNO\nAGENTE DOS",
+            'rnd' => 'RND-API-123',
+            'numero_detenidos' => 2,
+            'numero_aseguramientos' => 1,
         ]);
 
         $this->expectException(ValidationException::class);

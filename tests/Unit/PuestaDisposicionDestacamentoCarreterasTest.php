@@ -25,6 +25,10 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             $this->assertStringContainsString('#destacamento_id option', $source);
             $this->assertStringContainsString('#destacamento_id option:checked', $source);
             $this->assertStringContainsString('background-color: #12263c !important;', $source);
+            $this->assertStringContainsString('name="personal_participante"', $source);
+            $this->assertStringContainsString('name="rnd"', $source);
+            $this->assertStringContainsString("'numero_detenidos' => 'Personas detenidas'", $source);
+            $this->assertStringContainsString("'numero_aseguramientos' => 'Aseguramientos'", $source);
         }
     }
 
@@ -53,6 +57,10 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'created_by' => $usuario->id,
             'unidad_id' => 4,
             'destacamento_id' => $destacamentoSeleccionado->id,
+            'personal_participante' => 'OFICIAL UNO' . "\n" . 'OFICIAL DOS',
+            'rnd' => 'RND-CARRETERAS-123',
+            'numero_detenidos' => 2,
+            'numero_aseguramientos' => 3,
         ]);
     }
 
@@ -72,12 +80,18 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
                 array_merge($this->payload($destacamentoSeleccionado->id), [
                     'numero_puesta' => $puesta->numero_puesta,
                     'anio' => $puesta->anio,
+                    'personal_participante' => 'OFICIAL EDITADO',
+                    'rnd' => 'RND-EDITADO-456',
                 ])
             ),
             $puesta
         );
 
-        $this->assertSame($destacamentoSeleccionado->id, (int)$puesta->fresh()->destacamento_id);
+        $actualizada = $puesta->fresh();
+        $this->assertSame($destacamentoSeleccionado->id, (int)$actualizada->destacamento_id);
+        $this->assertSame('OFICIAL EDITADO', $actualizada->personal_participante);
+        $this->assertSame('RND-EDITADO-456', $actualizada->rnd);
+        $this->assertSame(2, (int)$actualizada->numero_detenidos);
     }
 
     public function test_carreteras_no_puede_asignar_un_destacamento_de_otra_unidad(): void
@@ -129,6 +143,14 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'nombre_policia' => 'AGENTE DE PRUEBA',
             'fecha_puesta' => now()->toDateString(),
             'destacamento_id' => $destacamentoId,
+            'personal_participante' => "Oficial Uno\nOficial Dos",
+            'rnd' => 'rnd-carreteras-123',
+            'detenidos_descripcion' => 'dos personas detenidas',
+            'numero_faltas_administrativas' => 1,
+            'numero_detenidos' => 2,
+            'numero_aseguramientos' => 3,
+            'numero_menores' => 1,
+            'sexo_resumen' => 'mixto',
         ];
     }
 

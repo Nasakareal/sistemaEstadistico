@@ -36,7 +36,7 @@ class PuestaDisposicionController extends Controller
 
     private function puedeSeleccionarUnidadRegistro($usuario): bool
     {
-        return $this->esSuperadmin($usuario) || empty($usuario->unidad_id);
+        return $this->esSuperadmin($usuario);
     }
 
     private function queryVisibleByUser($usuario)

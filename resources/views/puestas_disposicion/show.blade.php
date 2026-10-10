@@ -166,9 +166,10 @@ target="_blank">
 </div>
 </div>
 
+@if($puestaDisposicion->fuente_importacion || $puestaDisposicion->rnd)
 <div class="card card-outline card-secondary">
 <div class="card-header">
-<h3 class="card-title">Información operativa y RND</h3>
+<h3 class="card-title">{{ $puestaDisposicion->fuente_importacion ? 'Información histórica y RND' : 'Registro Nacional de Detenciones' }}</h3>
 </div>
 <div class="card-body">
 @if($puestaDisposicion->fuente_importacion)
@@ -178,7 +179,6 @@ target="_blank">
 <div class="col-md-3 mb-3"><label>Folio de origen</label><input type="text" class="form-control" value="{{ $puestaDisposicion->folio_origen }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Número de origen</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_origen }}" readonly></div>
 </div>
-@endif
 <div class="row">
 <div class="col-md-3 mb-3"><label>Faltas administrativas</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_faltas_administrativas ?? 0 }}" readonly></div>
 <div class="col-md-3 mb-3"><label>Detenciones</label><input type="text" class="form-control" value="{{ $puestaDisposicion->numero_detenidos ?? 0 }}" readonly></div>
@@ -189,14 +189,18 @@ target="_blank">
 <div class="col-md-6 mb-3"><label>Personal participante</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->personal_participante }}</textarea></div>
 <div class="col-md-6 mb-3"><label>Detenidos reportados</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->detenidos_descripcion }}</textarea></div>
 </div>
+@endif
 <div class="row">
+@if($puestaDisposicion->rnd)
 <div class="col-md-6 mb-3"><label>RND</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->rnd }}</textarea></div>
+@endif
 @if($puestaDisposicion->fuente_importacion)
 <div class="col-md-6 mb-3"><label>Descripción original</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->descripcion_origen }}</textarea></div>
 @endif
 </div>
 </div>
 </div>
+@endif
 
 
 {{-- PERSONAS --}}

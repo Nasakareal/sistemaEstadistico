@@ -52,7 +52,7 @@ class PuestaDisposicionController extends Controller
 
     private function puedeSeleccionarUnidadRegistro($usuario): bool
     {
-        return $this->esSuperadmin($usuario) || empty($usuario->unidad_id);
+        return $this->esSuperadmin($usuario);
     }
 
     private function mensajePuestaDebeSerVinculada(): string
@@ -663,10 +663,7 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
             'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
             'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
-            'personal_participante' => $this->normalizarTextoNullable($request->input('personal_participante')),
-            'detenidos_descripcion' => $this->normalizarTextoNullable($request->input('detenidos_descripcion')),
             'rnd'                   => $this->normalizarTextoNullable($request->input('rnd')),
-            'sexo_resumen'          => $this->normalizarTextoNullable($request->input('sexo_resumen')),
         ]);
 
         if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
@@ -697,14 +694,7 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => 'nullable|string|max:255',
             'narrativa'             => 'nullable|string',
             'observaciones'         => 'nullable|string',
-            'personal_participante' => 'nullable|string',
-            'detenidos_descripcion' => 'nullable|string',
             'rnd'                   => 'nullable|string',
-            'numero_faltas_administrativas' => 'nullable|integer|min:0|max:65535',
-            'numero_detenidos'      => 'nullable|integer|min:0|max:65535',
-            'numero_aseguramientos' => 'nullable|integer|min:0|max:65535',
-            'numero_menores'        => 'nullable|integer|min:0|max:65535',
-            'sexo_resumen'          => 'nullable|string|max:30',
             'archivo_puesta'        => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'    => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
 
@@ -798,14 +788,7 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'          => $request->input('lugar_puesta'),
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
-                'personal_participante' => $request->input('personal_participante'),
-                'detenidos_descripcion' => $request->input('detenidos_descripcion'),
                 'rnd'                   => $request->input('rnd'),
-                'numero_faltas_administrativas' => (int)$request->input('numero_faltas_administrativas', 0),
-                'numero_detenidos'      => (int)$request->input('numero_detenidos', 0),
-                'numero_aseguramientos' => (int)$request->input('numero_aseguramientos', 0),
-                'numero_menores'        => (int)$request->input('numero_menores', 0),
-                'sexo_resumen'          => $request->input('sexo_resumen'),
                 'unidad_id'             => $unidadRegistroId,
                 'delegacion_id'         => $hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
                 'destacamento_id'       => $puedeSeleccionarDestacamento
@@ -983,6 +966,8 @@ class PuestaDisposicionController extends Controller
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
         $motivosPuestaOptions = PuestaDisposicionRules::motivosCatalogo();
+        $unidades = $this->obtenerUnidadesActivas();
+        $puedeSeleccionarUnidad = $this->puedeSeleccionarUnidadRegistro($usuario);
         $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras(
             $usuario,
             (int)$puestaDisposicion->unidad_id
@@ -994,6 +979,8 @@ class PuestaDisposicionController extends Controller
         return view('puestas_disposicion.edit', compact(
             'puestaDisposicion',
             'motivosPuestaOptions',
+            'unidades',
+            'puedeSeleccionarUnidad',
             'puedeSeleccionarDestacamento',
             'destacamentos'
         ));
@@ -1007,9 +994,12 @@ class PuestaDisposicionController extends Controller
         $hechoOrigen = $puestaDisposicion->hecho_id
             ? $puestaDisposicion->hecho()->with('vehiculos')->first()
             : null;
+        $unidadActualizadaId = $this->esSuperadmin($usuario)
+            ? (int)$request->input('unidad_id', $puestaDisposicion->unidad_id)
+            : (int)$puestaDisposicion->unidad_id;
         $puedeSeleccionarDestacamento = $this->puedeSeleccionarDestacamentoCarreteras(
             $usuario,
-            (int)$puestaDisposicion->unidad_id
+            $unidadActualizadaId
         );
 
         $request->merge([
@@ -1019,16 +1009,13 @@ class PuestaDisposicionController extends Controller
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
             'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                  => $this->obtenerNombreUnidad($puestaDisposicion->unidad_id),
+            'area'                  => $this->obtenerNombreUnidad($unidadActualizadaId),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
             'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
             'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
             'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
-            'personal_participante' => $this->normalizarTextoNullable($request->input('personal_participante')),
-            'detenidos_descripcion' => $this->normalizarTextoNullable($request->input('detenidos_descripcion')),
             'rnd'                   => $this->normalizarTextoNullable($request->input('rnd')),
-            'sexo_resumen'          => $this->normalizarTextoNullable($request->input('sexo_resumen')),
         ]);
 
         $request->validate([
@@ -1038,8 +1025,9 @@ class PuestaDisposicionController extends Controller
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
             'nombre_policia'        => 'required|string|max:255',
+            'unidad_id'             => $this->esSuperadmin($usuario) ? 'required|integer|exists:unidades,id' : 'nullable',
             'destacamento_id'       => $puedeSeleccionarDestacamento
-                ? ['required', 'integer', $this->reglaDestacamentoCarreteras((int)$puestaDisposicion->unidad_id)]
+                ? ['required', 'integer', $this->reglaDestacamentoCarreteras($unidadActualizadaId)]
                 : ['nullable'],
             'nombre_mp'             => 'nullable|string|max:255',
             'autoridad_receptora'   => 'nullable|string|max:255',
@@ -1051,14 +1039,7 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => 'nullable|string|max:255',
             'narrativa'             => 'nullable|string',
             'observaciones'         => 'nullable|string',
-            'personal_participante' => 'nullable|string',
-            'detenidos_descripcion' => 'nullable|string',
             'rnd'                   => 'nullable|string',
-            'numero_faltas_administrativas' => 'nullable|integer|min:0|max:65535',
-            'numero_detenidos'      => 'nullable|integer|min:0|max:65535',
-            'numero_aseguramientos' => 'nullable|integer|min:0|max:65535',
-            'numero_menores'        => 'nullable|integer|min:0|max:65535',
-            'sexo_resumen'          => 'nullable|string|max:30',
             'archivo_puesta'        => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'    => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
 
@@ -1105,10 +1086,6 @@ class PuestaDisposicionController extends Controller
 
         $personasExistentes = $puestaDisposicion->personas()->get()->keyBy('id');
 
-        $unidadActualizadaId = $this->esSuperadmin($usuario)
-            ? (int)$request->input('unidad_id', $puestaDisposicion->unidad_id)
-            : (int)$puestaDisposicion->unidad_id;
-
         if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
             $unidadActualizadaId,
             $request->input('motivo'),
@@ -1120,7 +1097,7 @@ class PuestaDisposicionController extends Controller
         $existeDuplicado = PuestaDisposicion::query()
             ->where('id', '!=', $puestaDisposicion->id)
             ->where('anio', $request->input('anio'))
-            ->where('unidad_id', $puestaDisposicion->unidad_id)
+            ->where('unidad_id', $unidadActualizadaId)
             ->where('numero_puesta', $request->input('numero_puesta'))
             ->exists();
 
@@ -1171,7 +1148,7 @@ class PuestaDisposicionController extends Controller
                 'nombre_policia'        => $request->input('nombre_policia'),
                 'nombre_mp'             => $request->input('nombre_mp'),
                 'autoridad_receptora'   => $request->input('autoridad_receptora'),
-                'area'                  => $this->obtenerNombreUnidad($puestaDisposicion->unidad_id),
+                'area'                  => $this->obtenerNombreUnidad($unidadActualizadaId),
                 'carpeta_investigacion' => $request->input('carpeta_investigacion'),
                 'oficio'                => $request->input('oficio'),
                 'fecha_puesta'          => $request->input('fecha_puesta'),
@@ -1179,21 +1156,14 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'          => $request->input('lugar_puesta'),
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
-                'personal_participante' => $request->input('personal_participante'),
-                'detenidos_descripcion' => $request->input('detenidos_descripcion'),
                 'rnd'                   => $request->input('rnd'),
-                'numero_faltas_administrativas' => (int)$request->input('numero_faltas_administrativas', 0),
-                'numero_detenidos'      => (int)$request->input('numero_detenidos', 0),
-                'numero_aseguramientos' => (int)$request->input('numero_aseguramientos', 0),
-                'numero_menores'        => (int)$request->input('numero_menores', 0),
-                'sexo_resumen'          => $request->input('sexo_resumen'),
                 'archivo_puesta'        => $archivoPuesta,
                 'archivo_uso_fuerza'    => $archivoUsoFuerzaGeneral,
                 'updated_by'            => $usuario->id,
             ];
 
             if ($this->esSuperadmin($usuario)) {
-                $dataUpdate['unidad_id']       = $request->input('unidad_id', $puestaDisposicion->unidad_id);
+                $dataUpdate['unidad_id']       = $unidadActualizadaId;
                 $dataUpdate['delegacion_id']   = $request->input('delegacion_id', $puestaDisposicion->delegacion_id);
                 $dataUpdate['destacamento_id'] = $request->input('destacamento_id', $puestaDisposicion->destacamento_id);
             } else {

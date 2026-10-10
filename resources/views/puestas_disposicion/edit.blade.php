@@ -254,14 +254,21 @@
                             </div>
                         @endif
 
-                        @if(auth()->user()->hasRole('Superadmin'))
+                        @if($puedeSeleccionarUnidad ?? false)
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="unidad_id">Unidad</label>
-                                        <input type="number" name="unidad_id" id="unidad_id"
-                                               class="form-control @error('unidad_id') is-invalid @enderror"
-                                               value="{{ old('unidad_id', $puestaDisposicion->unidad_id) }}">
+                                        <select name="unidad_id" id="unidad_id"
+                                                class="form-control @error('unidad_id') is-invalid @enderror" required>
+                                            <option value="" disabled>Seleccione una unidad</option>
+                                            @foreach(($unidades ?? collect()) as $unidad)
+                                                <option value="{{ $unidad->id }}"
+                                                        {{ (int) old('unidad_id', $puestaDisposicion->unidad_id) === (int) $unidad->id ? 'selected' : '' }}>
+                                                    {{ $unidad->nombre }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                         @error('unidad_id')
                                             <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                         @enderror
@@ -348,22 +355,11 @@
 
                         <div class="card card-outline card-primary">
                             <div class="card-header">
-                                <h3 class="card-title mb-0">Información operativa y RND</h3>
+                                <h3 class="card-title mb-0">Registro Nacional de Detenciones</h3>
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="personal_participante">Todo el personal participante</label>
-                                            <textarea name="personal_participante" id="personal_participante" rows="3"
-                                                      class="form-control @error('personal_participante') is-invalid @enderror"
-                                                      placeholder="Capture nombre, grado o indicativo de cada participante; puede usar un renglón por elemento.">{{ old('personal_participante', $puestaDisposicion->personal_participante) }}</textarea>
-                                            @error('personal_participante')
-                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <div class="form-group">
                                             <label for="rnd">Registro Nacional de Detenciones (RND)</label>
                                             <textarea name="rnd" id="rnd" rows="3"
@@ -374,52 +370,6 @@
                                             @enderror
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <div class="form-group">
-                                            <label for="detenidos_descripcion">Personas detenidas reportadas</label>
-                                            <textarea name="detenidos_descripcion" id="detenidos_descripcion" rows="3"
-                                                      class="form-control @error('detenidos_descripcion') is-invalid @enderror"
-                                                      placeholder="Resumen o relación de las personas detenidas.">{{ old('detenidos_descripcion', $puestaDisposicion->detenidos_descripcion) }}</textarea>
-                                            @error('detenidos_descripcion')
-                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label for="sexo_resumen">Sexo reportado</label>
-                                            <input type="text" name="sexo_resumen" id="sexo_resumen" maxlength="30"
-                                                   class="form-control @error('sexo_resumen') is-invalid @enderror"
-                                                   value="{{ old('sexo_resumen', $puestaDisposicion->sexo_resumen) }}" placeholder="H, M o MIXTO">
-                                            @error('sexo_resumen')
-                                                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    @foreach([
-                                        'numero_faltas_administrativas' => 'Faltas administrativas',
-                                        'numero_detenidos' => 'Personas detenidas',
-                                        'numero_aseguramientos' => 'Aseguramientos',
-                                        'numero_menores' => 'Personas menores de edad',
-                                    ] as $campo => $etiqueta)
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="{{ $campo }}">{{ $etiqueta }}</label>
-                                                <input type="number" name="{{ $campo }}" id="{{ $campo }}" min="0" max="65535"
-                                                       class="form-control @error($campo) is-invalid @enderror"
-                                                       value="{{ old($campo, $puestaDisposicion->{$campo} ?? 0) }}">
-                                                @error($campo)
-                                                    <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    @endforeach
                                 </div>
                             </div>
                         </div>
@@ -454,9 +404,12 @@
 
                         <div class="card card-outline card-info">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h3 class="card-title mb-0">Personas</h3>
+                                <div>
+                                    <h3 class="card-title mb-0">Personas involucradas y personal participante</h3>
+                                    <small class="text-muted d-block">Agregue aquí detenidos, conductores y cada elemento participante; indique su calidad en cada registro.</small>
+                                </div>
                                 <button type="button" class="btn btn-success btn-sm" id="btnAgregarPersona">
-                                    <i class="fa-solid fa-plus"></i> Agregar Persona
+                                    <i class="fa-solid fa-plus"></i> Agregar persona / participante
                                 </button>
                             </div>
                             <div class="card-body">
@@ -546,6 +499,7 @@
         /* ===== SELECTS PRINCIPALES ===== */
         #tipo_puesta,
         #motivo,
+        #unidad_id,
         #destacamento_id {
             background-color: #12263c !important;
             color: #f8fafc !important;
@@ -561,6 +515,7 @@
 
         #tipo_puesta:focus,
         #motivo:focus,
+        #unidad_id:focus,
         #destacamento_id:focus {
             background-color: #12263c !important;
             color: #ffffff !important;
@@ -572,6 +527,7 @@
 
         #tipo_puesta option,
         #motivo option,
+        #unidad_id option,
         #destacamento_id option {
             background-color: #12263c !important;
             color: #f8fafc !important;
@@ -579,6 +535,7 @@
 
         #tipo_puesta option:checked,
         #motivo option:checked,
+        #unidad_id option:checked,
         #destacamento_id option:checked {
             background-color: #2563d8 !important;
             color: #ffffff !important;
@@ -586,6 +543,7 @@
 
         #tipo_puesta option:disabled,
         #motivo option:disabled,
+        #unidad_id option:disabled,
         #destacamento_id option:disabled {
             color: #94a3b8 !important;
         }
@@ -850,6 +808,29 @@
                 return v ? 'checked' : '';
             }
 
+            function opcionesCalidad(valorActual) {
+                const actual = String(valorActual ?? '').trim().toUpperCase();
+                const opciones = [
+                    ['DETENIDA', 'Persona detenida'],
+                    ['ELEMENTO PARTICIPANTE', 'Elemento participante'],
+                    ['CONDUCTOR', 'Conductor'],
+                    ['PROPIETARIO', 'Propietario'],
+                    ['AFECTADA', 'Persona afectada'],
+                    ['TESTIGO', 'Testigo'],
+                    ['OTRA', 'Otra'],
+                ];
+                const conocidas = opciones.map(([value]) => value);
+                const personalizada = actual && !conocidas.includes(actual)
+                    ? `<option value="${valor(valorActual)}" selected>${valor(valorActual)}</option>`
+                    : '';
+
+                return '<option value="">Seleccione una calidad</option>'
+                    + personalizada
+                    + opciones.map(([value, label]) =>
+                        `<option value="${value}" ${actual === value ? 'selected' : ''}>${label}</option>`
+                    ).join('');
+            }
+
             function actualizarMotivoOtro() {
                 const usaOtro = motivoInput?.value === 'OTRO';
 
@@ -928,8 +909,10 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Calidad</label>
-                                    <input type="text" name="personas[${i}][calidad]" class="form-control" value="${valor(data.calidad)}">
+                                    <label>Participación / calidad</label>
+                                    <select name="personas[${i}][calidad]" class="form-control" required>
+                                        ${opcionesCalidad(data.calidad)}
+                                    </select>
                                 </div>
                             </div>
                         </div>

@@ -153,6 +153,29 @@ class PuestaDisposicionController extends Controller
         return strtoupper(trim((string)$valor));
     }
 
+    private function normalizarParticipantes(Request $request): array
+    {
+        return collect($request->input('participantes', []))
+            ->map(function ($participante) {
+                return [
+                    'nombre' => $this->normalizarTextoNullable($participante['nombre'] ?? null),
+                ];
+            })
+            ->filter(fn ($participante) => filled($participante['nombre']))
+            ->values()
+            ->all();
+    }
+
+    private function textoPersonalParticipante(array $participantes): ?string
+    {
+        $texto = collect($participantes)
+            ->pluck('nombre')
+            ->filter()
+            ->implode("\n");
+
+        return $texto !== '' ? $texto : null;
+    }
+
     private function normalizarMotivoRequest(Request $request): string
     {
         $motivo = $request->input('motivo');
@@ -637,6 +660,7 @@ class PuestaDisposicionController extends Controller
     public function store(Request $request)
     {
         $usuario = auth()->user();
+        $participantes = $this->normalizarParticipantes($request);
         $hechoOrigen = $this->resolverHechoOrigen($request, $usuario);
         if ($hechoOrigen && PuestaDisposicion::query()->where('hecho_id', $hechoOrigen->id)->exists()) {
             throw ValidationException::withMessages([
@@ -663,6 +687,8 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
             'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
             'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
+            'participantes'         => $participantes,
+            'personal_participante' => $this->textoPersonalParticipante($participantes),
             'rnd'                   => $this->normalizarTextoNullable($request->input('rnd')),
         ]);
 
@@ -694,6 +720,8 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => 'nullable|string|max:255',
             'narrativa'             => 'nullable|string',
             'observaciones'         => 'nullable|string',
+            'participantes'         => 'nullable|array|max:100',
+            'participantes.*.nombre'=> 'required|string|max:255',
             'rnd'                   => 'nullable|string',
             'archivo_puesta'        => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'    => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
@@ -788,6 +816,7 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'          => $request->input('lugar_puesta'),
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
+                'personal_participante' => $request->input('personal_participante'),
                 'rnd'                   => $request->input('rnd'),
                 'unidad_id'             => $unidadRegistroId,
                 'delegacion_id'         => $hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
@@ -989,6 +1018,7 @@ class PuestaDisposicionController extends Controller
     public function update(Request $request, PuestaDisposicion $puestaDisposicion)
     {
         $usuario = auth()->user();
+        $participantes = $this->normalizarParticipantes($request);
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
         $hechoOrigen = $puestaDisposicion->hecho_id
@@ -1015,6 +1045,8 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
             'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
             'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
+            'participantes'         => $participantes,
+            'personal_participante' => $this->textoPersonalParticipante($participantes),
             'rnd'                   => $this->normalizarTextoNullable($request->input('rnd')),
         ]);
 
@@ -1039,6 +1071,8 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'          => 'nullable|string|max:255',
             'narrativa'             => 'nullable|string',
             'observaciones'         => 'nullable|string',
+            'participantes'         => 'nullable|array|max:100',
+            'participantes.*.nombre'=> 'required|string|max:255',
             'rnd'                   => 'nullable|string',
             'archivo_puesta'        => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'archivo_uso_fuerza'    => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
@@ -1156,6 +1190,7 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'          => $request->input('lugar_puesta'),
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
+                'personal_participante' => $request->input('personal_participante'),
                 'rnd'                   => $request->input('rnd'),
                 'archivo_puesta'        => $archivoPuesta,
                 'archivo_uso_fuerza'    => $archivoUsoFuerzaGeneral,

@@ -404,12 +404,24 @@
 
                         <div class="card card-outline card-info">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h3 class="card-title mb-0">Personas involucradas y personal participante</h3>
-                                    <small class="text-muted d-block">Agregue aquí detenidos, conductores y cada elemento participante; indique su calidad en cada registro.</small>
+                                <div class="sv-card-heading">
+                                    <h3 class="card-title mb-0">Personal participante</h3>
+                                    <small class="text-muted d-block">Registre por separado a cada elemento policial que participó en la puesta a disposición.</small>
                                 </div>
+                                <button type="button" class="btn btn-success btn-sm" id="btnAgregarParticipante">
+                                    <i class="fa-solid fa-plus"></i> Agregar participante
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="contenedorParticipantes"></div>
+                            </div>
+                        </div>
+
+                        <div class="card card-outline card-info">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3 class="card-title mb-0">Personas detenidas o relacionadas</h3>
                                 <button type="button" class="btn btn-success btn-sm" id="btnAgregarPersona">
-                                    <i class="fa-solid fa-plus"></i> Agregar persona / participante
+                                    <i class="fa-solid fa-plus"></i> Agregar persona
                                 </button>
                             </div>
                             <div class="card-body">
@@ -697,6 +709,17 @@
             color: #ffffff !important;
         }
 
+        .sv-card-heading .card-title {
+            float: none !important;
+            display: block !important;
+        }
+
+        .sv-card-heading small {
+            clear: both;
+            color: #cbd5e1 !important;
+            margin-top: 4px;
+        }
+
         .bloque-dinamico .invalid-feedback,
         .bloque-dinamico .text-danger {
             color: #dc2626 !important;
@@ -731,6 +754,11 @@
 
 @section('js')
     @php
+        $participantesJs = old('participantes', collect(preg_split('/\r\n|\r|\n|;/', (string) $puestaDisposicion->personal_participante))
+            ->map(fn ($nombre) => ['nombre' => trim($nombre)])
+            ->filter(fn ($participante) => $participante['nombre'] !== '')
+            ->values()
+            ->all());
         $personasJs = old('personas', $puestaDisposicion->personas->map(function ($p) {
             return [
                 'id' => $p->id,
@@ -786,14 +814,17 @@
 
     <script>
         (function () {
+            const participantesOld = @json($participantesJs);
             const personasOld = @json($personasJs);
             const vehiculosOld = @json($vehiculosJs);
             const objetosOld = @json($objetosJs);
 
+            let participanteIndex = 0;
             let personaIndex = 0;
             let vehiculoIndex = 0;
             let objetoIndex = 0;
 
+            const contenedorParticipantes = document.getElementById('contenedorParticipantes');
             const contenedorPersonas = document.getElementById('contenedorPersonas');
             const contenedorVehiculos = document.getElementById('contenedorVehiculos');
             const contenedorObjetos = document.getElementById('contenedorObjetos');
@@ -812,7 +843,6 @@
                 const actual = String(valorActual ?? '').trim().toUpperCase();
                 const opciones = [
                     ['DETENIDA', 'Persona detenida'],
-                    ['ELEMENTO PARTICIPANTE', 'Elemento participante'],
                     ['CONDUCTOR', 'Conductor'],
                     ['PROPIETARIO', 'Propietario'],
                     ['AFECTADA', 'Persona afectada'],
@@ -967,6 +997,27 @@
                     </div>
                 `;
                 contenedorPersonas.insertAdjacentHTML('beforeend', html);
+            }
+
+            function agregarParticipante(data = {}) {
+                const i = participanteIndex++;
+                const html = `
+                    <div class="bloque-dinamico">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Elemento participante</h5>
+                            <button type="button" class="btn btn-danger btn-sm btn-eliminar-bloque">
+                                <i class="fa-solid fa-trash"></i> Quitar
+                            </button>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label>Nombre, grado o indicativo</label>
+                            <input type="text" name="participantes[${i}][nombre]" class="form-control"
+                                   value="${valor(data.nombre)}" maxlength="255" required
+                                   placeholder="Ej. P. JUAN PÉREZ / INDICATIVO 25-7934">
+                        </div>
+                    </div>
+                `;
+                contenedorParticipantes.insertAdjacentHTML('beforeend', html);
             }
 
             function agregarVehiculo(data = {}) {
@@ -1129,6 +1180,10 @@
             }
 
             function inicializarBloques() {
+                if (participantesOld.length) {
+                    participantesOld.forEach(p => agregarParticipante(p));
+                }
+
                 if (personasOld.length) {
                     personasOld.forEach(p => agregarPersona(p));
                 }
@@ -1150,6 +1205,10 @@
 
             document.getElementById('btnAgregarPersona')?.addEventListener('click', function () {
                 agregarPersona();
+            });
+
+            document.getElementById('btnAgregarParticipante')?.addEventListener('click', function () {
+                agregarParticipante();
             });
 
             document.getElementById('btnAgregarVehiculo')?.addEventListener('click', function () {

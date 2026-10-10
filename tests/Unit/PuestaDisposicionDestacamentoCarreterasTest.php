@@ -28,7 +28,9 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             $this->assertStringContainsString('background-color: #12263c !important;', $source);
             $this->assertStringNotContainsString('name="personal_participante"', $source);
             $this->assertStringContainsString('name="rnd"', $source);
-            $this->assertStringContainsString('ELEMENTO PARTICIPANTE', $source);
+            $this->assertStringContainsString('participantes[${i}][nombre]', $source);
+            $this->assertStringContainsString('Personal participante', $source);
+            $this->assertStringNotContainsString("['ELEMENTO PARTICIPANTE', 'Elemento participante']", $source);
             $this->assertStringContainsString('personas[${i}][calidad]', $source);
         }
 
@@ -63,13 +65,14 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'created_by' => $usuario->id,
             'unidad_id' => 4,
             'destacamento_id' => $destacamentoSeleccionado->id,
+            'personal_participante' => 'OFICIAL UNO' . "\n" . 'OFICIAL DOS',
             'rnd' => 'RND-CARRETERAS-123',
         ]);
         $puesta = PuestaDisposicion::query()->where('created_by', $usuario->id)->latest('id')->firstOrFail();
         $this->assertDatabaseHas('puestas_disposicion_personas', [
             'puesta_disposicion_id' => $puesta->id,
-            'nombre_completo' => 'OFICIAL UNO',
-            'calidad' => 'ELEMENTO PARTICIPANTE',
+            'nombre_completo' => 'PERSONA DETENIDA',
+            'calidad' => 'DETENIDA',
         ]);
     }
 
@@ -109,9 +112,8 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
                     'numero_puesta' => $puesta->numero_puesta,
                     'anio' => $puesta->anio,
                     'rnd' => 'RND-EDITADO-456',
-                    'personas' => [[
-                        'nombre_completo' => 'OFICIAL EDITADO',
-                        'calidad' => 'ELEMENTO PARTICIPANTE',
+                    'participantes' => [[
+                        'nombre' => 'OFICIAL EDITADO',
                     ]],
                 ])
             ),
@@ -122,11 +124,11 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
         $this->assertSame($destacamentoSeleccionado->id, (int)$actualizada->destacamento_id);
         $this->assertSame('RND-EDITADO-456', $actualizada->rnd);
         $this->assertSame(2, (int)$actualizada->numero_detenidos);
-        $this->assertSame('PERSONAL HISTÓRICO', $actualizada->personal_participante);
+        $this->assertSame('OFICIAL EDITADO', $actualizada->personal_participante);
         $this->assertDatabaseHas('puestas_disposicion_personas', [
             'puesta_disposicion_id' => $actualizada->id,
-            'nombre_completo' => 'OFICIAL EDITADO',
-            'calidad' => 'ELEMENTO PARTICIPANTE',
+            'nombre_completo' => 'PERSONA DETENIDA',
+            'calidad' => 'DETENIDA',
         ]);
     }
 
@@ -180,9 +182,12 @@ class PuestaDisposicionDestacamentoCarreterasTest extends TestCase
             'fecha_puesta' => now()->toDateString(),
             'destacamento_id' => $destacamentoId,
             'rnd' => 'rnd-carreteras-123',
+            'participantes' => [
+                ['nombre' => 'Oficial Uno'],
+                ['nombre' => 'Oficial Dos'],
+            ],
             'personas' => [
-                ['nombre_completo' => 'Oficial Uno', 'calidad' => 'ELEMENTO PARTICIPANTE'],
-                ['nombre_completo' => 'Oficial Dos', 'calidad' => 'ELEMENTO PARTICIPANTE'],
+                ['nombre_completo' => 'Persona Detenida', 'calidad' => 'DETENIDA'],
             ],
         ];
     }

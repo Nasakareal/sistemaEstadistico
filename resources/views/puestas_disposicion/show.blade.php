@@ -186,8 +186,7 @@ target="_blank">
 <div class="col-md-3 mb-3"><label>Menores / sexo reportado</label><input type="text" class="form-control" value="{{ ($puestaDisposicion->numero_menores ?? 0) . ' / ' . ($puestaDisposicion->sexo_resumen ?: 'N/D') }}" readonly></div>
 </div>
 <div class="row">
-<div class="col-md-6 mb-3"><label>Personal participante</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->personal_participante }}</textarea></div>
-<div class="col-md-6 mb-3"><label>Detenidos reportados</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->detenidos_descripcion }}</textarea></div>
+<div class="col-md-12 mb-3"><label>Detenidos reportados</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->detenidos_descripcion }}</textarea></div>
 </div>
 @endif
 <div class="row">
@@ -198,6 +197,17 @@ target="_blank">
 <div class="col-md-6 mb-3"><label>Descripción original</label><textarea class="form-control" rows="3" readonly>{{ $puestaDisposicion->descripcion_origen }}</textarea></div>
 @endif
 </div>
+</div>
+</div>
+@endif
+
+@if($puestaDisposicion->personal_participante)
+<div class="card card-outline card-success">
+<div class="card-header">
+<h3 class="card-title">Personal participante</h3>
+</div>
+<div class="card-body">
+<div style="white-space: pre-line;">{{ $puestaDisposicion->personal_participante }}</div>
 </div>
 </div>
 @endif

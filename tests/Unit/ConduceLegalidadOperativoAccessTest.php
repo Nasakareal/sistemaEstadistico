@@ -209,6 +209,34 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertNull($scope['delegacion_id']);
     }
 
+    public function test_capture_inherits_operational_unit_instead_of_actor_unit(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['unidad_id' => 5, 'delegacion_id' => null]);
+
+        $scope = $this->resolveCaptureScope(
+            $operativo,
+            $this->user('Administrador', 1, null)
+        );
+
+        $this->assertSame(5, $scope['unidad_id']);
+        $this->assertNull($scope['delegacion_id']);
+    }
+
+    public function test_capture_inherits_operational_delegation(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['unidad_id' => 2, 'delegacion_id' => 15]);
+
+        $scope = $this->resolveCaptureScope(
+            $operativo,
+            $this->user('Superadmin', 1, null)
+        );
+
+        $this->assertSame(2, $scope['unidad_id']);
+        $this->assertSame(15, $scope['delegacion_id']);
+    }
+
     private function scheduleRules($user): array
     {
         $method = new ReflectionMethod(ConduceLegalidadController::class, 'operativoRulesForUser');
@@ -234,6 +262,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user, $validated, $operativo);
+    }
+
+    private function resolveCaptureScope(ConduceLegalidadOperativo $operativo, $user): array
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'adscripcionCaptura');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $operativo, $user);
     }
 
     private function canView($user, ConduceLegalidadOperativo $operativo): bool

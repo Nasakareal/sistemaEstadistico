@@ -132,6 +132,64 @@ class ConstanciaManejoController extends Controller
         return response()->json(['ok' => true, 'data' => $data]);
     }
 
+    public function indexExamenes(Request $request)
+    {
+        $this->authorizeConstanciasUnidad();
+
+        $request->validate([
+            'estatus' => ['nullable', 'in:PENDIENTE,APROBADO,REPROBADO'],
+            'modalidad' => ['nullable', 'in:LINEA,IMPRESO'],
+            'sin_constancia' => ['nullable', 'boolean'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $query = ConstanciaExamenSolicitud::query()
+            ->whereIn('modulo_id', $this->queryModulosPermitidos()->pluck('id'))
+            ->with(['modulo', 'constancia'])
+            ->orderByDesc('id');
+
+        if ($request->filled('estatus')) {
+            $query->where('estatus', strtoupper((string) $request->query('estatus')));
+        }
+
+        if ($request->filled('modalidad')) {
+            $query->where('modalidad', strtoupper((string) $request->query('modalidad')));
+        }
+
+        if ($request->boolean('sin_constancia')) {
+            $query->whereNull('constancia_id');
+        }
+
+        if ($request->filled('buscar')) {
+            $buscar = trim((string) $request->query('buscar'));
+            $query->where(function ($q) use ($buscar) {
+                $q->where('folio_examen', 'like', "%{$buscar}%")
+                    ->orWhere('nombre_solicitante', 'like', "%{$buscar}%")
+                    ->orWhere('curp', 'like', "%{$buscar}%")
+                    ->orWhere('telefono', 'like', "%{$buscar}%")
+                    ->orWhereHas('constancia', function ($constancia) use ($buscar) {
+                        $constancia->where('folio', 'like', "%{$buscar}%");
+                    });
+            });
+        }
+
+        $perPage = (int) $request->query('per_page', 25);
+        $page = $query->paginate($perPage);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $page->getCollection()
+                ->map(fn ($solicitud) => $this->examenSolicitudPayload($solicitud, false))
+                ->values(),
+            'pagination' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
     public function resumenDiario(Request $request)
     {
         $this->authorizeConstanciasUnidad();
@@ -379,6 +437,19 @@ class ConstanciaManejoController extends Controller
         }
 
         $this->authorizeExamenSolicitud($solicitud);
+
+        return response()->json([
+            'ok' => true,
+            'examen' => $this->examenSolicitudPayload($solicitud),
+        ]);
+    }
+
+    public function showExamen(ConstanciaExamenSolicitud $solicitud)
+    {
+        $this->authorizeConstanciasUnidad();
+        $this->authorizeExamenSolicitud($solicitud);
+
+        $solicitud->load(['modulo', 'constancia']);
 
         return response()->json([
             'ok' => true,
@@ -950,7 +1021,10 @@ class ConstanciaManejoController extends Controller
         return url('/api/constancias-manejo/' . $constancia->id . '/examen-escrito-qr');
     }
 
-    private function examenSolicitudPayload(ConstanciaExamenSolicitud $solicitud): array
+    private function examenSolicitudPayload(
+        ConstanciaExamenSolicitud $solicitud,
+        bool $incluirDetalle = true
+    ): array
     {
         $solicitud->loadMissing(['modulo', 'constancia']);
         $tokenVigente = (bool) (
@@ -959,7 +1033,9 @@ class ConstanciaManejoController extends Controller
             && Carbon::now('America/Mexico_City')->lessThanOrEqualTo($solicitud->token_expira)
             && !$solicitud->constancia_id
         );
-        $preguntas = $this->cuestionarios->generar($solicitud->tipo_licencia, $solicitud->token);
+        $preguntas = $incluirDetalle
+            ? $this->cuestionarios->generar($solicitud->tipo_licencia, $solicitud->token)
+            : collect();
 
         return [
             'id' => $solicitud->id,
@@ -983,14 +1059,17 @@ class ConstanciaManejoController extends Controller
             'aciertos' => $solicitud->aciertos,
             'errores' => $solicitud->errores,
             'fecha_examen' => optional($solicitud->fecha_examen)->toISOString(),
+            'created_at' => optional($solicitud->created_at)->toISOString(),
             'token_expira' => optional($solicitud->token_expira)->toISOString(),
             'observaciones' => $solicitud->observaciones,
             'url_examen' => $tokenVigente ? $this->examenSolicitudUrl($solicitud) : null,
             'url_examen_qr' => $tokenVigente ? $this->examenSolicitudQrUrl($solicitud) : null,
-            'qr_examen_base64' => $tokenVigente ? base64_encode($this->qrPng($this->examenSolicitudUrl($solicitud))) : null,
+            'qr_examen_base64' => $incluirDetalle && $tokenVigente
+                ? base64_encode($this->qrPng($this->examenSolicitudUrl($solicitud)))
+                : null,
             'puede_capturar_impreso' => $solicitud->modalidad === 'IMPRESO' && !$solicitud->constancia_id,
             'puede_activar_constancia' => $solicitud->estatus === 'APROBADO' && !$solicitud->constancia_id,
-            'solucionario' => $this->solucionario($preguntas),
+            'solucionario' => $incluirDetalle ? $this->solucionario($preguntas) : [],
         ];
     }
 

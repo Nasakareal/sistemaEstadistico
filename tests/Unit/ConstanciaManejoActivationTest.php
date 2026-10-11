@@ -13,6 +13,7 @@ class ConstanciaManejoActivationTest extends TestCase
         $constancia = $this->constancia([
             'nombre_solicitante' => 'ANA LOPEZ',
             'sexo' => 'MUJER',
+            'edad' => 32,
             'tipo_licencia' => 'AUTOMOVILISTA',
         ]);
 
@@ -21,11 +22,12 @@ class ConstanciaManejoActivationTest extends TestCase
         $this->assertTrue($constancia->puedeActivar());
     }
 
-    public function test_activacion_directa_requiere_nombre_sexo_y_tipo_de_licencia(): void
+    public function test_activacion_directa_requiere_nombre_sexo_edad_y_tipo_de_licencia(): void
     {
         $constancia = $this->constancia([
             'nombre_solicitante' => 'ANA LOPEZ',
             'sexo' => null,
+            'edad' => 32,
             'tipo_licencia' => 'AUTOMOVILISTA',
         ]);
 
@@ -39,6 +41,7 @@ class ConstanciaManejoActivationTest extends TestCase
             [
                 'nombre_solicitante' => 'ANA LOPEZ',
                 'sexo' => 'MUJER',
+                'edad' => 32,
                 'tipo_licencia' => 'AUTOMOVILISTA',
             ],
             new ConstanciaExamen(['resultado' => 'REPROBADO'])
@@ -55,6 +58,7 @@ class ConstanciaManejoActivationTest extends TestCase
             'estatus' => 'IMPRESA_INACTIVA',
             'nombre_solicitante' => null,
             'sexo' => null,
+            'edad' => null,
             'tipo_licencia' => null,
             'acceso_examen_token' => null,
         ], $attributes));

@@ -258,10 +258,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ApiConstanciaManejoController::class, 'index'])->name('api.constancias_manejo.index');
         Route::get('/modulos', [ApiConstanciaManejoController::class, 'modulos'])->name('api.constancias_manejo.modulos');
         Route::get('/examenes-imprimibles', [ApiConstanciaManejoController::class, 'examenesImprimibles'])->name('api.constancias_manejo.examenes_imprimibles');
+        Route::get('/examenes', [ApiConstanciaManejoController::class, 'indexExamenes'])->name('api.constancias_manejo.examenes.index');
         Route::get('/resumen-diario', [ApiConstanciaManejoController::class, 'resumenDiario'])->name('api.constancias_manejo.resumen_diario');
         Route::post('/', [ApiConstanciaManejoController::class, 'store'])->middleware('can:crear modulo examenes')->name('api.constancias_manejo.store');
         Route::post('/examenes', [ApiConstanciaManejoController::class, 'storeExamen'])->middleware('can:editar modulo examenes')->name('api.constancias_manejo.examenes.store');
         Route::get('/examenes/qr/{token}', [ApiConstanciaManejoController::class, 'buscarExamenPorQr'])->name('api.constancias_manejo.examenes.qr');
+        Route::get('/examenes/{solicitud}', [ApiConstanciaManejoController::class, 'showExamen'])->whereNumber('solicitud')->name('api.constancias_manejo.examenes.show');
         Route::get('/examenes/{solicitud}/qr', [ApiConstanciaManejoController::class, 'examenSolicitudQr'])->whereNumber('solicitud')->name('api.constancias_manejo.examenes.qr_png');
         Route::post('/examenes/{solicitud}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarExamenSolicitudImpresa'])->middleware('can:editar modulo examenes')->whereNumber('solicitud')->name('api.constancias_manejo.examenes.capturar_impreso');
         Route::post('/examenes/{solicitud}/activar-constancia', [ApiConstanciaManejoController::class, 'activarConExamen'])->middleware('can:editar modulo examenes')->whereNumber('solicitud')->name('api.constancias_manejo.examenes.activar_constancia');

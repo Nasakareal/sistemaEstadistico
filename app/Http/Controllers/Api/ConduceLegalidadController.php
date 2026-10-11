@@ -535,7 +535,8 @@ class ConduceLegalidadController extends Controller
                 ->first();
 
             if ($existing) {
-                DB::transaction(function () use ($existing, $actividadSync) {
+                DB::transaction(function () use ($existing, $operativo, $user, $actividadSync) {
+                    $this->sincronizarAdscripcionCaptura($existing, $operativo, $user);
                     $actividadSync->sync($existing);
                 });
 
@@ -565,6 +566,7 @@ class ConduceLegalidadController extends Controller
             $infraccion = $fundamentos[0] ?? null;
             $infraccionSnapshot = $this->capturaInfraccionSnapshot($validated, $infraccion);
             $agente = $this->agenteCapturaData($validated, $user);
+            $adscripcion = $this->adscripcionCaptura($operativo, $user);
             $now = now();
             $captura = $operativo->capturas()->create([
                 'client_uuid' => $clientUuid,
@@ -578,8 +580,8 @@ class ConduceLegalidadController extends Controller
                 'agente_apellido_materno' => $agente['apellido_materno'],
                 'agente_numero_placa' => $agente['numero_placa'],
                 'agente_adscripcion' => $agente['adscripcion'],
-                'unidad_id' => $user->unidad_id,
-                'delegacion_id' => $user->delegacion_id,
+                'unidad_id' => $adscripcion['unidad_id'],
+                'delegacion_id' => $adscripcion['delegacion_id'],
                 'fecha' => $validated['fecha'] ?? $operativo->fecha ?? $now->toDateString(),
                 'hora' => $validated['hora'] ?? $now->format('H:i:s'),
                 'municipio' => $this->nullableString($validated['municipio'] ?? $operativo->municipio),
@@ -728,6 +730,7 @@ class ConduceLegalidadController extends Controller
                 ];
             $usaFundamentoUnificado = $campoFundamentoPresente || count($fundamentos) > 0;
             $agente = $this->agenteCapturaData($validated, $user, $captura);
+            $adscripcion = $this->adscripcionCaptura($operativo, $user);
             $captura->fill([
                 'licencia_punto_infraccion_id' => $campoFundamentoPresente
                     ? ($infraccion ? $infraccion->id : null)
@@ -744,6 +747,8 @@ class ConduceLegalidadController extends Controller
                 'agente_apellido_materno' => $agente['apellido_materno'],
                 'agente_numero_placa' => $agente['numero_placa'],
                 'agente_adscripcion' => $agente['adscripcion'],
+                'unidad_id' => $adscripcion['unidad_id'],
+                'delegacion_id' => $adscripcion['delegacion_id'],
                 'fecha' => $validated['fecha'] ?? $captura->fecha,
                 'hora' => $validated['hora'] ?? $captura->hora,
                 'municipio' => array_key_exists('municipio', $validated) ? $this->nullableString($validated['municipio']) : $captura->municipio,
@@ -2143,6 +2148,33 @@ class ConduceLegalidadController extends Controller
             'unidad_id' => $unidadId,
             'delegacion_id' => $delegacionId,
         ];
+    }
+
+    private function adscripcionCaptura(
+        ConduceLegalidadOperativo $operativo,
+        $user
+    ): array {
+        return $this->adscripcionTicket($operativo, $user);
+    }
+
+    private function sincronizarAdscripcionCaptura(
+        ConduceLegalidadCaptura $captura,
+        ConduceLegalidadOperativo $operativo,
+        $user
+    ): void {
+        $adscripcion = $this->adscripcionCaptura($operativo, $user);
+        $unidadId = $adscripcion['unidad_id'] ?: null;
+        $delegacionId = $adscripcion['delegacion_id'];
+
+        if ((int) ($captura->unidad_id ?? 0) === (int) ($unidadId ?? 0)
+            && (int) ($captura->delegacion_id ?? 0) === (int) ($delegacionId ?? 0)) {
+            return;
+        }
+
+        $captura->forceFill([
+            'unidad_id' => $unidadId,
+            'delegacion_id' => $delegacionId,
+        ])->save();
     }
 
     private function appendSupervisorTicket(

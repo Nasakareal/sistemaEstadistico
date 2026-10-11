@@ -17,6 +17,7 @@ use App\Models\Unidad;
 use App\Models\User;
 use App\Services\CodigoPostalGeoService;
 use App\Services\ConduceLegalidadActividadSyncService;
+use App\Services\ConduceLegalidadTotalesDocxService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\WhatsAppCloudService;
@@ -886,7 +887,11 @@ class ConduceLegalidadController extends Controller
             ],
         ]);
     }
-    public function nativeShareOperativo(Request $request, ConduceLegalidadOperativo $operativo)
+    public function nativeShareOperativo(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadTotalesDocxService $totalesDocxService
+    )
     {
         $user = $request->user();
         abort_unless($this->canManage($user), 403);
@@ -902,6 +907,11 @@ class ConduceLegalidadController extends Controller
             ->get();
 
         $texto = $this->tarjetaTotalesOperativo($operativo, $capturas, $user);
+        $media = [];
+        if (!$this->esOperativoAlcoholimetria($operativo)) {
+            $reporte = $totalesDocxService->generar($operativo, $capturas);
+            $media[] = $this->storageUrl($reporte['relative_path']);
+        }
 
         return response()->json([
             'ok' => true,
@@ -909,7 +919,7 @@ class ConduceLegalidadController extends Controller
                 'title' => 'Resumen ' . $this->nombreTicketOperativo($operativo),
                 'texto' => trim($texto),
                 'message' => trim($texto),
-                'media' => [],
+                'media' => array_values(array_filter($media)),
                 'fotos' => [],
                 'operativo_id' => $operativo->id,
                 'tipo' => 'operativo_totales',

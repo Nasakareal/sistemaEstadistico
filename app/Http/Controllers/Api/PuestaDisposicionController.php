@@ -773,6 +773,12 @@ class PuestaDisposicionController extends Controller
         $usuario=Auth::user();
         $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
 
+        if (!empty($puesta->fuente_importacion)) {
+            return response()->json([
+                'message' => 'Esta puesta proviene del concentrado oficial de Carreteras y no puede eliminarse; debe corregirse conservando su referencia de origen.',
+            ], 409);
+        }
+
         $puesta->loadMissing(['fotos','personas']);
         $archivo=$puesta->archivo_puesta;
         $archivoUsoFuerzaGeneral=$puesta->archivo_uso_fuerza;

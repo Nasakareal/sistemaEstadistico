@@ -151,6 +151,118 @@ class PuestaDisposicionWebIndexFilterTest extends TestCase
         $this->assertFalse($puestas->contains('id', $otra->id));
     }
 
+    public function test_index_ordena_por_encabezado_en_ambas_direcciones_y_conserva_filtros(): void
+    {
+        $anio = (int)now()->year;
+        $numero = (int)PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->max('numero_puesta') + 600;
+        $marca = 'ORDEN-' . $numero;
+
+        $primera = $this->crearPuesta($numero, $anio, 1, 'SINIESTROS', [
+            'nombre_policia' => 'ALFA ' . $marca,
+        ]);
+        $segunda = $this->crearPuesta($numero + 1, $anio, 3, 'COORDINACION', [
+            'nombre_policia' => 'BRAVO ' . $marca,
+        ]);
+        $tercera = $this->crearPuesta($numero + 2, $anio, 5, 'VIALIDADES', [
+            'nombre_policia' => 'CHARLIE ' . $marca,
+        ]);
+
+        Auth::login(User::factory()->create(['unidad_id' => 3]));
+
+        $ascendente = (new PuestaDisposicionController())->index(Request::create(
+            '/puestas-disposicion',
+            'GET',
+            ['anio' => $anio, 'q' => $marca, 'orden' => 'policia', 'direccion' => 'asc']
+        ));
+
+        $this->assertSame('policia', $ascendente->getData()['orden']);
+        $this->assertSame('asc', $ascendente->getData()['direccion']);
+        $this->assertSame(
+            [$primera->id, $segunda->id, $tercera->id],
+            $ascendente->getData()['puestas']->pluck('id')->all()
+        );
+
+        $descendente = (new PuestaDisposicionController())->index(Request::create(
+            '/puestas-disposicion',
+            'GET',
+            ['anio' => $anio, 'q' => $marca, 'orden' => 'policia', 'direccion' => 'desc']
+        ));
+
+        $this->assertSame(
+            [$tercera->id, $segunda->id, $primera->id],
+            $descendente->getData()['puestas']->pluck('id')->all()
+        );
+
+        $porUnidad = (new PuestaDisposicionController())->index(Request::create(
+            '/puestas-disposicion',
+            'GET',
+            ['anio' => $anio, 'q' => $marca, 'orden' => 'unidad', 'direccion' => 'asc']
+        ));
+        $nombresUnidad = $porUnidad->getData()['puestas']
+            ->map(fn (PuestaDisposicion $puesta) => optional($puesta->unidad)->nombre)
+            ->values();
+
+        $this->assertSame(
+            $nombresUnidad->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()->all(),
+            $nombresUnidad->all()
+        );
+    }
+
+    public function test_filtra_por_numero_exacto_del_concentrado_de_carreteras(): void
+    {
+        $anio = (int)now()->year;
+        $numero = (int)PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->max('numero_puesta') + 700;
+
+        $folioSiete = $this->crearPuesta($numero, $anio, 4, 'CARRETERAS', [
+            'fuente_importacion' => 'IPH_CARRETERAS_2026',
+            'secuencia_origen' => 8,
+            'numero_origen' => '7',
+            'folio_origen' => '2677195',
+        ]);
+        $folioDiecisiete = $this->crearPuesta($numero + 1, $anio, 4, 'CARRETERAS', [
+            'fuente_importacion' => 'IPH_CARRETERAS_2026',
+            'secuencia_origen' => 18,
+            'numero_origen' => '17',
+            'folio_origen' => 'OTRO-FOLIO',
+        ]);
+
+        Auth::login(User::factory()->create(['unidad_id' => 3]));
+
+        $response = (new PuestaDisposicionController())->index(Request::create(
+            '/puestas-disposicion',
+            'GET',
+            ['anio' => $anio, 'unidad_id' => 4, 'numero_origen' => '7']
+        ));
+
+        $this->assertSame('7', $response->getData()['numeroOrigenSeleccionado']);
+        $this->assertTrue($response->getData()['puestas']->contains('id', $folioSiete->id));
+        $this->assertFalse($response->getData()['puestas']->contains('id', $folioDiecisiete->id));
+    }
+
+    public function test_no_elimina_fisicamente_una_puesta_importada_de_carreteras(): void
+    {
+        $anio = (int)now()->year;
+        $numero = (int)PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->max('numero_puesta') + 800;
+        $puesta = $this->crearPuesta($numero, $anio, 4, 'CARRETERAS', [
+            'fuente_importacion' => 'IPH_CARRETERAS_2026',
+            'secuencia_origen' => 8,
+            'numero_origen' => '7',
+        ]);
+
+        Auth::login(User::factory()->create(['unidad_id' => 3]));
+
+        $response = (new PuestaDisposicionController())->destroy($puesta);
+
+        $this->assertDatabaseHas('puestas_disposicion', ['id' => $puesta->id]);
+        $this->assertTrue($response->getSession()->has('error'));
+    }
+
     private function crearPuesta(
         int $numero,
         int $anio,

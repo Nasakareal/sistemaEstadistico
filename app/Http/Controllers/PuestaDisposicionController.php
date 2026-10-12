@@ -433,17 +433,40 @@ class PuestaDisposicionController extends Controller
         $busqueda = mb_substr(trim((string)$request->get('q', '')), 0, 150, 'UTF-8');
         $carpetaSeleccionada = mb_substr(trim((string)$request->get('carpeta_investigacion', '')), 0, 150, 'UTF-8');
         $oficioSeleccionado = mb_substr(trim((string)$request->get('oficio', '')), 0, 150, 'UTF-8');
+        $numeroOrigenSeleccionado = mb_substr(trim((string)$request->get('numero_origen', '')), 0, 50, 'UTF-8');
         $motivoSeleccionado = trim((string)$request->get('motivo', ''));
         $tipoSeleccionado = trim((string)$request->get('tipo_puesta', ''));
+        $columnasOrdenables = [
+            'numero' => 'numero_puesta',
+            'anio' => 'anio',
+            'fecha' => 'fecha_puesta',
+            'carpeta' => 'carpeta_investigacion',
+            'oficio' => 'oficio',
+            'policia' => 'nombre_policia',
+            'tipo' => 'tipo_puesta',
+            'motivo' => 'motivo',
+            'origen' => 'secuencia_origen',
+            'personas' => 'personas_count',
+        ];
+        $orden = strtolower(trim((string)$request->get('orden', 'fecha')));
+        $direccion = strtolower(trim((string)$request->get('direccion', 'desc')));
+
+        if (!array_key_exists($orden, $columnasOrdenables)
+            && !in_array($orden, ['unidad', 'delegacion', 'destacamento'], true)) {
+            $orden = 'fecha';
+        }
+
+        if (!in_array($direccion, ['asc', 'desc'], true)) {
+            $direccion = 'desc';
+        }
+
         $puedeFiltrarUnidad = $this->puedeVerTodasLasUnidades($usuario);
         $unidadSeleccionadaId = $puedeFiltrarUnidad && $request->filled('unidad_id')
             ? (int)$request->input('unidad_id')
             : null;
 
         $query = $this->queryVisibleByUser($usuario)
-            ->withCount('personas')
-            ->orderByDesc('fecha_puesta')
-            ->orderByDesc('numero_puesta');
+            ->withCount('personas');
 
         if (preg_match('/^\d{4}-(?:0[1-9]|1[0-2])$/', $mesSeleccionado)) {
             $inicioMes = Carbon::createFromFormat('Y-m-d', $mesSeleccionado . '-01')->startOfMonth();
@@ -473,6 +496,10 @@ class PuestaDisposicionController extends Controller
             $query->where('oficio', 'like', '%' . $oficioSeleccionado . '%');
         }
 
+        if ($numeroOrigenSeleccionado !== '') {
+            $query->where('numero_origen', $numeroOrigenSeleccionado);
+        }
+
         if ($busqueda !== '') {
             $like = '%' . $busqueda . '%';
 
@@ -491,6 +518,7 @@ class PuestaDisposicionController extends Controller
                     ->orWhere('personal_participante', 'like', $like)
                     ->orWhere('detenidos_descripcion', 'like', $like)
                     ->orWhere('rnd', 'like', $like)
+                    ->orWhereRaw('CAST(secuencia_origen AS CHAR) LIKE ?', [$like])
                     ->orWhereRaw('CAST(numero_puesta AS CHAR) LIKE ?', [$like])
                     ->orWhereHas('personas', function ($personas) use ($like) {
                         $personas->where('nombre_completo', 'like', $like)
@@ -498,6 +526,41 @@ class PuestaDisposicionController extends Controller
                             ->orWhere('curp', 'like', $like);
                     });
             });
+        }
+
+        if ($orden === 'unidad') {
+            $query->orderBy(
+                Unidad::query()
+                    ->select('nombre')
+                    ->whereColumn('unidades.id', 'puestas_disposicion.unidad_id'),
+                $direccion
+            );
+        } elseif ($orden === 'delegacion') {
+            $query->orderBy(
+                Delegacion::query()
+                    ->select('nombre')
+                    ->whereColumn('delegaciones.id', 'puestas_disposicion.delegacion_id'),
+                $direccion
+            );
+        } elseif ($orden === 'destacamento') {
+            $query->orderBy(
+                Destacamento::query()
+                    ->select('nombre')
+                    ->whereColumn('destacamentos.id', 'puestas_disposicion.destacamento_id'),
+                $direccion
+            );
+        } else {
+            $columna = $columnasOrdenables[$orden];
+            $query->orderBy(
+                $columna === 'personas_count' ? $columna : 'puestas_disposicion.' . $columna,
+                $direccion
+            );
+        }
+
+        if ($orden === 'fecha') {
+            $query->orderBy('puestas_disposicion.numero_puesta', $direccion);
+        } else {
+            $query->orderBy('puestas_disposicion.id', $direccion);
         }
 
         $puestas = $query->paginate(25)->withQueryString();
@@ -541,8 +604,11 @@ class PuestaDisposicionController extends Controller
             'busqueda',
             'carpetaSeleccionada',
             'oficioSeleccionado',
+            'numeroOrigenSeleccionado',
             'motivoSeleccionado',
             'tipoSeleccionado',
+            'orden',
+            'direccion',
             'motivosFiltro',
             'tiposFiltro'
         ));
@@ -1336,6 +1402,11 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
+
+        if (!empty($puestaDisposicion->fuente_importacion)) {
+            return redirect()->route('puestas_disposicion.index')
+                ->with('error', 'Esta puesta proviene del concentrado oficial de Carreteras y no puede eliminarse. Debe corregirse conservando su referencia de origen.');
+        }
 
         DB::beginTransaction();
 

@@ -34,6 +34,26 @@
         .pd-filters select.form-control option:disabled {
             color: #94a3b8 !important;
         }
+
+        .pd-sort-link {
+            align-items: center;
+            color: inherit;
+            display: inline-flex;
+            gap: .35rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .pd-sort-link:hover,
+        .pd-sort-link:focus {
+            color: #0b63ce;
+            text-decoration: none;
+        }
+
+        .pd-sort-link .fas {
+            font-size: .75rem;
+            opacity: .75;
+        }
     </style>
 @stop
 
@@ -50,6 +70,28 @@
 @stop
 
 @section('content')
+    @php
+        $urlOrden = function (string $columna) use ($orden, $direccion): string {
+            $parametros = request()->except('page');
+            $parametros['orden'] = $columna;
+            $parametros['direccion'] = $orden === $columna && $direccion === 'asc' ? 'desc' : 'asc';
+
+            return route('puestas_disposicion.index', $parametros);
+        };
+
+        $iconoOrden = function (string $columna) use ($orden, $direccion): string {
+            if ($orden !== $columna) {
+                return 'fa-sort';
+            }
+
+            return $direccion === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+        };
+
+        $ariaOrden = fn (string $columna): string => $orden === $columna
+            ? ($direccion === 'asc' ? 'ascending' : 'descending')
+            : 'none';
+    @endphp
+
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -61,6 +103,8 @@
     <div class="card">
         <div class="card-header">
             <form method="GET" action="{{ route('puestas_disposicion.index') }}" class="pd-filters">
+                <input type="hidden" name="orden" value="{{ $orden }}">
+                <input type="hidden" name="direccion" value="{{ $direccion }}">
                 <div class="row">
                     <div class="col-lg-4 col-md-6 mb-3">
                         <label for="q">Buscar</label>
@@ -70,7 +114,7 @@
                                    name="q"
                                    class="form-control"
                                    value="{{ $busqueda }}"
-                                   placeholder="Carpeta, oficio, policía, persona, CURP o número">
+                                   placeholder="Carpeta, oficio, policía, persona, CURP o folio">
                             <div class="input-group-append">
                                 <button type="submit" class="btn btn-primary" title="Buscar">
                                     <i class="fas fa-search"></i>
@@ -121,6 +165,16 @@
                                placeholder="Buscar por carpeta">
                     </div>
 
+                    <div class="col-lg-2 col-md-4 mb-3">
+                        <label for="numero_origen">Núm. Carreteras</label>
+                        <input type="text"
+                               id="numero_origen"
+                               name="numero_origen"
+                               class="form-control"
+                               value="{{ $numeroOrigenSeleccionado }}"
+                               placeholder="Ej. 7, 16 o 25">
+                    </div>
+
                     <div class="col-lg-3 col-md-6 mb-3">
                         <label for="oficio">Oficio</label>
                         <input type="text"
@@ -168,18 +222,71 @@
                 <table class="table table-hover table-striped mb-0">
                     <thead class="thead-light">
                         <tr>
-                            <th style="width:110px;">No.</th>
-                            <th style="width:90px;">Año</th>
-                            <th style="width:140px;">Fecha</th>
-                            <th>Carpeta</th>
-                            <th>Oficio</th>
-                            <th>Policía</th>
-                            <th style="width:160px;">Tipo</th>
-                            <th style="width:170px;">Motivo</th>
-                            <th style="width:160px;">Unidad</th>
-                            <th style="width:160px;">Delegación</th>
-                            <th style="width:160px;">Destacamento</th>
-                            <th style="width:95px;">Personas</th>
+                            <th style="width:110px;" aria-sort="{{ $ariaOrden('numero') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('numero') }}" title="Ordenar por número">
+                                    Folio sistema <i class="fas {{ $iconoOrden('numero') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="min-width:180px;" aria-sort="{{ $ariaOrden('origen') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('origen') }}" title="Ordenar por secuencia del concentrado de Carreteras">
+                                    Referencia Carreteras <i class="fas {{ $iconoOrden('origen') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:90px;" aria-sort="{{ $ariaOrden('anio') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('anio') }}" title="Ordenar por año">
+                                    Año <i class="fas {{ $iconoOrden('anio') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:140px;" aria-sort="{{ $ariaOrden('fecha') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('fecha') }}" title="Ordenar por fecha">
+                                    Fecha <i class="fas {{ $iconoOrden('fecha') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th aria-sort="{{ $ariaOrden('carpeta') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('carpeta') }}" title="Ordenar por carpeta">
+                                    Carpeta <i class="fas {{ $iconoOrden('carpeta') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th aria-sort="{{ $ariaOrden('oficio') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('oficio') }}" title="Ordenar por oficio">
+                                    Oficio <i class="fas {{ $iconoOrden('oficio') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th aria-sort="{{ $ariaOrden('policia') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('policia') }}" title="Ordenar por policía">
+                                    Policía <i class="fas {{ $iconoOrden('policia') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:160px;" aria-sort="{{ $ariaOrden('tipo') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('tipo') }}" title="Ordenar por tipo">
+                                    Tipo <i class="fas {{ $iconoOrden('tipo') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:170px;" aria-sort="{{ $ariaOrden('motivo') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('motivo') }}" title="Ordenar por motivo">
+                                    Motivo <i class="fas {{ $iconoOrden('motivo') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:160px;" aria-sort="{{ $ariaOrden('unidad') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('unidad') }}" title="Ordenar por unidad">
+                                    Unidad <i class="fas {{ $iconoOrden('unidad') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:160px;" aria-sort="{{ $ariaOrden('delegacion') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('delegacion') }}" title="Ordenar por delegación">
+                                    Delegación <i class="fas {{ $iconoOrden('delegacion') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:160px;" aria-sort="{{ $ariaOrden('destacamento') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('destacamento') }}" title="Ordenar por destacamento">
+                                    Destacamento <i class="fas {{ $iconoOrden('destacamento') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                            <th style="width:95px;" aria-sort="{{ $ariaOrden('personas') }}">
+                                <a class="pd-sort-link" href="{{ $urlOrden('personas') }}" title="Ordenar por cantidad de personas">
+                                    Personas <i class="fas {{ $iconoOrden('personas') }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
                             <th style="width:150px;">Archivo</th>
                             <th style="width:240px;" class="text-right">Acciones</th>
                         </tr>
@@ -189,6 +296,16 @@
                             <tr>
                                 <td>
                                     <strong>{{ $p->numero_puesta }}</strong>
+                                </td>
+
+                                <td>
+                                    @if($p->numero_origen || $p->folio_origen || $p->secuencia_origen)
+                                        <div><strong>Núm. {{ $p->numero_origen ?: '—' }}</strong></div>
+                                        <small class="d-block text-muted">Folio: {{ $p->folio_origen ?: '—' }}</small>
+                                        <small class="d-block text-muted">Secuencia: {{ $p->secuencia_origen ?: '—' }}</small>
+                                    @else
+                                        <span class="text-muted">Captura directa</span>
+                                    @endif
                                 </td>
 
                                 <td>{{ $p->anio }}</td>
@@ -241,23 +358,30 @@
                                     @endcan
 
                                     @can('eliminar puestas a disposicion')
-                                        <form action="{{ route('puestas_disposicion.destroy', $p->id) }}"
-                                              method="POST"
-                                              class="d-inline"
-                                              onsubmit="return confirm('¿Eliminar esta puesta a disposición?');">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button class="btn btn-sm btn-danger">
-                                                <i class="fas fa-trash"></i>
+                                        @if($p->fuente_importacion)
+                                            <button type="button" class="btn btn-sm btn-secondary" disabled
+                                                    title="Registro oficial importado: debe conservar su referencia de origen">
+                                                <i class="fas fa-lock"></i>
                                             </button>
-                                        </form>
+                                        @else
+                                            <form action="{{ route('puestas_disposicion.destroy', $p->id) }}"
+                                                  method="POST"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('¿Eliminar esta puesta a disposición?');">
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     @endcan
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="text-center text-muted py-4">
+                                <td colspan="15" class="text-center text-muted py-4">
                                     No hay puestas a disposición para los filtros seleccionados.
                                 </td>
                             </tr>

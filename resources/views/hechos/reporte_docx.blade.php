@@ -187,6 +187,7 @@
             <td><strong>Edad</strong><br>{{ $conductor->edad }}</td>
             <td><strong>Sexo</strong><br>{{ $conductor->sexo }}</td>
             <td><strong>Ocupación</strong><br>{{ $conductor->ocupacion }}</td>
+            <td><strong>Teléfono</strong><br>{{ $conductor->telefono ?? 'N/A' }}</td>
           </tr>
         </table>
 

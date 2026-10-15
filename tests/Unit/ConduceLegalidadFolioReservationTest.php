@@ -29,6 +29,12 @@ class ConduceLegalidadFolioReservationTest extends TestCase
             $table->timestamps();
             $table->unique(['operativo_id', 'client_uuid']);
         });
+        Schema::create('conduce_legalidad_capturas', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('operativo_id');
+            $table->uuid('client_uuid')->nullable();
+            $table->unsignedBigInteger('folio_numero')->nullable()->unique();
+        });
     }
 
     public function test_same_capture_keeps_its_reserved_folio_and_concurrent_captures_get_different_numbers(): void
@@ -60,5 +66,22 @@ class ConduceLegalidadFolioReservationTest extends TestCase
             'CL-17-' . $folioA,
             $folioCaptura->invoke($controller, $operativo, $captura)
         );
+    }
+
+    public function test_database_rejects_a_repeated_capture_folio(): void
+    {
+        DB::table('conduce_legalidad_capturas')->insert([
+            'operativo_id' => 17,
+            'client_uuid' => '11111111-1111-4111-8111-111111111111',
+            'folio_numero' => 501,
+        ]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        DB::table('conduce_legalidad_capturas')->insert([
+            'operativo_id' => 18,
+            'client_uuid' => '22222222-2222-4222-8222-222222222222',
+            'folio_numero' => 501,
+        ]);
     }
 }

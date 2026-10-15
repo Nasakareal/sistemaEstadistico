@@ -132,6 +132,26 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    public function gruasOperativo(
+        Request $request,
+        ConduceLegalidadOperativo $operativo
+    ) {
+        $user = $request->user();
+        abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
+
+        $gruas = $this->gruasOperativoQuery($operativo)
+            ->select(['gruas.id', 'gruas.nombre', 'gruas.direccion', 'gruas.ubicacion_corralon', 'gruas.telefono', 'gruas.email', 'gruas.created_at'])
+            ->with('unidades:id,nombre,slug')
+            ->with('delegaciones:id,clave,nombre,municipio')
+            ->orderBy('gruas.nombre')
+            ->get();
+
+        return response()->json([
+            'data' => $gruas,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -589,6 +609,7 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasFundamento($validated, $operativo);
         $this->assertCapturaHasContent($validated, $request);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
+        $this->assertGruasCorrespondenOperativo($validated, $operativo);
 
         $uploadedPhotos = $request->file('fotos', []);
         if (!is_array($uploadedPhotos)) {
@@ -616,8 +637,8 @@ class ConduceLegalidadController extends Controller
                 : [];
             $infraccion = $fundamentos[0] ?? null;
             $infraccionSnapshot = $this->capturaInfraccionSnapshot($validated, $infraccion);
-            $agente = $this->agenteCapturaData($validated, $user);
             $adscripcion = $this->adscripcionCaptura($operativo, $user);
+            $agente = $this->agenteCapturaData($validated, $user, null, $adscripcion);
             $now = now();
             $folioNumero = $this->reservarNumeroFolio(
                 $operativo,
@@ -768,6 +789,7 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasFundamento($validated, $operativo, $captura);
         $this->assertCapturaHasContent($validated, $request, $captura);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
+        $this->assertGruasCorrespondenOperativo($validated, $operativo);
 
         $uploadedPhotos = $request->file('fotos', []);
         if (!is_array($uploadedPhotos)) {
@@ -803,8 +825,8 @@ class ConduceLegalidadController extends Controller
                     'fundamento_legal' => $captura->fundamento_legal,
                 ];
             $usaFundamentoUnificado = $campoFundamentoPresente || count($fundamentos) > 0;
-            $agente = $this->agenteCapturaData($validated, $user, $captura);
             $adscripcion = $this->adscripcionCaptura($operativo, $user);
+            $agente = $this->agenteCapturaData($validated, $user, $captura, $adscripcion);
             $captura->fill([
                 'licencia_punto_infraccion_id' => $campoFundamentoPresente
                     ? ($infraccion ? $infraccion->id : null)
@@ -2679,7 +2701,8 @@ class ConduceLegalidadController extends Controller
     private function agenteCapturaData(
         array $validated,
         $user,
-        ?ConduceLegalidadCaptura $captura = null
+        ?ConduceLegalidadCaptura $captura = null,
+        ?array $adscripcion = null
     ): array {
         $partesExplicitas = array_key_exists('agente_nombres', $validated)
             || array_key_exists('agente_apellido_paterno', $validated)
@@ -2723,8 +2746,23 @@ class ConduceLegalidadController extends Controller
             'apellido_paterno' => $partes['apellido_paterno'],
             'apellido_materno' => $partes['apellido_materno'],
             'numero_placa' => $numeroPlaca,
-            'adscripcion' => self::AGENTE_ADSCRIPCION_DEFAULT,
+            'adscripcion' => $this->adscripcionAgenteTexto($adscripcion),
         ];
+    }
+
+    private function adscripcionAgenteTexto(?array $adscripcion): string
+    {
+        $unidadId = (int) ($adscripcion['unidad_id'] ?? 0);
+        if ($unidadId <= 0) {
+            return self::AGENTE_ADSCRIPCION_DEFAULT;
+        }
+
+        return $this->joinText([
+            $this->unidadOperativaTexto($unidadId),
+            $unidadId === self::UNIDAD_DELEGACIONES
+                ? $this->delegacionTexto($adscripcion['delegacion_id'] ?? null)
+                : null,
+        ], ' · ');
     }
 
     private function partesAgenteCaptura(
@@ -3451,6 +3489,68 @@ class ConduceLegalidadController extends Controller
                 throw ValidationException::withMessages([
                     "vehiculos.$index.tipo_general" => 'Conduce con Legalidad es exclusivo para motocicletas.',
                 ]);
+            }
+        }
+    }
+
+    private function gruasOperativoQuery(ConduceLegalidadOperativo $operativo)
+    {
+        $query = Grua::query();
+        $unidadId = (int) ($operativo->unidad_id ?? 0);
+
+        if ($unidadId === self::UNIDAD_DELEGACIONES) {
+            $delegacionId = (int) ($operativo->delegacion_id ?? 0);
+            if ($delegacionId <= 0) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->whereHas('delegaciones', function ($delegaciones) use ($delegacionId) {
+                $delegaciones->where('delegaciones.id', $delegacionId);
+            });
+        }
+
+        if ($unidadId <= 0) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('unidades', function ($unidades) use ($unidadId) {
+            $unidades->where('unidades.id', $unidadId);
+        });
+    }
+
+    private function assertGruasCorrespondenOperativo(
+        array $validated,
+        ConduceLegalidadOperativo $operativo
+    ): void {
+        $vehiculos = $validated['vehiculos'] ?? [];
+        $ids = collect($vehiculos)
+            ->flatMap(fn (array $vehiculo) => [
+                $vehiculo['grua_id'] ?? null,
+                $vehiculo['corralon_id'] ?? null,
+            ])
+            ->filter(fn ($id) => (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $permitidos = $this->gruasOperativoQuery($operativo)
+            ->whereIn('gruas.id', $ids->all())
+            ->pluck('gruas.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($vehiculos as $index => $vehiculo) {
+            foreach (['grua_id' => 'grúa', 'corralon_id' => 'corralón'] as $campo => $etiqueta) {
+                $id = (int) ($vehiculo[$campo] ?? 0);
+                if ($id > 0 && !in_array($id, $permitidos, true)) {
+                    throw ValidationException::withMessages([
+                        "vehiculos.$index.$campo" => "El $etiqueta seleccionado no trabaja con la unidad o delegación del operativo.",
+                    ]);
+                }
             }
         }
     }

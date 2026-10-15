@@ -344,6 +344,7 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/buscar', [ApiConduceLegalidadController::class, 'buscar'])->name('api.conduce_legalidad.buscar');
         Route::get('/operativos', [ApiConduceLegalidadController::class, 'index'])->name('api.conduce_legalidad.operativos.index');
         Route::post('/operativos', [ApiConduceLegalidadController::class, 'storeOperativo'])->name('api.conduce_legalidad.operativos.store');
+        Route::get('/operativos/{operativo}/gruas', [ApiConduceLegalidadController::class, 'gruasOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.gruas');
         Route::get('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'show'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.show');
         Route::get('/operativos/{operativo}/native-share', [ApiConduceLegalidadController::class, 'nativeShareOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.native_share');
         Route::put('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'updateOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.update');

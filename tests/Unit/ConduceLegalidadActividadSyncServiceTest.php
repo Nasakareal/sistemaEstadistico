@@ -59,7 +59,8 @@ class ConduceLegalidadActividadSyncServiceTest extends TestCase
             'municipio' => 'Morelia',
             'lugar' => 'Centro',
             'estado' => 'activo',
-            'unidad_id' => 3,
+            'unidad_id' => 2,
+            'delegacion_id' => 15,
         ]);
         $infraccion = LicenciaPuntoInfraccion::query()->create([
             'codigo' => 'ART-123',
@@ -73,7 +74,8 @@ class ConduceLegalidadActividadSyncServiceTest extends TestCase
             'operativo_id' => $operativo->id,
             'client_uuid' => 'captura-1',
             'agente_nombre' => 'Agente Uno',
-            'unidad_id' => 3,
+            'unidad_id' => 2,
+            'delegacion_id' => 15,
             'fecha' => '2026-10-05',
             'hora' => '09:30:00',
             'municipio' => 'Morelia',
@@ -114,6 +116,8 @@ class ConduceLegalidadActividadSyncServiceTest extends TestCase
         $this->assertSame($actividad->id, $captura->actividad_id);
         $this->assertSame(1, Actividad::query()->count());
         $this->assertSame('CONDUCE CON LEGALIDAD', $actividad->subcategoria->nombre);
+        $this->assertSame(2, $actividad->unidad_org_id);
+        $this->assertSame(15, $actividad->delegacion_id);
         $this->assertSame('MORELIA', $actividad->municipio);
         $this->assertSame('AGENTE UNO', $actividad->nombre);
         $this->assertSame('ROJO', $actividad->vehiculos->first()->color);

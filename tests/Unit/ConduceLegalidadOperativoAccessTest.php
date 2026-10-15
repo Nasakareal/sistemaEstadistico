@@ -150,7 +150,7 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertTrue($this->canView($this->user('Superadmin', 5), $operativo));
     }
 
-    public function test_delegate_and_police_can_feed_active_operatives_only_in_their_delegation(): void
+    public function test_delegation_roles_can_feed_active_operatives_only_in_their_delegation(): void
     {
         $own = new ConduceLegalidadOperativo();
         $own->forceFill([
@@ -170,7 +170,7 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         ]);
         $other->setRelation('creador', null);
 
-        foreach (['Delegado', 'Policia'] as $role) {
+        foreach (['Delegado', 'Policia', 'Administrativo'] as $role) {
             $user = $this->user($role, 2, 15);
 
             $this->assertTrue($this->canView($user, $own), $role);

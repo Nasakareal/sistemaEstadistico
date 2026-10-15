@@ -48,6 +48,7 @@ class Kernel extends HttpKernel
         'verified'           => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
 
         'unidad'             => \App\Http\Middleware\VerificarUnidad::class,
+        'grua.api.scope'     => \App\Http\Middleware\RestrictGruaApiAccess::class,
 
         'role'               => \Spatie\Permission\Middlewares\RoleMiddleware::class,
         'permission'         => \Spatie\Permission\Middlewares\PermissionMiddleware::class,

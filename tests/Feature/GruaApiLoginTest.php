@@ -50,6 +50,16 @@ class GruaApiLoginTest extends TestCase
             ->getJson('http://localhost/api/permissions')
             ->assertOk()
             ->assertExactJson(['ver portal grua']);
+
+        $this->withToken($token)
+            ->getJson('http://localhost/api/grua/corralon')
+            ->assertOk()
+            ->assertJsonPath('grua.id', $grua->id)
+            ->assertJsonStructure(['items', 'meta']);
+
+        $this->withToken($token)
+            ->getJson('http://localhost/api/conduce-legalidad/operativos')
+            ->assertForbidden();
     }
 
     public function test_inactive_grua_user_cannot_login_through_mobile_api(): void

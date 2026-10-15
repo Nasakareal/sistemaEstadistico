@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DelegacionesHomeController;
 use App\Http\Controllers\Api\DelegacionesExcelRevisionController;
 use App\Http\Controllers\Api\DocumentoHechoController;
 use App\Http\Controllers\Api\GruaController;
+use App\Http\Controllers\Api\GruaCorralonController;
 use App\Http\Controllers\Api\HechoController;
 use App\Http\Controllers\Api\LesionadoController;
 use App\Http\Controllers\Api\LocationController;
@@ -167,7 +168,14 @@ Route::prefix('cultura-vial/public')->group(function () {
 Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPuntosController::class, 'showPublicByNumero'])
     ->name('api.licencias_puntos.public.numero.show');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
+    Route::prefix('grua/corralon')->group(function () {
+        Route::get('/', [GruaCorralonController::class, 'index']);
+        Route::get('/{vehiculo}', [GruaCorralonController::class, 'show'])->whereNumber('vehiculo');
+        Route::post('/{vehiculo}/entregar', [GruaCorralonController::class, 'entregar'])->whereNumber('vehiculo');
+        Route::get('/liberacion/{liberacionCorralon}/evidencia/{campo}', [GruaCorralonController::class, 'evidencia'])
+            ->whereNumber('liberacionCorralon');
+    });
     Route::get('/account/settings', [AccountSettingsController::class, 'show'])->name('api.account.settings.show');
     Route::put('/account/settings', [AccountSettingsController::class, 'update'])->name('api.account.settings.update');
 

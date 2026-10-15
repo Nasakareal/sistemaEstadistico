@@ -532,6 +532,7 @@ class EstadisticasGlobalesController extends Controller
 
     private function applyPuestasScopeByUser($q): void
     {
+        \App\Models\PuestaDisposicion::applyVisibleScope($q, 'puestas.estatus');
         $user = auth()->user();
 
         if (!$user) {

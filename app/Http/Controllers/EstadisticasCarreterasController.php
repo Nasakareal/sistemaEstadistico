@@ -8,6 +8,7 @@ use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use App\Models\PuestaDisposicion;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -345,6 +346,7 @@ class EstadisticasCarreterasController extends Controller
             ->where('puestas_disposicion.unidad_id', $unidadId)
             ->whereBetween('puestas_disposicion.fecha_puesta', [$desde->toDateString(), $hasta->toDateString()])
             ->when($destacamentoId > 0, fn ($q) => $q->where('puestas_disposicion.destacamento_id', $destacamentoId));
+        PuestaDisposicion::applyVisibleScope($puestasQuery);
 
         if ($usuario && !$usuario->hasRole('Superadmin')) {
             if ((int) ($usuario->unidad_id ?? 0) !== $unidadId) {
@@ -569,6 +571,7 @@ class EstadisticasCarreterasController extends Controller
             ->where('unidad_id', $unidadId)
             ->whereBetween('fecha_puesta', [$periodoAnteriorDesde->toDateString(), $periodoAnteriorHasta->toDateString()])
             ->when($destacamentoId > 0, fn ($q) => $q->where('destacamento_id', $destacamentoId));
+        PuestaDisposicion::applyVisibleScope($anteriorQuery, 'estatus');
         if ($usuario && !$usuario->hasRole('Superadmin')) {
             if ((int) ($usuario->unidad_id ?? 0) !== $unidadId) {
                 $anteriorQuery->whereRaw('1 = 0');
@@ -1743,6 +1746,8 @@ class EstadisticasCarreterasController extends Controller
 
     private function applyPuestasVisibilityScope($query, $usuario): void
     {
+        PuestaDisposicion::applyVisibleScope($query);
+
         if (!$usuario) {
             $query->whereRaw('1=0');
             return;

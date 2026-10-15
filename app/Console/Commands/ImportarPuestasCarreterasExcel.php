@@ -44,6 +44,8 @@ class ImportarPuestasCarreterasExcel extends Command
                 'fuente' => $plan['fuente'],
                 'totales' => $plan['analisis']['totales_detalle'],
                 'acciones' => $plan['conteos'],
+                'reconciliacion' => $plan['reconciliacion'],
+                'existentes_sin_vincular' => $plan['existentes_sin_vincular'],
                 'clasificacion' => $plan['clasificacion'],
                 'advertencias' => $plan['analisis']['advertencias'],
                 'errores' => $plan['analisis']['errores'],
@@ -110,6 +112,12 @@ class ImportarPuestasCarreterasExcel extends Command
             $plan['conteos']['omitido'],
             $plan['conteos']['error']
         ));
+        $this->line(sprintf(
+            'Reconciliacion: %d del archivo + %d existentes sin vincular = %d registros proyectados.',
+            $plan['reconciliacion']['esperadas_fuente'],
+            $plan['reconciliacion']['existentes_sin_vincular'],
+            $plan['reconciliacion']['total_proyectado']
+        ));
         $this->line('Tipos destino: ' . collect($plan['clasificacion']['tipos'])->map(function ($total, $tipo) {
             return $tipo . '=' . $total;
         })->implode(', '));
@@ -119,6 +127,23 @@ class ImportarPuestasCarreterasExcel extends Command
         }
         foreach ($plan['analisis']['errores'] as $error) {
             $this->error($error);
+        }
+
+        if (!empty($plan['existentes_sin_vincular'])) {
+            $this->warn('Hay registros previos dentro del periodo que no coinciden con ninguna fila del archivo. Estos registros se conservan y aumentan el total final; deben revisarse antes de importar.');
+            $this->table(
+                ['ID', 'Folio sistema', 'Fecha', 'Destacamento', 'Policia', 'Motivo', 'Carpeta', 'Oficio'],
+                collect($plan['existentes_sin_vincular'])->map(fn ($record) => [
+                    $record['id'],
+                    $record['numero_puesta'],
+                    $record['fecha_puesta'],
+                    $record['destacamento'] ?: '-',
+                    $record['nombre_policia'] ?: '-',
+                    $record['motivo'] ?: '-',
+                    $record['carpeta_investigacion'] ?: '-',
+                    $record['oficio'] ?: '-',
+                ])->all()
+            );
         }
 
         $reviewRows = collect($plan['registros'])

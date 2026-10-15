@@ -169,7 +169,7 @@ class PuestasCarreterasExcelImportService
         $minDate = collect($analysis['registros'])->pluck('fecha_puesta')->filter()->min();
         $maxDate = collect($analysis['registros'])->pluck('fecha_puesta')->filter()->max();
         $existing = PuestaDisposicion::query()
-            ->with('vehiculos')
+            ->with(['vehiculos', 'destacamento'])
             ->where('unidad_id', $unit->id)
             ->when($minDate && $maxDate, fn ($query) => $query->whereBetween('fecha_puesta', [$minDate, $maxDate]))
             ->get();
@@ -199,9 +199,16 @@ class PuestasCarreterasExcelImportService
                 $action = 'error';
                 $message = "Destacamento no catalogado: {$record['destacamento']}";
             } elseif ($bySource->has($record['secuencia_origen'])) {
-                $action = 'omitido';
-                $existingId = $bySource->get($record['secuencia_origen'])->id;
-                $message = 'La fila ya fue importada.';
+                $existingSource = $bySource->get($record['secuencia_origen']);
+                $existingId = $existingSource->id;
+
+                if (!$this->sameSourceRecord($existingSource, $record)) {
+                    $action = 'error';
+                    $message = 'La secuencia ya esta vinculada a otra puesta. El archivo fue reordenado o renumerado y no puede reutilizarse con la misma fuente.';
+                } else {
+                    $action = 'omitido';
+                    $message = 'La fila ya fue importada.';
+                }
             } else {
                 $key = $this->dateDetachmentKey($record['fecha_puesta'], $detachment->id);
                 $candidates = array_values(array_filter($byDateAndDetachment[$key] ?? [], function ($candidate) use ($record) {
@@ -289,6 +296,31 @@ class PuestasCarreterasExcelImportService
             }
         }
 
+        $linkedExistingIds = collect($rows)
+            ->where('accion', 'vincular')
+            ->pluck('existente_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+        $unlinkedExisting = $existing
+            ->filter(fn ($item) => $item->fuente_importacion === null)
+            ->reject(fn ($item) => $linkedExistingIds->contains((int) $item->id))
+            ->map(function ($item) {
+                return [
+                    'id' => (int) $item->id,
+                    'numero_puesta' => (int) $item->numero_puesta,
+                    'fecha_puesta' => $item->fecha_puesta?->format('Y-m-d'),
+                    'destacamento' => optional($item->destacamento)->nombre,
+                    'nombre_policia' => $item->nombre_policia,
+                    'motivo' => $item->motivo,
+                    'carpeta_investigacion' => $item->carpeta_investigacion,
+                    'oficio' => $item->oficio,
+                ];
+            })
+            ->values()
+            ->all();
+        $expectedFromSource = (int) ($analysis['totales_detalle']['puestas'] ?? 0);
+
         return [
             'fuente' => $source,
             'unidad_id' => (int) $unit->id,
@@ -296,6 +328,12 @@ class PuestasCarreterasExcelImportService
             'analisis' => $analysis,
             'registros' => $rows,
             'conteos' => $stats,
+            'reconciliacion' => [
+                'esperadas_fuente' => $expectedFromSource,
+                'existentes_sin_vincular' => count($unlinkedExisting),
+                'total_proyectado' => $expectedFromSource + count($unlinkedExisting),
+            ],
+            'existentes_sin_vincular' => $unlinkedExisting,
             'clasificacion' => [
                 'tipos' => collect($rows)->countBy('tipo_puesta_destino')->sortKeys()->all(),
                 'motivos' => collect($rows)->countBy('motivo_destino')->sortKeys()->all(),
@@ -813,6 +851,16 @@ class PuestasCarreterasExcelImportService
         return substr('IPH_CARRETERAS_' . ($suffix ?: 'SIN_ANIO'), 0, 100);
     }
 
+    private function sameSourceRecord(PuestaDisposicion $existing, array $record): bool
+    {
+        $existingDate = $existing->fecha_puesta?->format('Y-m-d');
+        $recordDate = $record['fecha_puesta'] ?? null;
+
+        return $existingDate === $recordDate
+            && $this->compactNormalize($existing->folio_origen) === $this->compactNormalize($record['folio_origen'] ?? null)
+            && $this->compactNormalize($existing->descripcion_origen) === $this->compactNormalize($record['descripcion_origen'] ?? null);
+    }
+
     private function emptyPlan(array $analysis, ?string $source): array
     {
         return [
@@ -822,6 +870,12 @@ class PuestasCarreterasExcelImportService
             'analisis' => $analysis,
             'registros' => [],
             'conteos' => ['crear' => 0, 'vincular' => 0, 'omitido' => 0, 'error' => count($analysis['errores'])],
+            'reconciliacion' => [
+                'esperadas_fuente' => (int) ($analysis['totales_detalle']['puestas'] ?? 0),
+                'existentes_sin_vincular' => 0,
+                'total_proyectado' => (int) ($analysis['totales_detalle']['puestas'] ?? 0),
+            ],
+            'existentes_sin_vincular' => [],
             'clasificacion' => ['tipos' => [], 'motivos' => []],
         ];
     }

@@ -38,7 +38,7 @@ class ConduceLegalidadBarandillasWhatsappTest extends TestCase
             ->andReturn(['ok' => true]);
 
         $docx = Mockery::mock(IphPuestaDisposicionDocxService::class);
-        $docx->shouldReceive('generarConduceLegalidadBarandillas')
+        $docx->shouldReceive('generarConduceLegalidadBarandillasSoloVehiculo')
             ->once()
             ->andReturn([$iphPath, 'iph_barandillas_CL_10_20.docx']);
 
@@ -60,7 +60,7 @@ class ConduceLegalidadBarandillasWhatsappTest extends TestCase
         $whatsApp = Mockery::mock(WhatsAppCloudService::class);
         $whatsApp->shouldNotReceive('uploadMedia');
         $docx = Mockery::mock(IphPuestaDisposicionDocxService::class);
-        $docx->shouldNotReceive('generarConduceLegalidadBarandillas');
+        $docx->shouldNotReceive('generarConduceLegalidadBarandillasSoloVehiculo');
 
         $resultado = $this->invocarNotificacion($operativo, $captura, $whatsApp, $docx);
 
@@ -74,6 +74,7 @@ class ConduceLegalidadBarandillasWhatsappTest extends TestCase
             'municipio' => 'Morelia',
             'lugar' => 'Avenida Madero',
             'tipo_operativo' => 'conduce_legalidad',
+            'unidad_id' => 3,
         ]);
         $operativo->id = 10;
         $operativo->setRelation('creador', null);

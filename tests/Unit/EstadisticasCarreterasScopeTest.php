@@ -45,8 +45,9 @@ class EstadisticasCarreterasScopeTest extends TestCase
             ['unidad_org_id' => $delegacionesId, 'estado_revision' => 'aprobado', 'fecha' => '2026-10-01'],
         ]);
         DB::table('puestas_disposicion')->insert([
-            ['unidad_id' => $carreterasId, 'fecha_puesta' => '2026-10-01', 'nombre_policia' => 'ELEMENTO CARRETERAS', 'tipo_puesta' => 'PERSONA', 'motivo' => 'DELITO'],
-            ['unidad_id' => $delegacionesId, 'fecha_puesta' => '2026-10-01', 'nombre_policia' => 'ELEMENTO DELEGACIONES', 'tipo_puesta' => 'PERSONA', 'motivo' => 'DELITO'],
+            ['unidad_id' => $carreterasId, 'fecha_puesta' => '2026-10-01', 'nombre_policia' => 'ELEMENTO CARRETERAS', 'tipo_puesta' => 'PERSONA', 'motivo' => 'DELITO', 'estatus' => 'ACTIVA'],
+            ['unidad_id' => $carreterasId, 'fecha_puesta' => '2026-10-01', 'nombre_policia' => 'ELEMENTO DUPLICADO', 'tipo_puesta' => 'PERSONA', 'motivo' => 'DELITO', 'estatus' => 'DUPLICADA_ARCHIVADA'],
+            ['unidad_id' => $delegacionesId, 'fecha_puesta' => '2026-10-01', 'nombre_policia' => 'ELEMENTO DELEGACIONES', 'tipo_puesta' => 'PERSONA', 'motivo' => 'DELITO', 'estatus' => 'ACTIVA'],
         ]);
 
         $user = new class {
@@ -93,6 +94,7 @@ class EstadisticasCarreterasScopeTest extends TestCase
             $table->string('nombre_policia')->nullable();
             $table->string('tipo_puesta')->nullable();
             $table->string('motivo')->nullable();
+            $table->string('estatus')->nullable();
         });
         Schema::create('puestas_disposicion_personas', function (Blueprint $table): void {
             $table->id();

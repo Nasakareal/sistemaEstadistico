@@ -86,6 +86,11 @@ class ConduceLegalidadBoletaWhatsappTest extends TestCase
         $this->assertSame('Mario Bautista R.', $boleta['persona_nombre']);
         $this->assertSame('INV-0042', $boleta['numero_inventario']);
         $this->assertSame('Corralón Morelia', $boleta['corralon']);
+        $this->assertStringContainsString('Unidad de Atención a Siniestros', $boleta['liberacion']);
+        $this->assertStringContainsString('4:00 p. m.', $boleta['liberacion']);
+        $this->assertStringContainsString('Corralón Morelia, previa autorización.', $boleta['liberacion']);
+        $this->assertStringNotContainsString('3:00 p. m.', $boleta['liberacion']);
+        $this->assertStringNotContainsString('18:00', $boleta['liberacion']);
         $this->assertStringContainsString('KTM', $boleta['vehiculo_resumen']);
         $this->assertSame('Ana María Pérez López', $boleta['agente_nombre']);
         $this->assertSame('PLACA-7788', $boleta['agente_placa']);

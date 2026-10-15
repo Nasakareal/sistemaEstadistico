@@ -32,7 +32,7 @@ class GruaUsuarioController extends Controller
             'grua_id' => 'required|exists:gruas,id',
             'nombre' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:255|unique:grua_usuarios,email',
+            'email' => 'required|email|max:255|unique:grua_usuarios,email',
             'password' => 'required|string|min:6|confirmed',
             'activo' => 'nullable|boolean',
         ]);
@@ -62,7 +62,7 @@ class GruaUsuarioController extends Controller
             'nombre' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:30',
             'email' => [
-                'nullable',
+                'required',
                 'email',
                 'max:255',
                 Rule::unique('grua_usuarios', 'email')->ignore($gruaUsuario->id),

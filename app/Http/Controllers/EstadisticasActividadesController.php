@@ -1563,6 +1563,7 @@ class EstadisticasActividadesController extends Controller
 
     private function applyPuestasFilters($q, Request $request, bool $filterByRelatedAge): void
     {
+        \App\Models\PuestaDisposicion::applyVisibleScope($q);
         $this->applyPuestasScopeByUser($q);
 
         $desde = trim((string)$request->query('desde', ''));

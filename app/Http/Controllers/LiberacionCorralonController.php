@@ -8,6 +8,7 @@ use App\Models\Vehiculo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LiberacionCorralonController extends Controller
 {
@@ -102,6 +103,7 @@ class LiberacionCorralonController extends Controller
                     'grua_usuario_id' => $gruaUsuario ? $gruaUsuario->id : null,
                     'estado' => 'ENTREGADO',
                     'fecha_entrega' => now(),
+                    'fecha_conformidad' => now(),
                 ])
             );
 
@@ -144,6 +146,33 @@ class LiberacionCorralonController extends Controller
             ->with('success', 'Entrega de corralon actualizada correctamente.');
     }
 
+    public function evidencia(LiberacionCorralon $liberacionCorralon, string $campo)
+    {
+        $this->autorizarLiberacion($liberacionCorralon);
+
+        abort_unless(in_array($campo, [
+            'foto_identificacion',
+            'foto_entrega',
+            'documento_liberacion',
+            'memoria_descriptiva',
+            'comprobante_pago',
+            'firma_recibe',
+        ], true), 404);
+
+        $ruta = $liberacionCorralon->{$campo};
+        abort_unless(is_string($ruta) && $ruta !== '', 404);
+
+        // Las entregas nuevas se guardan en privado. Se conserva lectura autenticada
+        // de los archivos historicos que ya estaban en el disco publico.
+        $disco = Storage::disk('local')->exists($ruta)
+            ? 'local'
+            : (Storage::disk('public')->exists($ruta) ? 'public' : null);
+
+        abort_unless($disco, 404);
+
+        return Storage::disk($disco)->response($ruta, basename($ruta));
+    }
+
     private function vehiculosEnResguardoQuery(?int $gruaId = null)
     {
         return Vehiculo::query()
@@ -156,12 +185,13 @@ class LiberacionCorralonController extends Controller
                     ->limit(1);
             }, 'ultimo_servicio_at')
             ->when($gruaId, function ($query) use ($gruaId) {
-                $query->where(function ($query) use ($gruaId) {
-                    $query->where('vehiculos.grua_id', $gruaId)
-                        ->orWhereHas('servicios', function ($servicios) use ($gruaId) {
-                            $servicios->where('grua_id', $gruaId);
-                        });
-                });
+                $query->whereRaw(
+                    'COALESCE((SELECT servicios_actuales.grua_id FROM servicios AS servicios_actuales '
+                    . 'WHERE servicios_actuales.vehiculo_id = vehiculos.id '
+                    . 'ORDER BY servicios_actuales.created_at DESC, servicios_actuales.id DESC LIMIT 1), '
+                    . 'vehiculos.grua_id) = ?',
+                    [$gruaId]
+                );
             })
             ->whereNotNull('vehiculos.corralon')
             ->whereRaw("TRIM(vehiculos.corralon) <> ''")
@@ -176,28 +206,45 @@ class LiberacionCorralonController extends Controller
 
     private function validarEntrega(Request $request, bool $requiereConfirmacion): array
     {
+        $required = $requiereConfirmacion ? 'required' : 'nullable';
         $rules = [
-            'persona_recibe' => 'nullable|string|max:255',
-            'identificacion_recibe' => 'nullable|string|max:255',
+            'persona_recibe' => $required . '|string|max:255',
+            'identificacion_recibe' => $required . '|string|max:255',
             'telefono_recibe' => 'nullable|string|max:30',
-            'foto_identificacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_entrega' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'documento_liberacion' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'sierse_folio' => $required . '|string|max:120',
+            'condicion_entrega' => $required . '|in:CONFORME_INVENTARIO,CON_OBSERVACIONES',
+            'foto_identificacion' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_entrega' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'documento_liberacion' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'memoria_descriptiva' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:15360',
+            'comprobante_pago' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'firma_recibe' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'observaciones' => 'nullable|string|max:2000',
         ];
 
         if ($requiereConfirmacion) {
             $rules['confirmar_entrega'] = 'accepted';
+            $rules['conformidad_memoria'] = 'accepted';
         }
 
         $validated = $request->validate($rules);
         unset($validated['confirmar_entrega']);
+        $validated['conformidad_memoria'] = $request->boolean('conformidad_memoria');
+        $validated['ip_entrega'] = $request->ip();
+        $validated['user_agent_entrega'] = mb_substr((string) $request->userAgent(), 0, 500);
 
         $validated['telefono_recibe'] = $this->normalizarTelefonoMx($validated['telefono_recibe'] ?? null);
 
-        foreach (['foto_identificacion', 'foto_entrega', 'documento_liberacion'] as $campo) {
+        foreach ([
+            'foto_identificacion',
+            'foto_entrega',
+            'documento_liberacion',
+            'memoria_descriptiva',
+            'comprobante_pago',
+            'firma_recibe',
+        ] as $campo) {
             if ($request->hasFile($campo)) {
-                $validated[$campo] = $request->file($campo)->store('liberaciones_corralon', 'public');
+                $validated[$campo] = $request->file($campo)->store('liberaciones_corralon', 'local');
             } else {
                 unset($validated[$campo]);
             }
@@ -211,11 +258,13 @@ class LiberacionCorralonController extends Controller
         if ($this->esPortalGrua()) {
             $gruaUsuario = Auth::guard('grua')->user();
             $gruaId = (int) $gruaUsuario->grua_id;
-            $tieneServicio = $vehiculo->servicios()
-                ->where('grua_id', $gruaId)
-                ->exists();
+            $gruaServicioActual = $vehiculo->servicios()
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->value('grua_id');
+            $gruaAsignada = $gruaServicioActual ?: $vehiculo->grua_id;
 
-            abort_unless((int) $vehiculo->grua_id === $gruaId || $tieneServicio, 403);
+            abort_unless((int) $gruaAsignada === $gruaId, 403);
             return;
         }
 

@@ -17,6 +17,7 @@ use App\Models\Unidad;
 use App\Models\User;
 use App\Services\CodigoPostalGeoService;
 use App\Services\ConduceLegalidadActividadSyncService;
+use App\Services\ConduceLegalidadDuplicateGuard;
 use App\Services\ConduceLegalidadTotalesDocxService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
@@ -268,7 +269,13 @@ class ConduceLegalidadController extends Controller
             if ($folio !== null) {
                 $capturas->orWhere(function ($porFolio) use ($folio) {
                     $porFolio->where('conduce_legalidad_capturas.operativo_id', $folio['operativo_id'])
-                        ->where('conduce_legalidad_capturas.id', $folio['captura_id'])
+                        ->where(function ($capturaFolio) use ($folio) {
+                            $capturaFolio->where('conduce_legalidad_capturas.folio_numero', $folio['captura_id'])
+                                ->orWhere(function ($legacy) use ($folio) {
+                                    $legacy->whereNull('conduce_legalidad_capturas.folio_numero')
+                                        ->where('conduce_legalidad_capturas.id', $folio['captura_id']);
+                                });
+                        })
                         ->whereHas('operativo', function ($operativos) use ($folio) {
                             $operativos->where('tipo_operativo', $folio['tipo_operativo']);
                         });
@@ -388,6 +395,8 @@ class ConduceLegalidadController extends Controller
 
         $capturasQuery = $operativo->capturas()
             ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -398,6 +407,32 @@ class ConduceLegalidadController extends Controller
             'ok' => true,
             'abilities' => $this->abilitiesPayload($user),
             'data' => $this->operativoPayload($operativo, $user, $capturas),
+        ]);
+    }
+
+    public function reservarFolioCaptura(Request $request, ConduceLegalidadOperativo $operativo)
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
+        $this->assertPuedeAlimentarOperativo($operativo, $user);
+
+        $validated = $request->validate([
+            'client_uuid' => ['required', 'uuid'],
+        ]);
+        $numero = $this->reservarNumeroFolio(
+            $operativo,
+            $validated['client_uuid'],
+            (int) $user->id
+        );
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'client_uuid' => $validated['client_uuid'],
+                'folio_numero' => $numero,
+                'folio' => $this->prefijoFolioOperativo($operativo) . '-' . $operativo->id . '-' . $numero,
+            ],
         ]);
     }
 
@@ -516,7 +551,8 @@ class ConduceLegalidadController extends Controller
         ConduceLegalidadOperativo $operativo,
         WhatsAppCloudService $whatsApp,
         IphPuestaDisposicionDocxService $docxService,
-        ConduceLegalidadActividadSyncService $actividadSync
+        ConduceLegalidadActividadSyncService $actividadSync,
+        ConduceLegalidadDuplicateGuard $duplicateGuard
     )
     {
         $user = $request->user();
@@ -554,9 +590,24 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasContent($validated, $request);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
-        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request, $actividadSync) {
+        $uploadedPhotos = $request->file('fotos', []);
+        if (!is_array($uploadedPhotos)) {
+            $uploadedPhotos = [$uploadedPhotos];
+        }
+        $fotoHashes = $duplicateGuard->hashUploadedFiles($uploadedPhotos);
+
+        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request, $actividadSync, $duplicateGuard, $fotoHashes) {
+            ConduceLegalidadOperativo::query()
+                ->whereKey($operativo->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
+            $duplicateGuard->assertUnique(
+                $operativo,
+                $validated['vehiculos'] ?? [],
+                $fotoHashes
+            );
             $usaFundamentoUnificado = array_key_exists('fundamentos', $validated)
                 || array_key_exists('fundamento_ids', $validated)
                 || array_key_exists('licencia_punto_infraccion_id', $validated);
@@ -568,8 +619,14 @@ class ConduceLegalidadController extends Controller
             $agente = $this->agenteCapturaData($validated, $user);
             $adscripcion = $this->adscripcionCaptura($operativo, $user);
             $now = now();
+            $folioNumero = $this->reservarNumeroFolio(
+                $operativo,
+                $clientUuid ?: (string) Str::uuid(),
+                (int) $user->id
+            );
             $captura = $operativo->capturas()->create([
                 'client_uuid' => $clientUuid,
+                'folio_numero' => $folioNumero,
                 'licencia_punto_infraccion_id' => $infraccion ? $infraccion->id : null,
                 'infraccion_codigo' => $infraccionSnapshot['codigo'],
                 'fundamento_legal' => $infraccionSnapshot['fundamento_legal'],
@@ -694,7 +751,8 @@ class ConduceLegalidadController extends Controller
         Request $request,
         ConduceLegalidadOperativo $operativo,
         ConduceLegalidadCaptura $captura,
-        ConduceLegalidadActividadSyncService $actividadSync
+        ConduceLegalidadActividadSyncService $actividadSync,
+        ConduceLegalidadDuplicateGuard $duplicateGuard
     )
     {
         $user = $request->user();
@@ -711,9 +769,25 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasContent($validated, $request, $captura);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
-        DB::transaction(function () use ($captura, $operativo, $validated, $request, $user, $actividadSync) {
+        $uploadedPhotos = $request->file('fotos', []);
+        if (!is_array($uploadedPhotos)) {
+            $uploadedPhotos = [$uploadedPhotos];
+        }
+        $fotoHashes = $duplicateGuard->hashUploadedFiles($uploadedPhotos);
+
+        DB::transaction(function () use ($captura, $operativo, $validated, $request, $user, $actividadSync, $duplicateGuard, $fotoHashes) {
+            ConduceLegalidadOperativo::query()
+                ->whereKey($operativo->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
+            $duplicateGuard->assertUnique(
+                $operativo,
+                $validated['vehiculos'] ?? [],
+                $fotoHashes,
+                $captura->id
+            );
             $campoFundamentoPresente = array_key_exists('fundamentos', $validated)
                 || array_key_exists('fundamento_ids', $validated)
                 || array_key_exists('licencia_punto_infraccion_id', $validated);
@@ -1198,7 +1272,7 @@ class ConduceLegalidadController extends Controller
 
             $hecho = $this->hechoTemporalIph($operativo, $captura);
             $mapeo = $this->mapearIphDesdeCaptura($operativo, $captura, $user);
-            [$iphPath, $iphFilename] = $docxService->generarConduceLegalidadBarandillas($hecho, $mapeo);
+            [$iphPath, $iphFilename] = $docxService->generarConduceLegalidadBarandillasSoloVehiculo($hecho, $mapeo);
             $iphUpload = $whatsApp->uploadMedia(
                 $iphPath,
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -1313,9 +1387,17 @@ class ConduceLegalidadController extends Controller
             $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
             $operativo->numero
         );
+        $deposito = $vehiculo ? $this->nullableString($this->valorCorralon($vehiculo)) : null;
+        $retiro = $deposito
+            ? 'La entrega física se realizará en ' . $deposito . ', previa autorización.'
+            : 'La entrega física se realizará conforme al depósito vehicular autorizado que corresponda.';
+        $liberacion = 'Puede recoger su vehículo en la Unidad de Atención a Siniestros, '
+            . 'ubicada en Periférico Independencia #5000, col. Sentimientos de la Nación, '
+            . 'Morelia, Michoacán, en un horario de 9:00 a. m. a 4:00 p. m., '
+            . 'de lunes a viernes. ' . $retiro;
 
         return [
-            'folio' => 'CL-' . $operativo->id . '-' . $captura->id,
+            'folio' => $this->folioCaptura($operativo, $captura),
             'operativo_id' => $operativo->id,
             'captura_id' => $captura->id,
             'municipio' => $captura->municipio ?: $operativo->municipio ?: 'No capturado',
@@ -1340,7 +1422,7 @@ class ConduceLegalidadController extends Controller
             'licencia_estado' => $persona->estado_licencia ?: 'No capturado',
             'licencia_vigencia' => $vigenciaLicencia,
             'requiere_liberacion' => $vehiculo ? $this->vehiculoResguardado($vehiculo) : false,
-            'liberacion' => 'La liberación del vehículo deberá tramitarse ante la autoridad competente, presentando la documentación aplicable y esta boleta.',
+            'liberacion' => $liberacion,
             'agente_nombre' => $this->nullableString($captura->agente_nombre)
                 ?: ($creador ? $this->nombreUsuario($creador) : 'No capturado'),
             'agente_placa' => $placaAgente ?: 'No capturada',
@@ -1619,7 +1701,28 @@ class ConduceLegalidadController extends Controller
 
     private function folioCaptura(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): string
     {
-        return $this->prefijoFolioOperativo($operativo) . '-' . $operativo->id . '-' . $captura->id;
+        return $this->prefijoFolioOperativo($operativo) . '-' . $operativo->id . '-' . ($captura->folio_numero ?: $captura->id);
+    }
+
+    private function reservarNumeroFolio(
+        ConduceLegalidadOperativo $operativo,
+        string $clientUuid,
+        int $userId
+    ): int {
+        $now = now();
+        DB::table('conduce_legalidad_folio_reservas')->insertOrIgnore([
+            'operativo_id' => $operativo->id,
+            'client_uuid' => $clientUuid,
+            'created_by' => $userId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return (int) DB::table('conduce_legalidad_folio_reservas')
+            ->where('operativo_id', $operativo->id)
+            ->where('client_uuid', $clientUuid)
+            ->lockForUpdate()
+            ->value('id');
     }
 
     private function parseFolioBusqueda(string $value): ?array
@@ -3533,11 +3636,13 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->loadMissing(['operativo', 'creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return [
             'id' => $captura->id,
             'client_uuid' => $captura->client_uuid,
+            'folio_numero' => $captura->folio_numero,
+            'folio' => $this->folioCaptura($captura->operativo, $captura),
             'operativo_id' => $captura->operativo_id,
             'licencia_punto_infraccion_id' => $captura->licencia_punto_infraccion_id,
             'infraccion_codigo' => $captura->infraccion_codigo,

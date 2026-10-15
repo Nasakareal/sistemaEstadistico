@@ -171,4 +171,28 @@ class PuestasCarreterasExcelImportServiceTest extends TestCase
             @unlink($path);
         }
     }
+
+    public function test_detecta_cuando_una_secuencia_importada_corresponde_a_otro_registro(): void
+    {
+        $existing = new PuestaDisposicion();
+        $existing->setRawAttributes([
+            'fecha_puesta' => \Carbon\Carbon::parse('2026-01-12'),
+            'folio_origen' => '2614840',
+            'descripcion_origen' => 'DOS PERSONAS Y UN VEHICULO',
+        ], true);
+        $method = new \ReflectionMethod(PuestasCarreterasExcelImportService::class, 'sameSourceRecord');
+        $method->setAccessible(true);
+        $service = new PuestasCarreterasExcelImportService();
+
+        $this->assertTrue($method->invoke($service, $existing, [
+            'fecha_puesta' => '2026-01-12',
+            'folio_origen' => '2614840',
+            'descripcion_origen' => 'DOS PERSONAS Y UN VEHÍCULO',
+        ]));
+        $this->assertFalse($method->invoke($service, $existing, [
+            'fecha_puesta' => '2026-06-21',
+            'folio_origen' => '000468',
+            'descripcion_origen' => 'CONDUCTOR EN ESTADO DE EMBRIAGUEZ',
+        ]));
+    }
 }

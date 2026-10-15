@@ -156,6 +156,7 @@ Route::prefix('liberaciones-corralon')->middleware(['auth','can:ver gruas'])->gr
     Route::get('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'show'])->name('liberaciones_corralon.show');
     Route::get('/vehiculo/{vehiculo}/create', [LiberacionCorralonController::class, 'create'])->name('liberaciones_corralon.create');
     Route::post('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'store'])->name('liberaciones_corralon.store');
+    Route::get('/{liberacionCorralon}/evidencia/{campo}', [LiberacionCorralonController::class, 'evidencia'])->name('liberaciones_corralon.evidencia');
     Route::get('/{liberacionCorralon}/edit', [LiberacionCorralonController::class, 'edit'])->name('liberaciones_corralon.edit');
     Route::put('/{liberacionCorralon}', [LiberacionCorralonController::class, 'update'])->name('liberaciones_corralon.update');
 });
@@ -164,6 +165,7 @@ Route::prefix('grua/corralon')->middleware('auth:grua')->group(function () {
     Route::get('/', [LiberacionCorralonController::class, 'index'])->name('grua.corralon.index');
     Route::get('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'show'])->name('grua.corralon.show');
     Route::post('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'store'])->name('grua.corralon.store');
+    Route::get('/liberacion/{liberacionCorralon}/evidencia/{campo}', [LiberacionCorralonController::class, 'evidencia'])->name('grua.corralon.evidencia');
 });
 
 Route::prefix('constancias-manejo/preguntas')->middleware(['auth', 'can:ver configuraciones'])->group(function () {

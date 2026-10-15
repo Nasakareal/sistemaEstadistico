@@ -113,6 +113,25 @@ class IphPuestaDisposicionDocxService
         return [$path, "iph_barandillas_conduce_{$tipo}_{$folio}.docx"];
     }
 
+    public function generarConduceLegalidadBarandillasSoloVehiculo(Hechos $hecho, array $mapeo): array
+    {
+        $mapeo['personas'] = [];
+        $mapeo['conductores_hecho'] = [];
+
+        foreach (['vehiculos_hecho', 'vehiculos'] as $key) {
+            $vehiculos = is_array($mapeo[$key] ?? null) ? $mapeo[$key] : [];
+            $mapeo[$key] = array_map(function ($vehiculo) {
+                if (is_array($vehiculo)) {
+                    $vehiculo['conductores'] = [];
+                }
+
+                return $vehiculo;
+            }, $vehiculos);
+        }
+
+        return $this->generarConduceLegalidadBarandillas($hecho, $mapeo);
+    }
+
     private function templateBarandillasConduce(array $data): string
     {
         return public_path($this->personaBarandillas($data)

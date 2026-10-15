@@ -3,8 +3,8 @@
 @section('title', 'Vehiculos en Corralon')
 
 @section('content_header')
-    <h1>Vehiculos en corralon</h1>
-    <p>Listado de unidades actualmente registradas a resguardo.</p>
+    <h1>{{ ($portal ?? false) ? 'Mis servicios en corralón' : 'Vehículos en corralón' }}</h1>
+    <p>{{ ($portal ?? false) ? 'Sólo se muestran los vehículos actualmente asignados a tu grúa.' : 'Listado de unidades actualmente registradas a resguardo.' }}</p>
 @stop
 
 @section('content')

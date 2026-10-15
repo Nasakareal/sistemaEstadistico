@@ -36,10 +36,10 @@
 
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Email</label>
+                                <label>Email *</label>
                                 <input type="email" name="email"
                                        class="form-control @error('email') is-invalid @enderror"
-                                       value="{{ old('email', $gruaUsuario->email) }}">
+                                       value="{{ old('email', $gruaUsuario->email) }}" required>
 
                                 @error('email')
                                     <span class="invalid-feedback">{{ $message }}</span>

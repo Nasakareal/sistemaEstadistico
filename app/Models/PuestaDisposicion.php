@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class PuestaDisposicion extends Model
 {
     use HasFactory;
+
+    public const ESTATUS_DUPLICADA_ARCHIVADA = 'DUPLICADA_ARCHIVADA';
 
     protected $table = 'puestas_disposicion';
 
@@ -70,6 +73,24 @@ class PuestaDisposicion extends Model
         'created_by' => 'integer',
         'updated_by' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('sin_duplicadas_archivadas', function (Builder $query): void {
+            $query->where(function (Builder $visible): void {
+                $visible->whereNull('estatus')
+                    ->orWhere('estatus', '<>', self::ESTATUS_DUPLICADA_ARCHIVADA);
+            });
+        });
+    }
+
+    public static function applyVisibleScope($query, string $column = 'puestas_disposicion.estatus')
+    {
+        return $query->where(function ($visible) use ($column): void {
+            $visible->whereNull($column)
+                ->orWhere($column, '<>', self::ESTATUS_DUPLICADA_ARCHIVADA);
+        });
+    }
 
     public function hecho()
     {

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\GruaUsuario;
 use App\Models\LiberacionCorralon;
 use App\Models\Vehiculo;
+use App\Services\Fotos\HechoFotoStorage;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -58,6 +60,7 @@ class GruaCorralonController extends Controller
 
         return response()->json([
             'items' => $items,
+            'summary' => $this->resumen((int) $user->grua_id),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -67,6 +70,74 @@ class GruaCorralonController extends Controller
                 'id' => $user->grua_id,
                 'nombre' => optional($user->grua)->nombre,
             ],
+        ]);
+    }
+
+    public function exportar(Request $request, string $formato)
+    {
+        $user = $this->gruaUser($request);
+        $estado = mb_strtolower(trim((string) $request->input('estado', 'pendientes')));
+        $busqueda = trim((string) $request->input('q', ''));
+        abort_unless(in_array($formato, ['csv', 'pdf'], true), 404);
+
+        $items = $this->reporteItems((int) $user->grua_id, $estado, $busqueda);
+        $fecha = now('America/Mexico_City')->format('Y-m-d_H-i');
+        $nombre = 'servicios_corralon_' . $estado . '_' . $fecha;
+
+        if ($formato === 'pdf') {
+            return Pdf::loadView('pdf.grua_corralon_reporte', [
+                'items' => $items,
+                'estado' => $estado,
+                'grua' => $user->grua,
+                'generado' => now('America/Mexico_City'),
+                'summary' => $this->resumen((int) $user->grua_id),
+            ])->setPaper('letter', 'landscape')->download($nombre . '.pdf');
+        }
+
+        return response()->streamDownload(function () use ($items) {
+            $out = fopen('php://output', 'wb');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'Estado',
+                'Placas',
+                'NIV',
+                'Marca',
+                'Línea',
+                'Modelo',
+                'Color',
+                'Inventario',
+                'Corralón',
+                'Fecha servicio',
+                'Fecha entrega',
+                'Persona que recibió',
+                'Folio SIERSE',
+                'Condición',
+                'Observaciones',
+            ]);
+
+            foreach ($items as $item) {
+                fputcsv($out, array_map([$this, 'csvSeguro'], [
+                    $item['estado'],
+                    $item['placas'],
+                    $item['serie'],
+                    $item['marca'],
+                    $item['linea'],
+                    $item['modelo'],
+                    $item['color'],
+                    $item['numero_inventario_grua'],
+                    $item['corralon'],
+                    $item['fecha_servicio'],
+                    data_get($item, 'liberacion.fecha_entrega'),
+                    data_get($item, 'liberacion.persona_recibe'),
+                    data_get($item, 'liberacion.sierse_folio'),
+                    data_get($item, 'liberacion.condicion_entrega'),
+                    data_get($item, 'liberacion.observaciones'),
+                ]));
+            }
+
+            fclose($out);
+        }, $nombre . '.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
@@ -185,6 +256,22 @@ class GruaCorralonController extends Controller
         return Storage::disk($disco)->response($ruta, basename($ruta));
     }
 
+    public function fotoInventario(
+        Request $request,
+        Vehiculo $vehiculo,
+        HechoFotoStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        abort_unless($vehiculo->foto_inventario_grua, 404);
+
+        return $storage->response(
+            $vehiculo->foto_inventario_grua,
+            'inventario_vehiculo_' . $vehiculo->id . '.'
+            . (pathinfo($vehiculo->foto_inventario_grua, PATHINFO_EXTENSION) ?: 'jpg')
+        );
+    }
+
     private function gruaUser(Request $request): GruaUsuario
     {
         $user = $request->user();
@@ -284,7 +371,91 @@ class GruaCorralonController extends Controller
                 'observaciones' => $liberacion->observaciones,
                 'fecha_entrega' => $liberacion->fecha_entrega,
             ] : null,
+            'fotos' => [
+                'inventario' => $vehiculo->foto_inventario_grua
+                    ? '/grua/corralon/' . $vehiculo->id . '/foto-inventario'
+                    : null,
+                'entrega' => $liberacion && $liberacion->foto_entrega
+                    ? '/grua/corralon/liberacion/' . $liberacion->id
+                        . '/evidencia/foto_entrega'
+                    : null,
+            ],
         ];
+    }
+
+    private function resumen(int $gruaId): array
+    {
+        $hoy = now('America/Mexico_City');
+        $liberaciones = LiberacionCorralon::query()
+            ->where('grua_id', $gruaId)
+            ->where('estado', 'ENTREGADO');
+
+        $serie = collect(range(6, 0))->map(function (int $dias) use ($liberaciones, $hoy) {
+            $fecha = $hoy->copy()->subDays($dias);
+
+            return [
+                'fecha' => $fecha->format('Y-m-d'),
+                'etiqueta' => $fecha->locale('es')->isoFormat('dd'),
+                'total' => (clone $liberaciones)->whereDate('fecha_entrega', $fecha)->count(),
+            ];
+        })->values();
+
+        return [
+            'pendientes' => $this->vehiculosPendientesQuery($gruaId)->count(),
+            'entregados_hoy' => (clone $liberaciones)
+                ->whereDate('fecha_entrega', $hoy)
+                ->count(),
+            'entregados_mes' => (clone $liberaciones)
+                ->whereYear('fecha_entrega', $hoy->year)
+                ->whereMonth('fecha_entrega', $hoy->month)
+                ->count(),
+            'total_entregados' => (clone $liberaciones)->count(),
+            'con_observaciones_mes' => (clone $liberaciones)
+                ->whereYear('fecha_entrega', $hoy->year)
+                ->whereMonth('fecha_entrega', $hoy->month)
+                ->where('condicion_entrega', 'CON_OBSERVACIONES')
+                ->count(),
+            'serie_7_dias' => $serie,
+        ];
+    }
+
+    private function reporteItems(int $gruaId, string $estado, string $busqueda)
+    {
+        if ($estado === 'entregados') {
+            return LiberacionCorralon::query()
+                ->where('grua_id', $gruaId)
+                ->where('estado', 'ENTREGADO')
+                ->with(['vehiculo.hechos', 'vehiculo.servicio.grua'])
+                ->when($busqueda !== '', function ($query) use ($busqueda) {
+                    $query->whereHas('vehiculo', function ($vehiculo) use ($busqueda) {
+                        $this->buscarVehiculo($vehiculo, $busqueda);
+                    });
+                })
+                ->orderByDesc('fecha_entrega')
+                ->get()
+                ->map(fn (LiberacionCorralon $liberacion) => $this->serializeVehiculo(
+                    $liberacion->vehiculo,
+                    $liberacion
+                ));
+        }
+
+        return $this->vehiculosPendientesQuery($gruaId)
+            ->with(['hechos', 'servicio.grua', 'liberacionCorralon'])
+            ->when($busqueda !== '', function ($query) use ($busqueda) {
+                $query->where(function ($vehiculo) use ($busqueda) {
+                    $this->buscarVehiculo($vehiculo, $busqueda);
+                });
+            })
+            ->orderByDesc('ultimo_servicio_at')
+            ->get()
+            ->map(fn (Vehiculo $vehiculo) => $this->serializeVehiculo($vehiculo));
+    }
+
+    private function csvSeguro($valor): string
+    {
+        $valor = (string) ($valor ?? '');
+
+        return preg_match('/^[=+\-@]/', $valor) ? "'" . $valor : $valor;
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

@@ -171,6 +171,10 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
 Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
     Route::prefix('grua/corralon')->group(function () {
         Route::get('/', [GruaCorralonController::class, 'index']);
+        Route::get('/exportar/{formato}', [GruaCorralonController::class, 'exportar'])
+            ->where('formato', 'csv|pdf');
+        Route::get('/{vehiculo}/foto-inventario', [GruaCorralonController::class, 'fotoInventario'])
+            ->whereNumber('vehiculo');
         Route::get('/{vehiculo}', [GruaCorralonController::class, 'show'])->whereNumber('vehiculo');
         Route::post('/{vehiculo}/entregar', [GruaCorralonController::class, 'entregar'])->whereNumber('vehiculo');
         Route::get('/liberacion/{liberacionCorralon}/evidencia/{campo}', [GruaCorralonController::class, 'evidencia'])

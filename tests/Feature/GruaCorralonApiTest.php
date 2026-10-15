@@ -19,6 +19,7 @@ class GruaCorralonApiTest extends TestCase
     public function test_grua_can_list_and_deliver_only_its_current_vehicle(): void
     {
         Storage::fake('local');
+        Storage::fake('public');
 
         $grua = Grua::create(['nombre' => 'GRUA API CORRALON ' . uniqid()]);
         $otraGrua = Grua::create(['nombre' => 'OTRA GRUA API ' . uniqid()]);
@@ -32,6 +33,15 @@ class GruaCorralonApiTest extends TestCase
         ]);
 
         $vehiculo = $this->crearVehiculo($grua->id, 'API' . random_int(1000, 9999));
+        $inventoryPhoto = UploadedFile::fake()->image('inventario.jpg');
+        Storage::disk('public')->putFileAs(
+            'hechos/pruebas',
+            $inventoryPhoto,
+            'inventario.jpg'
+        );
+        $vehiculo->update([
+            'foto_inventario_grua' => 'hechos/pruebas/inventario.jpg',
+        ]);
         Servicio::create([
             'grua_id' => $grua->id,
             'vehiculo_id' => $vehiculo->id,
@@ -57,6 +67,26 @@ class GruaCorralonApiTest extends TestCase
         $ids = collect($list->json('items'))->pluck('id');
         $this->assertTrue($ids->contains($vehiculo->id));
         $this->assertFalse($ids->contains($ajeno->id));
+        $list->assertJsonPath('summary.pendientes', 1)
+            ->assertJsonStructure([
+                'summary' => [
+                    'pendientes',
+                    'entregados_hoy',
+                    'entregados_mes',
+                    'total_entregados',
+                    'con_observaciones_mes',
+                    'serie_7_dias',
+                ],
+            ]);
+
+        $this->withToken($token)
+            ->get('http://localhost/api/grua/corralon/exportar/csv')
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $this->withToken($token)
+            ->get('http://localhost/api/grua/corralon/' . $vehiculo->id . '/foto-inventario')
+            ->assertOk();
 
         $this->withToken($token)
             ->post('http://localhost/api/grua/corralon/' . $ajeno->id . '/entregar', [
@@ -70,7 +100,7 @@ class GruaCorralonApiTest extends TestCase
             ], ['Accept' => 'application/json'])
             ->assertForbidden();
 
-        $this->withToken($token)
+        $delivery = $this->withToken($token)
             ->post('http://localhost/api/grua/corralon/' . $vehiculo->id . '/entregar', [
                 'persona_recibe' => 'María Receptora',
                 'identificacion_recibe' => 'INE 123456',
@@ -83,6 +113,12 @@ class GruaCorralonApiTest extends TestCase
             ], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('item.estado', 'ENTREGADO');
+
+        $photoUrl = $delivery->json('item.fotos.entrega');
+        $this->assertNotEmpty($photoUrl);
+        $this->withToken($token)
+            ->get('http://localhost/api' . $photoUrl)
+            ->assertOk();
 
         $this->assertDatabaseHas('liberaciones_corralon', [
             'vehiculo_id' => $vehiculo->id,

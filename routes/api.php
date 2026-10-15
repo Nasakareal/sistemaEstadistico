@@ -86,7 +86,7 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
 });
 
-Route::prefix('patrullas')->middleware(['auth:sanctum', 'can:ver patrullas'])->group(function () {
+Route::prefix('patrullas')->middleware(['auth:sanctum', 'grua.api.scope', 'can:ver patrullas'])->group(function () {
     Route::get('/disponibles', [PatrullaServicioController::class, 'disponibles'])->name('api.patrullas.disponibles');
 
     Route::get('/mi-servicio', [PatrullaServicioController::class, 'miServicio'])
@@ -117,7 +117,7 @@ Route::prefix('patrullas')->middleware(['auth:sanctum', 'can:ver patrullas'])->g
         ->name('api.patrullas.mi_servicio.kilometraje');
 });
 
-Route::prefix('calea')->middleware(['auth:sanctum', 'can:ver calea'])->group(function () {
+Route::prefix('calea')->middleware(['auth:sanctum', 'grua.api.scope', 'can:ver calea'])->group(function () {
     Route::get('/meta', [ApiCaleaController::class, 'meta'])->name('api.calea.meta');
     Route::get('/buscar', [ApiCaleaController::class, 'buscar'])->name('api.calea.buscar');
     Route::get('/estudio', [ApiCaleaController::class, 'estudio'])->name('api.calea.estudio');
@@ -135,7 +135,7 @@ Route::prefix('calea-encuestas/public')->group(function () {
     Route::post('/intentos/{uuid}/cancelar', [CaleaEncuestaController::class, 'cancelar']);
 });
 
-Route::prefix('calea-encuestas')->middleware('auth:sanctum')->group(function () {
+Route::prefix('calea-encuestas')->middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
     Route::get('/activas', [CaleaEncuestaController::class, 'activas']);
     Route::get('/administrar', [CaleaEncuestaController::class, 'administrar']);
     Route::get('/catalogos', [CaleaEncuestaController::class, 'catalogos']);

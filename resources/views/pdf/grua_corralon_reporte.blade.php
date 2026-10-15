@@ -37,8 +37,8 @@
     <table class="data">
         <thead>
             <tr>
-                <th>Estado</th><th>Placas</th><th>NIV</th><th>Vehículo</th>
-                <th>Inventario</th><th>Fecha servicio</th><th>Entrega</th>
+                <th>Estado</th><th>Origen</th><th>Placas</th><th>NIV</th><th>Vehículo</th>
+                <th>Inventario</th><th>Fecha servicio</th><th>Maniobras</th><th>Entrega</th>
                 <th>Recibió</th><th>SIERSE</th><th>Observaciones</th>
             </tr>
         </thead>
@@ -46,18 +46,23 @@
             @forelse($items as $item)
                 <tr>
                     <td class="status">{{ $item['estado'] }}</td>
+                    <td>{{ data_get($item, 'origen.etiqueta', 'Sin clasificar') }}</td>
                     <td>{{ $item['placas'] ?: 'S/P' }}</td>
                     <td>{{ $item['serie'] ?: 'N/A' }}</td>
                     <td>{{ trim(($item['marca'] ?? '') . ' ' . ($item['linea'] ?? '')) }}<br>{{ $item['modelo'] }} · {{ $item['color'] }}</td>
                     <td>{{ $item['numero_inventario_grua'] ?: 'N/A' }}</td>
                     <td>{{ $item['fecha_servicio'] ?: 'N/A' }}</td>
+                    <td>
+                        {{ data_get($item, 'servicio.realizo_maniobras') === null ? 'Sin capturar' : (data_get($item, 'servicio.realizo_maniobras') ? 'Sí' : 'No') }}
+                        @if(data_get($item, 'servicio.maniobras_descripcion'))<br>{{ data_get($item, 'servicio.maniobras_descripcion') }}@endif
+                    </td>
                     <td>{{ data_get($item, 'liberacion.fecha_entrega', 'N/A') ?: 'N/A' }}</td>
                     <td>{{ data_get($item, 'liberacion.persona_recibe', 'N/A') ?: 'N/A' }}</td>
                     <td>{{ data_get($item, 'liberacion.sierse_folio', 'N/A') ?: 'N/A' }}</td>
                     <td>{{ data_get($item, 'liberacion.observaciones', '') ?: 'Sin observaciones' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="10" style="text-align:center;padding:18px;">Sin registros</td></tr>
+                <tr><td colspan="12" style="text-align:center;padding:18px;">Sin registros</td></tr>
             @endforelse
         </tbody>
     </table>

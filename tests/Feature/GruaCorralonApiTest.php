@@ -42,6 +42,12 @@ class GruaCorralonApiTest extends TestCase
         $vehiculo->update([
             'foto_inventario_grua' => 'hechos/pruebas/inventario.jpg',
         ]);
+        Storage::disk('public')->putFileAs(
+            'hechos/pruebas',
+            UploadedFile::fake()->image('vehiculo.jpg'),
+            'vehiculo.jpg'
+        );
+        $vehiculo->update(['fotos' => 'hechos/pruebas/vehiculo.jpg']);
         Servicio::create([
             'grua_id' => $grua->id,
             'vehiculo_id' => $vehiculo->id,
@@ -68,6 +74,8 @@ class GruaCorralonApiTest extends TestCase
         $this->assertTrue($ids->contains($vehiculo->id));
         $this->assertFalse($ids->contains($ajeno->id));
         $list->assertJsonPath('summary.pendientes', 1)
+            ->assertJsonPath('items.0.origen.tipo', 'SIN_CLASIFICAR')
+            ->assertJsonPath('items.0.galeria.0.tipo', 'vehiculo')
             ->assertJsonStructure([
                 'summary' => [
                     'pendientes',
@@ -87,6 +95,33 @@ class GruaCorralonApiTest extends TestCase
         $this->withToken($token)
             ->get('http://localhost/api/grua/corralon/' . $vehiculo->id . '/foto-inventario')
             ->assertOk();
+
+        $this->withToken($token)
+            ->get('http://localhost/api/grua/corralon/' . $vehiculo->id . '/foto-vehiculo')
+            ->assertOk();
+
+        $this->withToken($token)
+            ->patchJson('http://localhost/api/grua/corralon/' . $vehiculo->id . '/servicio', [
+                'realizo_maniobras' => true,
+                'maniobras_descripcion' => 'Izaje y acomodo del vehículo.',
+                'observaciones_grua' => 'Sin daños adicionales.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('item.servicio.realizo_maniobras', true)
+            ->assertJsonPath('item.servicio.maniobras_descripcion', 'Izaje y acomodo del vehículo.');
+
+        $this->assertDatabaseHas('servicios', [
+            'vehiculo_id' => $vehiculo->id,
+            'realizo_maniobras' => true,
+            'maniobras_descripcion' => 'Izaje y acomodo del vehículo.',
+            'observaciones_grua' => 'Sin daños adicionales.',
+            'actualizado_por_grua_usuario_id' => $user->id,
+        ]);
+
+        $this->withToken($token)
+            ->get('http://localhost/api/grua/corralon/' . $vehiculo->id . '/memoria-descriptiva')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
 
         $this->withToken($token)
             ->post('http://localhost/api/grua/corralon/' . $ajeno->id . '/entregar', [

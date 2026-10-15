@@ -3,9 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Actividad;
+use App\Models\ActividadFoto;
+use App\Models\ConduceLegalidadFoto;
 use App\Models\GruaUsuario;
 use App\Models\LiberacionCorralon;
+use App\Models\Servicio;
 use App\Models\Vehiculo;
+use App\Services\Fotos\ActividadFotoBlobStorage;
 use App\Services\Fotos\HechoFotoStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -24,7 +29,7 @@ class GruaCorralonController extends Controller
             $query = LiberacionCorralon::query()
                 ->where('grua_id', $user->grua_id)
                 ->where('estado', 'ENTREGADO')
-                ->with(['vehiculo.hechos', 'vehiculo.servicio.grua'])
+                ->with($this->vehiculoRelations('vehiculo.'))
                 ->when($busqueda !== '', function ($query) use ($busqueda) {
                     $query->whereHas('vehiculo', function ($vehiculo) use ($busqueda) {
                         $this->buscarVehiculo($vehiculo, $busqueda);
@@ -42,7 +47,7 @@ class GruaCorralonController extends Controller
                 ->values();
         } else {
             $query = $this->vehiculosPendientesQuery((int) $user->grua_id)
-                ->with(['hechos', 'servicio.grua', 'liberacionCorralon'])
+                ->with($this->vehiculoRelations())
                 ->when($busqueda !== '', function ($query) use ($busqueda) {
                     $query->where(function ($vehiculo) use ($busqueda) {
                         $this->buscarVehiculo($vehiculo, $busqueda);
@@ -99,6 +104,7 @@ class GruaCorralonController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, [
                 'Estado',
+                'Origen',
                 'Placas',
                 'NIV',
                 'Marca',
@@ -108,6 +114,9 @@ class GruaCorralonController extends Controller
                 'Inventario',
                 'Corralón',
                 'Fecha servicio',
+                'Realizó maniobras',
+                'Descripción de maniobras',
+                'Observaciones de la grúa',
                 'Fecha entrega',
                 'Persona que recibió',
                 'Folio SIERSE',
@@ -118,6 +127,7 @@ class GruaCorralonController extends Controller
             foreach ($items as $item) {
                 fputcsv($out, array_map([$this, 'csvSeguro'], [
                     $item['estado'],
+                    data_get($item, 'origen.etiqueta'),
                     $item['placas'],
                     $item['serie'],
                     $item['marca'],
@@ -127,6 +137,11 @@ class GruaCorralonController extends Controller
                     $item['numero_inventario_grua'],
                     $item['corralon'],
                     $item['fecha_servicio'],
+                    data_get($item, 'servicio.realizo_maniobras') === null
+                        ? 'SIN CAPTURAR'
+                        : (data_get($item, 'servicio.realizo_maniobras') ? 'SI' : 'NO'),
+                    data_get($item, 'servicio.maniobras_descripcion'),
+                    data_get($item, 'servicio.observaciones_grua'),
                     data_get($item, 'liberacion.fecha_entrega'),
                     data_get($item, 'liberacion.persona_recibe'),
                     data_get($item, 'liberacion.sierse_folio'),
@@ -146,7 +161,7 @@ class GruaCorralonController extends Controller
         $user = $this->gruaUser($request);
         $this->autorizarVehiculo($vehiculo, $user);
 
-        $vehiculo->load(['hechos', 'servicio.grua', 'liberacionCorralon']);
+        $vehiculo->load($this->vehiculoRelations());
 
         return response()->json($this->serializeVehiculo(
             $vehiculo,
@@ -223,7 +238,7 @@ class GruaCorralonController extends Controller
             return $liberacion;
         });
 
-        $vehiculo->refresh()->load(['hechos', 'servicio.grua']);
+        $vehiculo->refresh()->load($this->vehiculoRelations());
 
         return response()->json([
             'message' => 'Vehículo marcado como entregado.',
@@ -269,6 +284,154 @@ class GruaCorralonController extends Controller
             $vehiculo->foto_inventario_grua,
             'inventario_vehiculo_' . $vehiculo->id . '.'
             . (pathinfo($vehiculo->foto_inventario_grua, PATHINFO_EXTENSION) ?: 'jpg')
+        );
+    }
+
+    public function fotoVehiculo(
+        Request $request,
+        Vehiculo $vehiculo,
+        HechoFotoStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        abort_unless($vehiculo->getRawOriginal('fotos'), 404);
+
+        return $storage->response(
+            $vehiculo->getRawOriginal('fotos'),
+            'vehiculo_' . $vehiculo->id . '.'
+            . (pathinfo($vehiculo->getRawOriginal('fotos'), PATHINFO_EXTENSION) ?: 'jpg')
+        );
+    }
+
+    public function fotoServicio(
+        Request $request,
+        Vehiculo $vehiculo,
+        HechoFotoStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        $servicio = $this->servicioActual($vehiculo);
+        abort_unless($servicio && $servicio->foto_vehiculo, 404);
+
+        return $storage->response(
+            $servicio->foto_vehiculo,
+            'servicio_' . $servicio->id . '.'
+            . (pathinfo($servicio->foto_vehiculo, PATHINFO_EXTENSION) ?: 'jpg')
+        );
+    }
+
+    public function fotoActividad(
+        Request $request,
+        Vehiculo $vehiculo,
+        ActividadFoto $foto,
+        ActividadFotoBlobStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        abort_unless(
+            $vehiculo->actividades()->whereKey($foto->actividad_id)->exists(),
+            404
+        );
+
+        return $storage->response(
+            $foto->foto_blob_path ?: $foto->foto_thumbnail_blob_path,
+            $foto->foto_path ?: $foto->foto_thumbnail_path,
+            $foto->foto_nombre_original ?: 'actividad_' . $foto->id . '.jpg'
+        );
+    }
+
+    public function fotoActividadPrincipal(
+        Request $request,
+        Vehiculo $vehiculo,
+        Actividad $actividad,
+        ActividadFotoBlobStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        abort_unless($vehiculo->actividades()->whereKey($actividad->id)->exists(), 404);
+
+        return $storage->response(
+            $actividad->foto_blob_path ?: $actividad->foto_thumbnail_blob_path,
+            $actividad->foto_path ?: $actividad->foto_thumbnail_path,
+            $actividad->foto_nombre_original ?: 'actividad_' . $actividad->id . '.jpg'
+        );
+    }
+
+    public function fotoConduce(
+        Request $request,
+        Vehiculo $vehiculo,
+        ConduceLegalidadFoto $foto,
+        HechoFotoStorage $storage
+    ) {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        abort_unless(
+            $vehiculo->actividades()
+                ->whereHas('conduceLegalidadCaptura.fotos', function ($query) use ($foto) {
+                    $query->whereKey($foto->id);
+                })
+                ->exists(),
+            404
+        );
+
+        return $storage->response(
+            $foto->foto_path,
+            $foto->foto_nombre_original ?: 'conduce_legalidad_' . $foto->id . '.jpg'
+        );
+    }
+
+    public function actualizarServicio(Request $request, Vehiculo $vehiculo)
+    {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        $servicio = $this->servicioActual($vehiculo);
+        abort_unless($servicio, 404, 'No se encontró el servicio de grúa.');
+
+        $validated = $request->validate([
+            'realizo_maniobras' => ['required', 'boolean'],
+            'maniobras_descripcion' => ['nullable', 'string', 'max:2000'],
+            'observaciones_grua' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($validated['realizo_maniobras']
+            && trim((string) ($validated['maniobras_descripcion'] ?? '')) === '') {
+            return response()->json([
+                'message' => 'Describe las maniobras realizadas.',
+                'errors' => [
+                    'maniobras_descripcion' => ['Describe las maniobras realizadas.'],
+                ],
+            ], 422);
+        }
+
+        $servicio->update([
+            'realizo_maniobras' => (bool) $validated['realizo_maniobras'],
+            'maniobras_descripcion' => trim((string) ($validated['maniobras_descripcion'] ?? '')) ?: null,
+            'observaciones_grua' => trim((string) ($validated['observaciones_grua'] ?? '')) ?: null,
+            'actualizado_por_grua_usuario_id' => $user->id,
+            'actualizado_por_grua_at' => now(),
+        ]);
+
+        $vehiculo->load($this->vehiculoRelations());
+
+        return response()->json([
+            'message' => 'Datos del servicio actualizados.',
+            'item' => $this->serializeVehiculo($vehiculo, $vehiculo->liberacionCorralon),
+        ]);
+    }
+
+    public function memoriaDescriptiva(Request $request, Vehiculo $vehiculo)
+    {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        $vehiculo->load($this->vehiculoRelations());
+        $item = $this->serializeVehiculo($vehiculo, $vehiculo->liberacionCorralon);
+
+        return Pdf::loadView('pdf.grua_memoria_descriptiva', [
+            'item' => $item,
+            'grua' => $user->grua,
+            'generado' => now('America/Mexico_City'),
+        ])->setPaper('letter')->download(
+            'memoria_servicio_' . $vehiculo->id . '.pdf'
         );
     }
 
@@ -337,6 +500,8 @@ class GruaCorralonController extends Controller
     {
         $hecho = $vehiculo->relationLoaded('hechos') ? $vehiculo->hechos->first() : null;
         $servicio = $vehiculo->relationLoaded('servicio') ? $vehiculo->servicio : null;
+        $origen = $this->origenVehiculo($vehiculo);
+        $galeria = $this->galeriaVehiculo($vehiculo, $servicio, $liberacion);
 
         return [
             'id' => $vehiculo->id,
@@ -353,6 +518,14 @@ class GruaCorralonController extends Controller
                 ?? optional($servicio)->created_at
                 ?? $vehiculo->fecha_inventario_grua,
             'servicio_descripcion' => optional($servicio)->descripcion,
+            'servicio' => $servicio ? [
+                'id' => $servicio->id,
+                'realizo_maniobras' => $servicio->realizo_maniobras,
+                'maniobras_descripcion' => $servicio->maniobras_descripcion,
+                'observaciones_grua' => $servicio->observaciones_grua,
+                'actualizado_por_grua_at' => $servicio->actualizado_por_grua_at,
+            ] : null,
+            'origen' => $origen,
             'hecho' => $hecho ? [
                 'id' => $hecho->id,
                 'fecha' => $hecho->fecha,
@@ -380,6 +553,178 @@ class GruaCorralonController extends Controller
                         . '/evidencia/foto_entrega'
                     : null,
             ],
+            'galeria' => $galeria,
+        ];
+    }
+
+    private function origenVehiculo(Vehiculo $vehiculo): array
+    {
+        $actividades = $vehiculo->relationLoaded('actividades')
+            ? $vehiculo->actividades
+            : collect();
+        $actividadConduce = $actividades->first(function ($actividad) {
+            return $actividad->relationLoaded('conduceLegalidadCaptura')
+                && $actividad->conduceLegalidadCaptura;
+        });
+
+        if ($actividadConduce) {
+            $captura = $actividadConduce->conduceLegalidadCaptura;
+            $operativo = optional($captura)->operativo;
+
+            return [
+                'tipo' => 'CONDUCE_LEGALIDAD',
+                'etiqueta' => 'Conduce con Legalidad',
+                'id' => optional($captura)->id,
+                'folio' => optional($captura)->folio_numero,
+                'fecha' => optional($captura)->fecha ?: $actividadConduce->fecha,
+                'lugar' => optional($captura)->lugar ?: $actividadConduce->lugar,
+                'detalle' => optional($operativo)->nombre
+                    ?: optional($operativo)->titulo
+                    ?: 'Operativo Conduce con Legalidad',
+            ];
+        }
+
+        $hecho = $vehiculo->relationLoaded('hechos') ? $vehiculo->hechos->first() : null;
+        if ($hecho) {
+            return [
+                'tipo' => 'SINIESTRO',
+                'etiqueta' => 'Siniestro',
+                'id' => $hecho->id,
+                'folio' => $hecho->folio_c5i,
+                'fecha' => $hecho->fecha,
+                'lugar' => collect([$hecho->calle, $hecho->colonia])->filter()->implode(', '),
+                'detalle' => $hecho->tipo_hecho,
+            ];
+        }
+
+        $actividad = $actividades->first();
+        if ($actividad) {
+            return [
+                'tipo' => 'ACTIVIDAD',
+                'etiqueta' => 'Actividad',
+                'id' => $actividad->id,
+                'folio' => $actividad->folio_c5i,
+                'fecha' => $actividad->fecha,
+                'lugar' => $actividad->lugar,
+                'detalle' => optional($actividad->subcategoria)->nombre
+                    ?: $actividad->motivo
+                    ?: $actividad->nombre,
+            ];
+        }
+
+        return [
+            'tipo' => 'SIN_CLASIFICAR',
+            'etiqueta' => 'Sin clasificar',
+            'id' => null,
+            'folio' => null,
+            'fecha' => optional($vehiculo->servicio)->created_at,
+            'lugar' => null,
+            'detalle' => null,
+        ];
+    }
+
+    private function galeriaVehiculo(
+        Vehiculo $vehiculo,
+        ?Servicio $servicio,
+        ?LiberacionCorralon $liberacion
+    ): array {
+        $fotos = collect();
+
+        if ($vehiculo->getRawOriginal('fotos')) {
+            $fotos->push([
+                'tipo' => 'vehiculo',
+                'etiqueta' => 'Vehículo',
+                'url' => '/grua/corralon/' . $vehiculo->id . '/foto-vehiculo',
+            ]);
+        }
+        if ($vehiculo->foto_inventario_grua) {
+            $fotos->push([
+                'tipo' => 'inventario',
+                'etiqueta' => 'Inventario de grúa',
+                'url' => '/grua/corralon/' . $vehiculo->id . '/foto-inventario',
+            ]);
+        }
+        if ($servicio && $servicio->foto_vehiculo) {
+            $fotos->push([
+                'tipo' => 'servicio',
+                'etiqueta' => 'Servicio de grúa',
+                'url' => '/grua/corralon/' . $vehiculo->id . '/foto-servicio',
+            ]);
+        }
+
+        $actividades = $vehiculo->relationLoaded('actividades')
+            ? $vehiculo->actividades
+            : collect();
+        foreach ($actividades as $actividad) {
+            $captura = $actividad->relationLoaded('conduceLegalidadCaptura')
+                ? $actividad->conduceLegalidadCaptura
+                : null;
+            if ($captura && $captura->relationLoaded('fotos')) {
+                foreach ($captura->fotos as $foto) {
+                    $fotos->push([
+                        'tipo' => 'conduce_legalidad',
+                        'etiqueta' => 'Conduce con Legalidad',
+                        'url' => '/grua/corralon/' . $vehiculo->id
+                            . '/foto-conduce/' . $foto->id,
+                    ]);
+                }
+            }
+
+            if ($actividad->relationLoaded('fotos')) {
+                foreach ($actividad->fotos as $foto) {
+                    $fotos->push([
+                        'tipo' => 'actividad',
+                        'etiqueta' => 'Actividad',
+                        'url' => '/grua/corralon/' . $vehiculo->id
+                            . '/foto-actividad/' . $foto->id,
+                    ]);
+                }
+            }
+            if ($actividad->foto_path || $actividad->foto_blob_path
+                || $actividad->foto_thumbnail_path || $actividad->foto_thumbnail_blob_path) {
+                $fotos->push([
+                    'tipo' => 'actividad',
+                    'etiqueta' => 'Actividad',
+                    'url' => '/grua/corralon/' . $vehiculo->id
+                        . '/foto-actividad-principal/' . $actividad->id,
+                ]);
+            }
+        }
+
+        if ($liberacion && $liberacion->foto_entrega) {
+            $fotos->push([
+                'tipo' => 'entrega',
+                'etiqueta' => 'Entrega',
+                'url' => '/grua/corralon/liberacion/' . $liberacion->id
+                    . '/evidencia/foto_entrega',
+            ]);
+        }
+
+        return $fotos->unique('url')->take(12)->values()->all();
+    }
+
+    private function servicioActual(Vehiculo $vehiculo): ?Servicio
+    {
+        if ($vehiculo->relationLoaded('servicio') && $vehiculo->servicio) {
+            return $vehiculo->servicio;
+        }
+
+        return $vehiculo->servicios()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function vehiculoRelations(string $prefix = ''): array
+    {
+        return [
+            $prefix . 'hechos',
+            $prefix . 'servicio.grua',
+            $prefix . 'liberacionCorralon',
+            $prefix . 'actividades.subcategoria',
+            $prefix . 'actividades.fotos',
+            $prefix . 'actividades.conduceLegalidadCaptura.operativo',
+            $prefix . 'actividades.conduceLegalidadCaptura.fotos',
         ];
     }
 
@@ -425,7 +770,7 @@ class GruaCorralonController extends Controller
             return LiberacionCorralon::query()
                 ->where('grua_id', $gruaId)
                 ->where('estado', 'ENTREGADO')
-                ->with(['vehiculo.hechos', 'vehiculo.servicio.grua'])
+                ->with($this->vehiculoRelations('vehiculo.'))
                 ->when($busqueda !== '', function ($query) use ($busqueda) {
                     $query->whereHas('vehiculo', function ($vehiculo) use ($busqueda) {
                         $this->buscarVehiculo($vehiculo, $busqueda);
@@ -440,7 +785,7 @@ class GruaCorralonController extends Controller
         }
 
         return $this->vehiculosPendientesQuery($gruaId)
-            ->with(['hechos', 'servicio.grua', 'liberacionCorralon'])
+            ->with($this->vehiculoRelations())
             ->when($busqueda !== '', function ($query) use ($busqueda) {
                 $query->where(function ($vehiculo) use ($busqueda) {
                     $this->buscarVehiculo($vehiculo, $busqueda);

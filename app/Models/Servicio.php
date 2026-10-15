@@ -19,7 +19,17 @@ class Servicio extends Model
         'aseguradora',
         'descripcion',
         'foto_vehiculo',
+        'realizo_maniobras',
+        'maniobras_descripcion',
+        'observaciones_grua',
+        'actualizado_por_grua_usuario_id',
+        'actualizado_por_grua_at',
         'created_at',
+    ];
+
+    protected $casts = [
+        'realizo_maniobras' => 'boolean',
+        'actualizado_por_grua_at' => 'datetime',
     ];
 
     public function grua()
@@ -30,6 +40,11 @@ class Servicio extends Model
     public function vehiculo()
     {
         return $this->belongsTo(Vehiculo::class, 'vehiculo_id');
+    }
+
+    public function actualizadoPorGruaUsuario()
+    {
+        return $this->belongsTo(GruaUsuario::class, 'actualizado_por_grua_usuario_id');
     }
 
     public function scopeConOrigenVinculado($query)

@@ -175,6 +175,20 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
             ->where('formato', 'csv|pdf');
         Route::get('/{vehiculo}/foto-inventario', [GruaCorralonController::class, 'fotoInventario'])
             ->whereNumber('vehiculo');
+        Route::get('/{vehiculo}/foto-vehiculo', [GruaCorralonController::class, 'fotoVehiculo'])
+            ->whereNumber('vehiculo');
+        Route::get('/{vehiculo}/foto-servicio', [GruaCorralonController::class, 'fotoServicio'])
+            ->whereNumber('vehiculo');
+        Route::get('/{vehiculo}/foto-actividad/{foto}', [GruaCorralonController::class, 'fotoActividad'])
+            ->whereNumber('vehiculo')->whereNumber('foto');
+        Route::get('/{vehiculo}/foto-actividad-principal/{actividad}', [GruaCorralonController::class, 'fotoActividadPrincipal'])
+            ->whereNumber('vehiculo')->whereNumber('actividad');
+        Route::get('/{vehiculo}/foto-conduce/{foto}', [GruaCorralonController::class, 'fotoConduce'])
+            ->whereNumber('vehiculo')->whereNumber('foto');
+        Route::patch('/{vehiculo}/servicio', [GruaCorralonController::class, 'actualizarServicio'])
+            ->whereNumber('vehiculo');
+        Route::get('/{vehiculo}/memoria-descriptiva', [GruaCorralonController::class, 'memoriaDescriptiva'])
+            ->whereNumber('vehiculo');
         Route::get('/{vehiculo}', [GruaCorralonController::class, 'show'])->whereNumber('vehiculo');
         Route::post('/{vehiculo}/entregar', [GruaCorralonController::class, 'entregar'])->whereNumber('vehiculo');
         Route::get('/liberacion/{liberacionCorralon}/evidencia/{campo}', [GruaCorralonController::class, 'evidencia'])

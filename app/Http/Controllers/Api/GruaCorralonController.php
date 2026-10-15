@@ -16,6 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class GruaCorralonController extends Controller
 {
@@ -24,6 +25,9 @@ class GruaCorralonController extends Controller
         $user = $this->gruaUser($request);
         $estado = mb_strtolower(trim((string) $request->input('estado', 'pendientes')));
         $busqueda = trim((string) $request->input('q', ''));
+        $origen = mb_strtoupper(trim((string) $request->input('origen', 'TODOS')));
+        $dias = max(0, min(365, (int) $request->input('dias', 0)));
+        $perPage = max(20, min(100, (int) $request->input('per_page', 50)));
 
         if ($estado === 'entregados') {
             $query = LiberacionCorralon::query()
@@ -35,10 +39,16 @@ class GruaCorralonController extends Controller
                         $this->buscarVehiculo($vehiculo, $busqueda);
                     });
                 })
+                ->when($dias > 0, fn ($query) => $query->where(
+                    'fecha_entrega', '>=', now('America/Mexico_City')->subDays($dias - 1)->startOfDay()
+                ))
+                ->when($origen !== 'TODOS', function ($query) use ($origen) {
+                    $query->whereHas('vehiculo', fn ($vehiculo) => $this->filtrarOrigen($vehiculo, $origen));
+                })
                 ->orderByDesc('fecha_entrega')
                 ->orderByDesc('id');
 
-            $page = $query->paginate(30);
+            $page = $query->paginate($perPage);
             $items = collect($page->items())
                 ->map(fn (LiberacionCorralon $liberacion) => $this->serializeVehiculo(
                     $liberacion->vehiculo,
@@ -53,11 +63,22 @@ class GruaCorralonController extends Controller
                         $this->buscarVehiculo($vehiculo, $busqueda);
                     });
                 })
+                ->when($dias > 0, function ($query) use ($dias) {
+                    $desde = now('America/Mexico_City')->subDays($dias - 1)->startOfDay();
+                    $query->whereRaw(
+                        'COALESCE((SELECT servicios_filtro.created_at FROM servicios AS servicios_filtro '
+                        . 'WHERE servicios_filtro.vehiculo_id = vehiculos.id '
+                        . 'ORDER BY servicios_filtro.created_at DESC, servicios_filtro.id DESC LIMIT 1), '
+                        . 'vehiculos.fecha_inventario_grua, vehiculos.created_at) >= ?',
+                        [$desde]
+                    );
+                })
+                ->when($origen !== 'TODOS', fn ($query) => $this->filtrarOrigen($query, $origen))
                 ->orderByDesc('ultimo_servicio_at')
                 ->orderByDesc('fecha_inventario_grua')
                 ->orderByDesc('updated_at');
 
-            $page = $query->paginate(30);
+            $page = $query->paginate($perPage);
             $items = collect($page->items())
                 ->map(fn (Vehiculo $vehiculo) => $this->serializeVehiculo($vehiculo))
                 ->values();
@@ -83,9 +104,11 @@ class GruaCorralonController extends Controller
         $user = $this->gruaUser($request);
         $estado = mb_strtolower(trim((string) $request->input('estado', 'pendientes')));
         $busqueda = trim((string) $request->input('q', ''));
+        $origen = mb_strtoupper(trim((string) $request->input('origen', 'TODOS')));
+        $dias = max(0, min(365, (int) $request->input('dias', 0)));
         abort_unless(in_array($formato, ['csv', 'pdf'], true), 404);
 
-        $items = $this->reporteItems((int) $user->grua_id, $estado, $busqueda);
+        $items = $this->reporteItems((int) $user->grua_id, $estado, $busqueda, $origen, $dias);
         $fecha = now('America/Mexico_City')->format('Y-m-d_H-i');
         $nombre = 'servicios_corralon_' . $estado . '_' . $fecha;
 
@@ -167,6 +190,122 @@ class GruaCorralonController extends Controller
             $vehiculo,
             $vehiculo->liberacionCorralon
         ));
+    }
+
+    public function crearServicio(Request $request)
+    {
+        $user = $this->gruaUser($request);
+        $validated = $request->validate(array_merge($this->vehiculoRules(true), $this->servicioRules(true)));
+
+        if (empty(trim((string) ($validated['placas'] ?? '')))
+            && empty(trim((string) ($validated['serie'] ?? '')))) {
+            return response()->json([
+                'message' => 'Captura por lo menos placas o NIV/serie.',
+                'errors' => ['placas' => ['Captura por lo menos placas o NIV/serie.']],
+            ], 422);
+        }
+
+        $duplicado = $this->buscarDuplicadoActivo(
+            (int) $user->grua_id,
+            $validated['placas'] ?? null,
+            $validated['serie'] ?? null
+        );
+        if ($duplicado) {
+            return response()->json([
+                'message' => 'Este vehículo ya tiene un servicio activo en tu corralón.',
+                'errors' => ['placas' => ['Ya existe el vehículo #' . $duplicado->id . ' en corralón.']],
+            ], 422);
+        }
+
+        [$vehiculo, $servicio] = DB::transaction(function () use ($request, $user, $validated) {
+            $vehiculo = Vehiculo::create([
+                'client_uuid' => (string) Str::uuid(),
+                'marca' => trim($validated['marca']),
+                'linea' => trim($validated['linea']),
+                'modelo' => $this->nullableTrim($validated['modelo'] ?? null),
+                'tipo' => trim($validated['tipo']),
+                'color' => trim($validated['color']),
+                'placas' => $this->nullableTrim($validated['placas'] ?? null),
+                'estado_placas' => $this->nullableTrim($validated['estado_placas'] ?? null),
+                'serie' => $this->nullableTrim($validated['serie'] ?? null),
+                'capacidad_personas' => (int) ($validated['capacidad_personas'] ?? 0),
+                'tipo_servicio' => $this->nullableTrim($validated['tipo_servicio'] ?? null) ?: 'PARTICULAR',
+                'tarjeta_circulacion_nombre' => $this->nullableTrim($validated['tarjeta_circulacion_nombre'] ?? null),
+                'grua' => optional($user->grua)->nombre,
+                'grua_id' => $user->grua_id,
+                'numero_inventario_grua' => $this->nullableTrim($validated['numero_inventario_grua'] ?? null),
+                'fecha_inventario_grua' => $validated['fecha_solicitud'],
+                'corralon' => $this->nullableTrim($validated['corralon'] ?? null)
+                    ?: optional($user->grua)->nombre,
+            ]);
+
+            $servicio = Servicio::create(array_merge(
+                $this->servicioPayload($validated, $user),
+                [
+                    'client_uuid' => (string) Str::uuid(),
+                    'grua_id' => $user->grua_id,
+                    'vehiculo_id' => $vehiculo->id,
+                    'tipo_vehiculo' => $vehiculo->tipo,
+                    'tipo_general_vehiculo' => $validated['tipo_general_vehiculo'] ?? null,
+                    'created_at' => $validated['fecha_solicitud'],
+                ]
+            ));
+
+            $this->guardarMemoria($request, $servicio, $user);
+            return [$vehiculo, $servicio];
+        });
+
+        $vehiculo->load($this->vehiculoRelations());
+        return response()->json([
+            'message' => 'Servicio agregado al expediente SIERSE.',
+            'item' => $this->serializeVehiculo($vehiculo),
+        ], 201);
+    }
+
+    public function actualizarExpediente(Request $request, Vehiculo $vehiculo)
+    {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        $servicio = $this->servicioActual($vehiculo);
+        abort_unless($servicio, 404, 'No se encontró el servicio de grúa.');
+        $validated = $request->validate(array_merge($this->vehiculoRules(false), $this->servicioRules(false)));
+
+        DB::transaction(function () use ($request, $vehiculo, $servicio, $user, $validated) {
+            $vehiculoCampos = collect([
+                'marca', 'linea', 'modelo', 'tipo', 'color', 'placas', 'estado_placas',
+                'serie', 'capacidad_personas', 'tipo_servicio', 'tarjeta_circulacion_nombre',
+                'numero_inventario_grua', 'corralon',
+            ])->filter(fn ($campo) => array_key_exists($campo, $validated))
+                ->mapWithKeys(fn ($campo) => [$campo => is_string($validated[$campo] ?? null)
+                    ? $this->nullableTrim($validated[$campo]) : $validated[$campo]])->all();
+            if ($vehiculoCampos) {
+                $vehiculo->update($vehiculoCampos);
+            }
+
+            $servicio->update($this->servicioPayload($validated, $user, false));
+            $this->guardarMemoria($request, $servicio, $user);
+        });
+
+        $vehiculo->refresh()->load($this->vehiculoRelations());
+        return response()->json([
+            'message' => 'Expediente y memoria actualizados.',
+            'item' => $this->serializeVehiculo($vehiculo, $vehiculo->liberacionCorralon),
+        ]);
+    }
+
+    public function archivoMemoriaDescriptiva(Request $request, Vehiculo $vehiculo)
+    {
+        $user = $this->gruaUser($request);
+        $this->autorizarVehiculo($vehiculo, $user);
+        $servicio = $this->servicioActual($vehiculo);
+        abort_unless($servicio && $servicio->memoria_descriptiva_path, 404);
+        abort_unless(Storage::disk('local')->exists($servicio->memoria_descriptiva_path), 404);
+
+        return Storage::disk('local')->response(
+            $servicio->memoria_descriptiva_path,
+            $servicio->memoria_descriptiva_nombre ?: basename($servicio->memoria_descriptiva_path),
+            ['Content-Type' => $servicio->memoria_descriptiva_mime ?: 'application/octet-stream']
+        );
     }
 
     public function entregar(Request $request, Vehiculo $vehiculo)
@@ -496,6 +635,27 @@ class GruaCorralonController extends Controller
             ->orWhere('numero_inventario_grua', 'like', '%' . $busqueda . '%');
     }
 
+    private function filtrarOrigen($query, string $origen): void
+    {
+        if ($origen === 'SINIESTRO') {
+            $query->whereHas('hechos');
+            return;
+        }
+        if ($origen === 'CONDUCE_LEGALIDAD') {
+            $query->whereHas('actividades.conduceLegalidadCaptura');
+            return;
+        }
+        if ($origen === 'ACTIVIDAD') {
+            $query->whereHas('actividades')
+                ->whereDoesntHave('actividades.conduceLegalidadCaptura')
+                ->whereDoesntHave('hechos');
+            return;
+        }
+        if ($origen === 'MANUAL') {
+            $query->whereDoesntHave('hechos')->whereDoesntHave('actividades');
+        }
+    }
+
     private function serializeVehiculo(Vehiculo $vehiculo, ?LiberacionCorralon $liberacion = null): array
     {
         $hecho = $vehiculo->relationLoaded('hechos') ? $vehiculo->hechos->first() : null;
@@ -510,8 +670,11 @@ class GruaCorralonController extends Controller
             'modelo' => $vehiculo->modelo,
             'color' => $vehiculo->color,
             'placas' => $vehiculo->placas,
+            'estado_placas' => $vehiculo->estado_placas,
             'serie' => $vehiculo->serie,
             'tipo' => $vehiculo->tipo,
+            'tipo_servicio' => $vehiculo->tipo_servicio,
+            'tarjeta_circulacion_nombre' => $vehiculo->tarjeta_circulacion_nombre,
             'numero_inventario_grua' => $vehiculo->numero_inventario_grua,
             'corralon' => $vehiculo->nombreCorralonValido(),
             'fecha_servicio' => $vehiculo->ultimo_servicio_at
@@ -523,7 +686,32 @@ class GruaCorralonController extends Controller
                 'realizo_maniobras' => $servicio->realizo_maniobras,
                 'maniobras_descripcion' => $servicio->maniobras_descripcion,
                 'observaciones_grua' => $servicio->observaciones_grua,
+                'tipo_general_vehiculo' => $servicio->tipo_general_vehiculo,
+                'inventario_recepcion' => $servicio->inventario_recepcion ?: [],
                 'actualizado_por_grua_at' => $servicio->actualizado_por_grua_at,
+                'modalidad_servicio' => $servicio->modalidad_servicio,
+                'folio_sierse' => $servicio->folio_sierse,
+                'fecha_solicitud' => $servicio->fecha_solicitud,
+                'fecha_arribo' => $servicio->fecha_arribo,
+                'fecha_inicio' => $servicio->fecha_inicio,
+                'fecha_fin' => $servicio->fecha_fin,
+                'lugar_origen' => $servicio->lugar_origen,
+                'lugar_destino' => $servicio->lugar_destino,
+                'autoridad_solicitante' => $servicio->autoridad_solicitante,
+                'agente_solicitante' => $servicio->agente_solicitante,
+                'persona_solicitante' => $servicio->persona_solicitante,
+                'operador_nombre' => $servicio->operador_nombre,
+                'unidad_grua' => $servicio->unidad_grua,
+                'kilometros_recorridos' => $servicio->kilometros_recorridos,
+                'importe_total' => $servicio->importe_total,
+                'forma_pago' => $servicio->forma_pago,
+                'memoria' => $servicio->memoria_descriptiva_path ? [
+                    'nombre' => $servicio->memoria_descriptiva_nombre,
+                    'mime' => $servicio->memoria_descriptiva_mime,
+                    'sha256' => $servicio->memoria_descriptiva_sha256,
+                    'subida_at' => $servicio->memoria_subida_at,
+                    'url' => '/grua/corralon/' . $vehiculo->id . '/memoria-descriptiva/archivo',
+                ] : null,
             ] : null,
             'origen' => $origen,
             'hecho' => $hecho ? [
@@ -554,7 +742,160 @@ class GruaCorralonController extends Controller
                     : null,
             ],
             'galeria' => $galeria,
+            'expediente' => $this->estadoExpediente($vehiculo, $servicio),
         ];
+    }
+
+    private function vehiculoRules(bool $required): array
+    {
+        $r = $required ? 'required' : 'sometimes';
+        return [
+            'marca' => [$r, 'string', 'max:50'],
+            'linea' => [$r, 'string', 'max:50'],
+            'modelo' => ['nullable', 'string', 'max:10'],
+            'tipo' => [$r, 'string', 'max:50'],
+            'color' => [$r, 'string', 'max:30'],
+            'placas' => ['nullable', 'string', 'max:20'],
+            'estado_placas' => ['nullable', 'string', 'max:30'],
+            'serie' => ['nullable', 'string', 'max:40'],
+            'capacidad_personas' => ['nullable', 'integer', 'min:0', 'max:200'],
+            'tipo_servicio' => ['nullable', 'string', 'max:50'],
+            'tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:100'],
+            'numero_inventario_grua' => ['nullable', 'string', 'max:120'],
+            'corralon' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    private function servicioRules(bool $required): array
+    {
+        $r = $required ? 'required' : 'sometimes';
+        return [
+            'modalidad_servicio' => [$r, 'in:GRUA,ARRASTRE,ARRASTRE_SALVAMENTO,REMOLQUE,DEPOSITO'],
+            'folio_sierse' => ['nullable', 'string', 'max:120'],
+            'fecha_solicitud' => [$r, 'date'],
+            'fecha_arribo' => ['nullable', 'date'],
+            'fecha_inicio' => ['nullable', 'date'],
+            'fecha_fin' => ['nullable', 'date'],
+            'lugar_origen' => [$r, 'string', 'max:255'],
+            'lugar_destino' => ['nullable', 'string', 'max:255'],
+            'autoridad_solicitante' => ['nullable', 'string', 'max:255'],
+            'agente_solicitante' => ['nullable', 'string', 'max:255'],
+            'persona_solicitante' => ['nullable', 'string', 'max:255'],
+            'operador_nombre' => [$r, 'string', 'max:255'],
+            'unidad_grua' => [$r, 'string', 'max:120'],
+            'kilometros_recorridos' => ['nullable', 'numeric', 'min:0'],
+            'importe_total' => ['nullable', 'numeric', 'min:0'],
+            'forma_pago' => ['nullable', 'string', 'max:40'],
+            'realizo_maniobras' => ['nullable', 'boolean'],
+            'maniobras_descripcion' => ['nullable', 'string', 'max:2000'],
+            'observaciones_grua' => ['nullable', 'string', 'max:2000'],
+            'tipo_general_vehiculo' => ['nullable', 'in:automovil,camioneta,camion,motocicleta,bicicleta,remolque,maquinaria,tren,semoviente'],
+            'inventario_recepcion' => ['nullable', 'array'],
+            'inventario_recepcion.llaves' => ['nullable', 'boolean'],
+            'inventario_recepcion.tarjeta_circulacion' => ['nullable', 'boolean'],
+            'inventario_recepcion.placas' => ['nullable', 'boolean'],
+            'inventario_recepcion.estereo' => ['nullable', 'boolean'],
+            'inventario_recepcion.bateria' => ['nullable', 'boolean'],
+            'inventario_recepcion.llanta_refaccion' => ['nullable', 'boolean'],
+            'inventario_recepcion.herramienta' => ['nullable', 'boolean'],
+            'inventario_recepcion.danos_visibles' => ['nullable', 'boolean'],
+            'memoria_descriptiva' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:20480'],
+        ];
+    }
+
+    private function servicioPayload(array $validated, GruaUsuario $user, bool $includeNulls = true): array
+    {
+        $campos = [
+            'modalidad_servicio', 'folio_sierse', 'fecha_solicitud', 'fecha_arribo',
+            'fecha_inicio', 'fecha_fin', 'lugar_origen', 'lugar_destino',
+            'autoridad_solicitante', 'agente_solicitante', 'persona_solicitante',
+            'operador_nombre', 'unidad_grua', 'kilometros_recorridos', 'importe_total',
+            'forma_pago', 'realizo_maniobras', 'maniobras_descripcion', 'observaciones_grua',
+            'tipo_general_vehiculo', 'inventario_recepcion',
+        ];
+        $payload = [];
+        foreach ($campos as $campo) {
+            if (array_key_exists($campo, $validated)) {
+                if ($campo === 'inventario_recepcion' && is_array($validated[$campo])) {
+                    $payload[$campo] = collect($validated[$campo])
+                        ->map(fn ($valor) => filter_var($valor, FILTER_VALIDATE_BOOLEAN))
+                        ->all();
+                } else {
+                    $payload[$campo] = is_string($validated[$campo])
+                        ? $this->nullableTrim($validated[$campo]) : $validated[$campo];
+                }
+            } elseif ($includeNulls) {
+                $payload[$campo] = null;
+            }
+        }
+        $payload['actualizado_por_grua_usuario_id'] = $user->id;
+        $payload['actualizado_por_grua_at'] = now();
+        return $payload;
+    }
+
+    private function guardarMemoria(Request $request, Servicio $servicio, GruaUsuario $user): void
+    {
+        if (!$request->hasFile('memoria_descriptiva')) {
+            return;
+        }
+        $archivo = $request->file('memoria_descriptiva');
+        $ruta = $archivo->store('grua_sierse/memorias', 'local');
+        if ($servicio->memoria_descriptiva_path
+            && Storage::disk('local')->exists($servicio->memoria_descriptiva_path)) {
+            Storage::disk('local')->delete($servicio->memoria_descriptiva_path);
+        }
+        $servicio->update([
+            'memoria_descriptiva_path' => $ruta,
+            'memoria_descriptiva_nombre' => mb_substr($archivo->getClientOriginalName(), 0, 255),
+            'memoria_descriptiva_mime' => $archivo->getMimeType(),
+            'memoria_descriptiva_sha256' => hash_file('sha256', Storage::disk('local')->path($ruta)),
+            'memoria_subida_por_grua_usuario_id' => $user->id,
+            'memoria_subida_at' => now(),
+        ]);
+    }
+
+    private function estadoExpediente(Vehiculo $vehiculo, ?Servicio $servicio): array
+    {
+        $faltantes = [];
+        foreach (['marca' => 'Marca', 'linea' => 'Línea', 'tipo' => 'Tipo', 'color' => 'Color'] as $campo => $etiqueta) {
+            if (trim((string) $vehiculo->{$campo}) === '') $faltantes[] = $etiqueta;
+        }
+        if (trim((string) $vehiculo->placas) === '' && trim((string) $vehiculo->serie) === '') {
+            $faltantes[] = 'Placas o NIV';
+        }
+        if (!$servicio) {
+            $faltantes[] = 'Datos del servicio';
+        } else {
+            foreach ([
+                'modalidad_servicio' => 'Modalidad', 'fecha_solicitud' => 'Fecha de solicitud',
+                'lugar_origen' => 'Lugar de origen', 'operador_nombre' => 'Operador',
+                'unidad_grua' => 'Unidad de grúa', 'folio_sierse' => 'Folio SIERSE',
+                'memoria_descriptiva_path' => 'Memoria descriptiva original',
+            ] as $campo => $etiqueta) {
+                if (trim((string) $servicio->{$campo}) === '') $faltantes[] = $etiqueta;
+            }
+        }
+        return ['completo' => count($faltantes) === 0, 'faltantes' => $faltantes];
+    }
+
+    private function buscarDuplicadoActivo(int $gruaId, ?string $placas, ?string $serie): ?Vehiculo
+    {
+        $placas = mb_strtoupper(trim((string) $placas));
+        $serie = mb_strtoupper(trim((string) $serie));
+        if ($placas === '' && $serie === '') return null;
+
+        return $this->vehiculosPendientesQuery($gruaId)
+            ->where(function ($query) use ($placas, $serie) {
+                if ($placas !== '') $query->orWhereRaw('UPPER(TRIM(placas)) = ?', [$placas]);
+                if ($serie !== '') $query->orWhereRaw('UPPER(TRIM(serie)) = ?', [$serie]);
+            })->first();
+    }
+
+    private function nullableTrim($valor): ?string
+    {
+        if ($valor === null) return null;
+        $valor = trim((string) $valor);
+        return $valor === '' ? null : $valor;
     }
 
     private function origenVehiculo(Vehiculo $vehiculo): array
@@ -764,7 +1105,13 @@ class GruaCorralonController extends Controller
         ];
     }
 
-    private function reporteItems(int $gruaId, string $estado, string $busqueda)
+    private function reporteItems(
+        int $gruaId,
+        string $estado,
+        string $busqueda,
+        string $origen,
+        int $dias
+    )
     {
         if ($estado === 'entregados') {
             return LiberacionCorralon::query()
@@ -775,6 +1122,12 @@ class GruaCorralonController extends Controller
                     $query->whereHas('vehiculo', function ($vehiculo) use ($busqueda) {
                         $this->buscarVehiculo($vehiculo, $busqueda);
                     });
+                })
+                ->when($dias > 0, fn ($query) => $query->where(
+                    'fecha_entrega', '>=', now('America/Mexico_City')->subDays($dias - 1)->startOfDay()
+                ))
+                ->when($origen !== 'TODOS', function ($query) use ($origen) {
+                    $query->whereHas('vehiculo', fn ($vehiculo) => $this->filtrarOrigen($vehiculo, $origen));
                 })
                 ->orderByDesc('fecha_entrega')
                 ->get()
@@ -791,6 +1144,17 @@ class GruaCorralonController extends Controller
                     $this->buscarVehiculo($vehiculo, $busqueda);
                 });
             })
+            ->when($dias > 0, function ($query) use ($dias) {
+                $desde = now('America/Mexico_City')->subDays($dias - 1)->startOfDay();
+                $query->whereRaw(
+                    'COALESCE((SELECT servicios_filtro.created_at FROM servicios AS servicios_filtro '
+                    . 'WHERE servicios_filtro.vehiculo_id = vehiculos.id '
+                    . 'ORDER BY servicios_filtro.created_at DESC, servicios_filtro.id DESC LIMIT 1), '
+                    . 'vehiculos.fecha_inventario_grua, vehiculos.created_at) >= ?',
+                    [$desde]
+                );
+            })
+            ->when($origen !== 'TODOS', fn ($query) => $this->filtrarOrigen($query, $origen))
             ->orderByDesc('ultimo_servicio_at')
             ->get()
             ->map(fn (Vehiculo $vehiculo) => $this->serializeVehiculo($vehiculo));

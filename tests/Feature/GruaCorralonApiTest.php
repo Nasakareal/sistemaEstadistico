@@ -165,6 +165,101 @@ class GruaCorralonApiTest extends TestCase
         $this->assertNull($vehiculo->fresh()->corralon);
     }
 
+    public function test_grua_can_create_manual_service_complete_record_and_upload_memory(): void
+    {
+        Storage::fake('local');
+        $grua = Grua::create(['nombre' => 'GRUA SIERSE ' . uniqid()]);
+        $password = 'PruebaGrua_2026';
+        $user = GruaUsuario::create([
+            'grua_id' => $grua->id,
+            'nombre' => 'Operador SIERSE',
+            'email' => 'sierse-' . uniqid() . '@example.test',
+            'password' => Hash::make($password),
+            'activo' => true,
+        ]);
+        $token = (string) $this->postJson('http://localhost/api/login', [
+            'email' => $user->email,
+            'password' => $password,
+        ])->json('token');
+
+        $created = $this->withToken($token)->post('http://localhost/api/grua/corralon/servicios', [
+            'marca' => 'FORD', 'linea' => 'FIESTA', 'modelo' => '2018',
+            'tipo' => 'SEDAN', 'color' => 'AZUL', 'placas' => 'MAN' . random_int(1000, 9999),
+            'serie' => '3FA6P0H70JR123456', 'corralon' => $grua->nombre,
+            'modalidad_servicio' => 'ARRASTRE_SALVAMENTO',
+            'tipo_general_vehiculo' => 'automovil',
+            'fecha_solicitud' => now()->subHour()->toDateTimeString(),
+            'lugar_origen' => 'Avenida de prueba',
+            'operador_nombre' => 'Operador de prueba',
+            'unidad_grua' => 'ECO-12',
+            'inventario_recepcion' => [
+                'llaves' => '1',
+                'tarjeta_circulacion' => '0',
+                'placas' => '1',
+                'bateria' => '1',
+            ],
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('item.origen.tipo', 'SIN_CLASIFICAR')
+            ->assertJsonPath('item.servicio.inventario_recepcion.llaves', true);
+
+        $vehiculoId = (int) $created->json('item.id');
+        $updated = $this->withToken($token)->post(
+            'http://localhost/api/grua/corralon/' . $vehiculoId . '/expediente',
+            [
+                'folio_sierse' => 'SIERSE-MANUAL-001',
+                'fecha_arribo' => now()->subMinutes(50)->toDateTimeString(),
+                'fecha_inicio' => now()->subMinutes(45)->toDateTimeString(),
+                'fecha_fin' => now()->subMinutes(20)->toDateTimeString(),
+                'lugar_destino' => $grua->nombre,
+                'autoridad_solicitante' => 'Guardia Civil',
+                'agente_solicitante' => 'Agente de prueba',
+                'realizo_maniobras' => '1',
+                'maniobras_descripcion' => 'Izaje y arrastre.',
+                'memoria_descriptiva' => UploadedFile::fake()->create('memoria.pdf', 120, 'application/pdf'),
+            ],
+            ['Accept' => 'application/json']
+        )->assertOk()
+            ->assertJsonPath('item.servicio.folio_sierse', 'SIERSE-MANUAL-001')
+            ->assertJsonPath('item.servicio.memoria.nombre', 'memoria.pdf');
+
+        $this->assertNotEmpty($updated->json('item.servicio.memoria.sha256'));
+        $this->withToken($token)
+            ->get('http://localhost/api/grua/corralon/' . $vehiculoId . '/memoria-descriptiva/archivo')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->withToken($token)
+            ->getJson('http://localhost/api/grua/corralon?origen=MANUAL&dias=1&per_page=20')
+            ->assertOk()
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('items.0.id', $vehiculoId);
+
+        foreach (range(1, 21) as $index) {
+            $extra = $this->crearVehiculo($grua->id, 'PG' . str_pad((string) $index, 4, '0', STR_PAD_LEFT));
+            Servicio::create([
+                'grua_id' => $grua->id,
+                'vehiculo_id' => $extra->id,
+                'tipo_vehiculo' => 'SEDAN',
+                'created_at' => now()->subMinutes($index),
+            ]);
+        }
+
+        $pageOne = $this->withToken($token)
+            ->getJson('http://localhost/api/grua/corralon?origen=MANUAL&per_page=20&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('meta.total', 22);
+        $this->assertCount(20, $pageOne->json('items'));
+
+        $pageTwo = $this->withToken($token)
+            ->getJson('http://localhost/api/grua/corralon?origen=MANUAL&per_page=20&page=2')
+            ->assertOk()
+            ->assertJsonPath('meta.current_page', 2);
+        $this->assertCount(2, $pageTwo->json('items'));
+    }
+
     private function crearVehiculo(int $gruaId, string $placas): Vehiculo
     {
         return Vehiculo::create([

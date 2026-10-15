@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\GruaUsuario;
 use App\Services\LocationTrackingEligibilityService;
 use App\Services\LicenciaPuntosTurnoAccessService;
 use App\Support\HechoAccess;
@@ -28,24 +29,45 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
+
+        if (Auth::attempt($credentials)) {
+            $user = Auth::user();
+            $token = $user->createToken('mobile')->plainTextToken;
+
+            return response()->json($this->buildAuthResponse($user, $token));
+        }
+
+        $gruaUsuario = GruaUsuario::query()
+            ->whereRaw('LOWER(TRIM(email)) = ?', [$credentials['email']])
+            ->where('activo', true)
+            ->first();
+
+        if (!$gruaUsuario || !Hash::check($credentials['password'], $gruaUsuario->password)) {
             return response()->json(['message' => 'Credenciales incorrectas'], 401);
         }
 
-        $user = Auth::user();
-        $token = $user->createToken('mobile')->plainTextToken;
+        $token = $gruaUsuario->createToken('mobile-grua', ['grua'])->plainTextToken;
 
-        return response()->json($this->buildAuthResponse($user, $token));
+        return response()->json($this->buildGruaAuthResponse($gruaUsuario, $token));
     }
 
     public function me(Request $request)
     {
-        return response()->json($this->buildAuthResponse($request->user()));
+        $user = $request->user();
+
+        return response()->json($user instanceof GruaUsuario
+            ? $this->buildGruaAuthResponse($user)
+            : $this->buildAuthResponse($user));
     }
 
     public function profile(Request $request)
     {
-        return response()->json($this->buildAuthResponse($request->user()));
+        $user = $request->user();
+
+        return response()->json($user instanceof GruaUsuario
+            ? $this->buildGruaAuthResponse($user)
+            : $this->buildAuthResponse($user));
     }
 
     public function changePassword(Request $request)
@@ -81,6 +103,10 @@ class AuthController extends Controller
     public function permissions(Request $request)
     {
         $user = $request->user();
+
+        if ($user instanceof GruaUsuario) {
+            return response()->json(['ver portal grua']);
+        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -239,6 +265,44 @@ class AuthController extends Controller
                 'patrulla' => $patrullaMeta,
             ],
         ];
+
+        if ($token !== null && trim($token) !== '') {
+            $response['token'] = $token;
+        }
+
+        return $response;
+    }
+
+    private function buildGruaAuthResponse(GruaUsuario $user, ?string $token = null): array
+    {
+        $user->loadMissing('grua');
+
+        $grua = $user->grua ? [
+            'id' => $user->grua->id,
+            'nombre' => $user->grua->nombre,
+        ] : null;
+
+        $legacyUser = [
+            'id' => $user->id,
+            'name' => $user->nombre,
+            'nombre' => $user->nombre,
+            'email' => $user->email,
+            'telefono' => $user->telefono,
+            'estado' => 'ACTIVO',
+            'account_type' => 'grua',
+            'grua_id' => $user->grua_id,
+            'grua' => $grua,
+            'role' => 'GRUA',
+            'role_id' => null,
+            'roles' => [['id' => null, 'name' => 'GRUA']],
+            'permissions' => ['ver portal grua'],
+        ];
+
+        $response = array_merge($legacyUser, [
+            'permissions' => ['ver portal grua'],
+            'user' => $legacyUser,
+            'user_meta' => $legacyUser,
+        ]);
 
         if ($token !== null && trim($token) !== '') {
             $response['token'] = $token;

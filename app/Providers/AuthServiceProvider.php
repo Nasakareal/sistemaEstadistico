@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\GruaUsuario;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\HechoAccess;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -18,6 +19,10 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         Gate::before(function ($user, $ability) {
+            if ($user instanceof GruaUsuario) {
+                return $this->normalizeAbility($ability) === 'ver portal grua';
+            }
+
             if ($user->hasRole('Superadmin')) {
                 return true;
             }

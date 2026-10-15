@@ -150,6 +150,53 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertTrue($this->canView($this->user('Superadmin', 5), $operativo));
     }
 
+    public function test_delegate_and_police_can_feed_active_operatives_only_in_their_delegation(): void
+    {
+        $own = new ConduceLegalidadOperativo();
+        $own->forceFill([
+            'unidad_id' => 2,
+            'delegacion_id' => 15,
+            'estado' => 'activo',
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+        $own->setRelation('creador', null);
+
+        $other = new ConduceLegalidadOperativo();
+        $other->forceFill([
+            'unidad_id' => 2,
+            'delegacion_id' => 16,
+            'estado' => 'activo',
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+        $other->setRelation('creador', null);
+
+        foreach (['Delegado', 'Policia'] as $role) {
+            $user = $this->user($role, 2, 15);
+
+            $this->assertTrue($this->canView($user, $own), $role);
+            $this->assertTrue($this->canFeed($user, $own), $role);
+            $this->assertFalse($this->canView($user, $other), $role);
+        }
+    }
+
+    public function test_superadmin_can_view_and_feed_operatives_from_any_delegation(): void
+    {
+        foreach ([15, 16] as $delegacionId) {
+            $operativo = new ConduceLegalidadOperativo();
+            $operativo->forceFill([
+                'unidad_id' => 2,
+                'delegacion_id' => $delegacionId,
+                'estado' => 'activo',
+                'tipo_operativo' => 'conduce_legalidad',
+            ]);
+            $operativo->setRelation('creador', null);
+
+            $superadmin = $this->user('Superadmin', 5, null);
+            $this->assertTrue($this->canView($superadmin, $operativo));
+            $this->assertTrue($this->canFeed($superadmin, $operativo));
+        }
+    }
+
     public function test_superadmin_can_assign_delegaciones_scope(): void
     {
         $scope = $this->resolveScope(
@@ -286,6 +333,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user);
+    }
+
+    private function canFeed($user, ConduceLegalidadOperativo $operativo): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'puedeAlimentarOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $operativo, $user);
     }
 
     private function canReactivate($user): bool

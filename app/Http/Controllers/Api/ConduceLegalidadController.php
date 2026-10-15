@@ -894,6 +894,11 @@ class ConduceLegalidadController extends Controller
 
     public function sendRndChatbot(Request $request, ConduceLegalidadOperativo $operativo, WhatsAppCloudService $whatsApp)
     {
+        return response()->json([
+            'ok' => false,
+            'message' => 'El envío de solicitudes RND a Justicia Cívica y Mediación Administrativa está desactivado.',
+        ], 410);
+
         $user = $request->user();
         abort_unless($this->canUseRnd($user), 403);
         $this->assertPuedeVerOperativo($operativo, $user);
@@ -1178,6 +1183,12 @@ class ConduceLegalidadController extends Controller
         WhatsAppCloudService $whatsApp,
         IphPuestaDisposicionDocxService $docxService
     ): array {
+        return [
+            'ok' => true,
+            'enviado' => false,
+            'message' => 'El envío automático a Justicia Cívica y Mediación Administrativa está desactivado.',
+        ];
+
         if (!config('services.whatsapp.conduce_legalidad.barandillas_enabled', false)) {
             return [
                 'ok' => true,
@@ -1391,10 +1402,7 @@ class ConduceLegalidadController extends Controller
         $retiro = $deposito
             ? 'La entrega física se realizará en ' . $deposito . ', previa autorización.'
             : 'La entrega física se realizará conforme al depósito vehicular autorizado que corresponda.';
-        $liberacion = 'Puede recoger su vehículo en la Unidad de Atención a Siniestros, '
-            . 'ubicada en Periférico Independencia #5000, col. Sentimientos de la Nación, '
-            . 'Morelia, Michoacán, en un horario de 9:00 a. m. a 4:00 p. m., '
-            . 'de lunes a viernes. ' . $retiro;
+        $liberacion = $this->liberacionTicket($operativo, $adscripcion, $retiro);
 
         return [
             'folio' => $this->folioCaptura($operativo, $captura),
@@ -1432,6 +1440,40 @@ class ConduceLegalidadController extends Controller
             'supervisor_nombre' => $supervisor['nombre'],
             'supervisor_cargo' => $supervisor['cargo'],
         ];
+    }
+
+    private function liberacionTicket(
+        ConduceLegalidadOperativo $operativo,
+        array $adscripcion,
+        string $retiro
+    ): string {
+        if ((int) ($adscripcion['unidad_id'] ?? 0) !== self::UNIDAD_DELEGACIONES) {
+            return 'Puede recoger su vehículo en la Unidad de Atención a Siniestros, '
+                . 'ubicada en Periférico Independencia #5000, col. Sentimientos de la Nación, '
+                . 'Morelia, Michoacán, en un horario de 9:00 a. m. a 4:00 p. m., '
+                . 'de lunes a viernes. ' . $retiro;
+        }
+
+        $delegacionId = (int) ($adscripcion['delegacion_id'] ?? 0);
+        $delegacion = $operativo->relationLoaded('delegacion')
+            ? $operativo->delegacion
+            : null;
+        if (!$delegacion && $delegacionId > 0) {
+            $delegacion = Delegacion::query()->find($delegacionId);
+        }
+
+        $nombre = $this->nullableString(optional($delegacion)->nombre)
+            ?: $this->delegacionTexto($delegacionId)
+            ?: 'Delegación correspondiente';
+        if (!Str::startsWith(Str::lower($nombre), 'delegación')) {
+            $nombre = 'Delegación de ' . $nombre;
+        }
+        $direccion = $this->nullableString(optional($delegacion)->direccion_completa);
+        $destino = $direccion
+            ? $nombre . ', ubicada en ' . $direccion
+            : $nombre;
+
+        return 'Para realizar el trámite de liberación, acuda a la ' . $destino . '. ' . $retiro;
     }
 
     public function descargarIphCaptura(

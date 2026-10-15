@@ -7,6 +7,7 @@ use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
+use App\Models\Delegacion;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use ReflectionMethod;
@@ -105,5 +106,37 @@ class ConduceLegalidadBoletaWhatsappTest extends TestCase
 
         $this->assertStringStartsWith('%PDF-', $pdf);
         $this->assertGreaterThan(1000, strlen($pdf));
+    }
+
+    public function test_boleta_de_delegaciones_usa_el_domicilio_de_la_delegacion(): void
+    {
+        $delegacion = new Delegacion([
+            'nombre' => 'Uruapan',
+            'direccion_completa' => 'Av. Latinoamericana 1500, Uruapan, Michoacán',
+        ]);
+        $delegacion->id = 14;
+
+        $operativo = new ConduceLegalidadOperativo([
+            'unidad_id' => 2,
+            'delegacion_id' => 14,
+        ]);
+        $operativo->setRelation('delegacion', $delegacion);
+
+        $metodo = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'liberacionTicket'
+        );
+        $metodo->setAccessible(true);
+        $texto = $metodo->invoke(
+            new ConduceLegalidadController(),
+            $operativo,
+            ['unidad_id' => 2, 'delegacion_id' => 14],
+            'La entrega física se realizará en el depósito autorizado.'
+        );
+
+        $this->assertStringContainsString('Delegación de Uruapan', $texto);
+        $this->assertStringContainsString('Av. Latinoamericana 1500', $texto);
+        $this->assertStringNotContainsString('Unidad de Atención a Siniestros', $texto);
+        $this->assertStringNotContainsString('Periférico Independencia', $texto);
     }
 }

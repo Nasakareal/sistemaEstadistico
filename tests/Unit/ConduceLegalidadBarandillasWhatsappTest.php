@@ -9,6 +9,7 @@ use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\WhatsAppCloudService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Mockery;
 use ReflectionMethod;
@@ -16,7 +17,22 @@ use Tests\TestCase;
 
 class ConduceLegalidadBarandillasWhatsappTest extends TestCase
 {
-    public function test_envia_boleta_e_iph_a_barandillas_cuando_hay_vehiculo_remitido(): void
+    public function test_endpoint_rnd_no_contacta_a_justicia_civica(): void
+    {
+        $whatsApp = Mockery::mock(WhatsAppCloudService::class);
+        $whatsApp->shouldNotReceive('sendTemplate');
+
+        $response = (new ConduceLegalidadController())->sendRndChatbot(
+            Request::create('/api/conduce-legalidad/operativos/10/rnd-chatbot', 'POST'),
+            new ConduceLegalidadOperativo(),
+            $whatsApp
+        );
+
+        $this->assertSame(410, $response->status());
+        $this->assertFalse($response->getData(true)['ok']);
+    }
+
+    public function test_no_envia_documentos_a_justicia_civica_aunque_la_configuracion_anterior_siga_activa(): void
     {
         config()->set('services.whatsapp.conduce_legalidad.barandillas_enabled', true);
         config()->set('services.whatsapp.conduce_legalidad.barandillas_to', '5214433163728');
@@ -24,32 +40,18 @@ class ConduceLegalidadBarandillasWhatsappTest extends TestCase
         config()->set('services.whatsapp.conduce_legalidad.barandillas_iph_template', 'iph_barandillas_conduce_v1');
 
         [$operativo, $captura] = $this->capturaConVehiculo(true);
-        $iphPath = tempnam(sys_get_temp_dir(), 'iph_barandillas_test_');
-        file_put_contents($iphPath, 'documento de prueba');
-
         $whatsApp = Mockery::mock(WhatsAppCloudService::class);
-        $whatsApp->shouldReceive('uploadMedia')->twice()->andReturn(
-            ['ok' => true, 'body' => ['id' => 'media-boleta']],
-            ['ok' => true, 'body' => ['id' => 'media-iph']]
-        );
-        $whatsApp->shouldReceive('sendDocumentTemplate')
-            ->twice()
-            ->withArgs(fn ($to) => $to === '5214433163728')
-            ->andReturn(['ok' => true]);
+        $whatsApp->shouldNotReceive('uploadMedia');
+        $whatsApp->shouldNotReceive('sendDocumentTemplate');
 
         $docx = Mockery::mock(IphPuestaDisposicionDocxService::class);
-        $docx->shouldReceive('generarConduceLegalidadBarandillasSoloVehiculo')
-            ->once()
-            ->andReturn([$iphPath, 'iph_barandillas_CL_10_20.docx']);
+        $docx->shouldNotReceive('generarConduceLegalidadBarandillasSoloVehiculo');
 
         $resultado = $this->invocarNotificacion($operativo, $captura, $whatsApp, $docx);
 
         $this->assertTrue($resultado['ok']);
-        $this->assertTrue($resultado['enviado']);
-        $this->assertTrue($resultado['data']['boleta_enviada']);
-        $this->assertTrue($resultado['data']['iph_enviado']);
-        $this->assertSame('3728', $resultado['data']['telefono_terminacion']);
-        $this->assertFileDoesNotExist($iphPath);
+        $this->assertFalse($resultado['enviado']);
+        $this->assertStringContainsString('desactivado', $resultado['message']);
     }
 
     public function test_no_avisa_a_barandillas_si_no_hay_vehiculo_remitido(): void

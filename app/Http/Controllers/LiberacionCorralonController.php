@@ -96,15 +96,20 @@ class LiberacionCorralonController extends Controller
             : $this->obtenerGruaIdVehiculo($vehiculo);
 
         DB::transaction(function () use ($vehiculo, $data, $gruaUsuario, $gruaId) {
+            $datosEntrega = [
+                'grua_id' => $gruaId,
+                'grua_usuario_id' => $gruaUsuario ? $gruaUsuario->id : null,
+                'estado' => 'ENTREGADO',
+                'fecha_entrega' => now(),
+            ];
+
+            if ($gruaUsuario) {
+                $datosEntrega['fecha_conformidad'] = now();
+            }
+
             LiberacionCorralon::updateOrCreate(
                 ['vehiculo_id' => $vehiculo->id],
-                array_merge($data, [
-                    'grua_id' => $gruaId,
-                    'grua_usuario_id' => $gruaUsuario ? $gruaUsuario->id : null,
-                    'estado' => 'ENTREGADO',
-                    'fecha_entrega' => now(),
-                    'fecha_conformidad' => now(),
-                ])
+                array_merge($data, $datosEntrega)
             );
 
             $vehiculo->update([
@@ -206,45 +211,68 @@ class LiberacionCorralonController extends Controller
 
     private function validarEntrega(Request $request, bool $requiereConfirmacion): array
     {
-        $required = $requiereConfirmacion ? 'required' : 'nullable';
+        $esPortalGrua = $this->esPortalGrua();
         $rules = [
-            'persona_recibe' => $required . '|string|max:255',
-            'identificacion_recibe' => $required . '|string|max:255',
+            'persona_recibe' => 'nullable|string|max:255',
+            'identificacion_recibe' => 'nullable|string|max:255',
             'telefono_recibe' => 'nullable|string|max:30',
-            'sierse_folio' => $required . '|string|max:120',
-            'condicion_entrega' => $required . '|in:CONFORME_INVENTARIO,CON_OBSERVACIONES',
-            'foto_identificacion' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_entrega' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'documento_liberacion' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
-            'memoria_descriptiva' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:15360',
-            'comprobante_pago' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
-            'firma_recibe' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_identificacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_entrega' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'documento_liberacion' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
             'observaciones' => 'nullable|string|max:2000',
         ];
 
         if ($requiereConfirmacion) {
             $rules['confirmar_entrega'] = 'accepted';
-            $rules['conformidad_memoria'] = 'accepted';
+        }
+
+        if ($esPortalGrua) {
+            $required = $requiereConfirmacion ? 'required' : 'nullable';
+            $rules = array_merge($rules, [
+                'persona_recibe' => $required . '|string|max:255',
+                'identificacion_recibe' => $required . '|string|max:255',
+                'sierse_folio' => $required . '|string|max:120',
+                'condicion_entrega' => $required . '|in:CONFORME_INVENTARIO,CON_OBSERVACIONES',
+                'foto_identificacion' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'foto_entrega' => $required . '|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'documento_liberacion' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+                'memoria_descriptiva' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:15360',
+                'comprobante_pago' => $required . '|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+                'firma_recibe' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+
+            if ($requiereConfirmacion) {
+                $rules['conformidad_memoria'] = 'accepted';
+            }
         }
 
         $validated = $request->validate($rules);
         unset($validated['confirmar_entrega']);
-        $validated['conformidad_memoria'] = $request->boolean('conformidad_memoria');
-        $validated['ip_entrega'] = $request->ip();
-        $validated['user_agent_entrega'] = mb_substr((string) $request->userAgent(), 0, 500);
+
+        if ($esPortalGrua) {
+            $validated['conformidad_memoria'] = $request->boolean('conformidad_memoria');
+            $validated['ip_entrega'] = $request->ip();
+            $validated['user_agent_entrega'] = mb_substr((string) $request->userAgent(), 0, 500);
+        }
 
         $validated['telefono_recibe'] = $this->normalizarTelefonoMx($validated['telefono_recibe'] ?? null);
 
-        foreach ([
-            'foto_identificacion',
-            'foto_entrega',
-            'documento_liberacion',
-            'memoria_descriptiva',
-            'comprobante_pago',
-            'firma_recibe',
-        ] as $campo) {
+        $camposArchivo = ['foto_identificacion', 'foto_entrega', 'documento_liberacion'];
+
+        if ($esPortalGrua) {
+            $camposArchivo = array_merge($camposArchivo, [
+                'memoria_descriptiva',
+                'comprobante_pago',
+                'firma_recibe',
+            ]);
+        }
+
+        foreach ($camposArchivo as $campo) {
             if ($request->hasFile($campo)) {
-                $validated[$campo] = $request->file($campo)->store('liberaciones_corralon', 'local');
+                $validated[$campo] = $request->file($campo)->store(
+                    'liberaciones_corralon',
+                    $esPortalGrua ? 'local' : 'public'
+                );
             } else {
                 unset($validated[$campo]);
             }

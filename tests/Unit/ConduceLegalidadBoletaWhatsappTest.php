@@ -136,6 +136,8 @@ class ConduceLegalidadBoletaWhatsappTest extends TestCase
 
         $this->assertStringContainsString('Delegación de Uruapan', $texto);
         $this->assertStringContainsString('Av. Latinoamericana 1500', $texto);
+        $this->assertStringContainsString('9:00 a. m. a 3:00 p. m.', $texto);
+        $this->assertStringNotContainsString('4:00 p. m.', $texto);
         $this->assertStringNotContainsString('Unidad de Atención a Siniestros', $texto);
         $this->assertStringNotContainsString('Periférico Independencia', $texto);
     }

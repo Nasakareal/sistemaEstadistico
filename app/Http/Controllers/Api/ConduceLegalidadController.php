@@ -1495,7 +1495,8 @@ class ConduceLegalidadController extends Controller
             ? $nombre . ', ubicada en ' . $direccion
             : $nombre;
 
-        return 'Para realizar el trámite de liberación, acuda a la ' . $destino . '. ' . $retiro;
+        return 'Para realizar el trámite de liberación, acuda a la ' . $destino
+            . ', en un horario de 9:00 a. m. a 3:00 p. m. ' . $retiro;
     }
 
     public function descargarIphCaptura(

@@ -85,4 +85,46 @@ class ConduceLegalidadInventarioFolioReservationTest extends TestCase
         $this->assertContains('nullable', $historicalRules['vehiculos.*.numero_inventario']);
         $this->assertSame(0, DB::table('inventario_vehiculo_folio_reservas')->count());
     }
+
+    public function test_new_series_skips_a_number_already_used_by_a_historical_vehicle(): void
+    {
+        DB::table('conduce_legalidad_vehiculos')->insert([
+            'captura_id' => 91,
+            'numero_inventario' => '00001',
+        ]);
+        $method = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'reservarNumeroInventario'
+        );
+        $method->setAccessible(true);
+
+        $folio = $method->invoke(
+            new ConduceLegalidadController(),
+            '33333333-3333-4333-8333-333333333333',
+            9
+        );
+
+        $this->assertSame('00002', $folio);
+        $this->assertSame(2, DB::table('inventario_vehiculo_folio_reservas')->count());
+    }
+
+    public function test_unique_index_migration_preserves_historical_duplicates(): void
+    {
+        DB::table('conduce_legalidad_vehiculos')->insert([
+            ['captura_id' => 101, 'numero_inventario' => '0533'],
+            ['captura_id' => 102, 'numero_inventario' => '0533'],
+        ]);
+        $migration = require database_path(
+            'migrations/2026_10_19_120000_enforce_unique_conduce_legalidad_inventory_numbers.php'
+        );
+
+        $migration->up();
+
+        $this->assertSame(
+            2,
+            DB::table('conduce_legalidad_vehiculos')
+                ->where('numero_inventario', '0533')
+                ->count()
+        );
+    }
 }

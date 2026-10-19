@@ -1825,27 +1825,46 @@ class ConduceLegalidadController extends Controller
 
     private function reservarNumeroInventario(string $clientUuid, int $userId): string
     {
-        $existente = DB::table('inventario_vehiculo_folio_reservas')
-            ->where('client_uuid', $clientUuid)
-            ->value('id');
-        if ($existente !== null) {
-            return str_pad((string) $existente, 5, '0', STR_PAD_LEFT);
+        while (true) {
+            $existente = DB::table('inventario_vehiculo_folio_reservas')
+                ->where('client_uuid', $clientUuid)
+                ->value('id');
+
+            if ($existente === null) {
+                $now = now();
+                DB::table('inventario_vehiculo_folio_reservas')->insertOrIgnore([
+                    'client_uuid' => $clientUuid,
+                    'created_by' => $userId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                $existente = DB::table('inventario_vehiculo_folio_reservas')
+                    ->where('client_uuid', $clientUuid)
+                    ->lockForUpdate()
+                    ->value('id');
+                if ($existente === null) {
+                    continue;
+                }
+            }
+
+            $folio = str_pad((string) ((int) $existente), 5, '0', STR_PAD_LEFT);
+            $ocupadoHistoricamente = ConduceLegalidadVehiculo::query()
+                ->where('numero_inventario', $folio)
+                ->exists();
+            if (!$ocupadoHistoricamente) {
+                return $folio;
+            }
+
+            // Conserva el consecutivo ocupado como reservado y mueve esta
+            // solicitud al siguiente número disponible, sin tocar el histórico.
+            DB::table('inventario_vehiculo_folio_reservas')
+                ->where('id', $existente)
+                ->where('client_uuid', $clientUuid)
+                ->update([
+                    'client_uuid' => (string) Str::uuid(),
+                    'updated_at' => now(),
+                ]);
         }
-
-        $now = now();
-        DB::table('inventario_vehiculo_folio_reservas')->insertOrIgnore([
-            'client_uuid' => $clientUuid,
-            'created_by' => $userId,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        $numero = (int) DB::table('inventario_vehiculo_folio_reservas')
-            ->where('client_uuid', $clientUuid)
-            ->lockForUpdate()
-            ->value('id');
-
-        return str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
     }
 
     private function parseFolioBusqueda(string $value): ?array

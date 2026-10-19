@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadVehiculo;
+use Illuminate\Http\Request;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -23,19 +24,17 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
             new ConduceLegalidadOperativo(['tipo_operativo' => 'conduce_legalidad'])
         );
         $vehiculo = new ConduceLegalidadVehiculo([
-            'numero_inventario' => 'INV-2026-0042',
+            'numero_inventario' => '00042',
         ]);
 
-        $this->assertSame(
-            ['required', 'string', 'max:100'],
-            $rules['vehiculos.*.numero_inventario']
-        );
+        $this->assertContains('required', $rules['vehiculos.*.numero_inventario']);
+        $this->assertContains('regex:/^\d{5,}$/', $rules['vehiculos.*.numero_inventario']);
         $this->assertSame(['required', 'array', 'size:1'], $rules['vehiculos']);
         $this->assertSame(
             ['required', 'integer', 'exists:gruas,id'],
             $rules['vehiculos.*.corralon_id']
         );
-        $this->assertSame('INV-2026-0042', $vehiculo->numero_inventario);
+        $this->assertSame('00042', $vehiculo->numero_inventario);
     }
 
     public function test_alcoholimetria_keeps_vehicle_optional(): void
@@ -52,10 +51,8 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
         );
 
         $this->assertSame(['nullable', 'array', 'max:1'], $rules['vehiculos']);
-        $this->assertSame(
-            ['nullable', 'string', 'max:100'],
-            $rules['vehiculos.*.numero_inventario']
-        );
+        $this->assertContains('nullable', $rules['vehiculos.*.numero_inventario']);
+        $this->assertContains('regex:/^\d{5,}$/', $rules['vehiculos.*.numero_inventario']);
         $this->assertSame(
             ['nullable', 'integer', 'exists:gruas,id'],
             $rules['vehiculos.*.corralon_id']
@@ -67,7 +64,7 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
         $vehiculo = new ConduceLegalidadVehiculo();
         $vehiculo->forceFill([
             'id' => 15,
-            'numero_inventario' => 'INV-2026-0042',
+            'numero_inventario' => '00042',
             'corralon_id' => 8,
             'corralon' => 'CORRALÓN MORELIA',
         ]);
@@ -83,8 +80,9 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
             $vehiculo
         );
 
-        $this->assertSame('INV-2026-0042', $payload['numero_inventario']);
+        $this->assertSame('00042', $payload['numero_inventario']);
         $this->assertSame(8, $payload['corralon_id']);
         $this->assertSame('CORRALÓN MORELIA', $payload['corralon']);
     }
+
 }

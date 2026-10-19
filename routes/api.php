@@ -351,6 +351,7 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::delete('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'destroyOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.destroy');
         Route::post('/operativos/{operativo}/rnd-chatbot', [ApiConduceLegalidadController::class, 'sendRndChatbot'])->whereNumber('operativo')->name('api.conduce_legalidad.rnd_chatbot');
         Route::post('/operativos/{operativo}/capturas/reservar-folio', [ApiConduceLegalidadController::class, 'reservarFolioCaptura'])->whereNumber('operativo')->name('api.conduce_legalidad.capturas.reservar_folio');
+        Route::post('/operativos/{operativo}/inventarios/reservar-folio', [ApiConduceLegalidadController::class, 'reservarFolioInventario'])->whereNumber('operativo')->name('api.conduce_legalidad.inventarios.reservar_folio');
 
         Route::post('/operativos/{operativo}/capturas', [ApiConduceLegalidadController::class, 'storeCaptura'])->whereNumber('operativo')->name('api.conduce_legalidad.capturas.store');
         Route::put('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'updateCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.update');

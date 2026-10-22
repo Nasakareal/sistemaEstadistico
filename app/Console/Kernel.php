@@ -16,6 +16,10 @@ class Kernel extends ConsoleKernel
             ->dailyAt('03:15')
             ->withoutOverlapping();
 
+        $schedule->command('security:geolocate-honeypot')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
         $schedule->command('hechos:notificar-pendientes')
             ->everyFiveMinutes()
             ->withoutOverlapping();

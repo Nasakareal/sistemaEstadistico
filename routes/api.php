@@ -61,6 +61,17 @@ use App\Http\Controllers\Api\CaleaController as ApiCaleaController;
 use App\Http\Controllers\Api\CaleaEncuestaController;
 use App\Http\Controllers\Api\AccountSettingsController;
 use App\Http\Controllers\Api\PatrullaServicioController;
+use App\Http\Controllers\Api\DeceptionApiController;
+
+if (config('honeypot_api.enabled') && config('honeypot_api.prefix')) {
+    Route::prefix(config('honeypot_api.prefix'))->group(function () {
+        Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], '/', [DeceptionApiController::class, 'handle'])
+            ->name('api.honeypot.root');
+        Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], '/{path}', [DeceptionApiController::class, 'handle'])
+            ->where('path', '.*')
+            ->name('api.honeypot.resource');
+    });
+}
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);

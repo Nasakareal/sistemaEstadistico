@@ -166,6 +166,16 @@ class LogSecurityEvents
     {
         $method = strtoupper((string) $request->method());
         $path = '/' . ltrim((string) $request->path(), '/');
+        $honeypotPrefix = '/api/' . trim((string) config('honeypot_api.prefix', 'v1/legacy'), '/');
+
+        // The deception controller records a richer, purpose-built event. Avoid
+        // adding a second generic authorization event for the same response.
+        if (
+            config('honeypot_api.enabled')
+            && ($path === $honeypotPrefix || strpos($path, $honeypotPrefix . '/') === 0)
+        ) {
+            return true;
+        }
 
         if ($method === 'GET' && $status === 401 && $path === '/api/app/version') {
             return true;

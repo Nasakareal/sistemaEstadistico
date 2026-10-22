@@ -53,6 +53,7 @@ class SecurityEventDashboardTest extends TestCase
             ->assertSee('Eventos de Seguridad')
             ->assertSee('192.0.2.80')
             ->assertSee('login_failed')
+            ->assertSee('Mapa aproximado del honeypot')
             ->assertSee('Intención probable');
     }
 

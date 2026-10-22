@@ -74,6 +74,10 @@ class SecurityEvent extends Model
 
     public function intentLabel(): string
     {
+        if (strpos((string) $this->event_code, 'honeypot_') === 0) {
+            return 'Interactuar con una API señuelo aislada que sólo contiene información sintética.';
+        }
+
         if ($this->event_code === 'menu_siniestros_authorized_delivered') {
             return 'Dejar constancia de que Laravel autorizó y entregó el menú Siniestros.';
         }
@@ -116,6 +120,26 @@ class SecurityEvent extends Model
 
     public function assessmentLabel(): string
     {
+        if ($this->event_code === 'honeypot_sql_injection_attempt') {
+            return 'Alta confianza: el payload dirigido al señuelo coincide con patrones de inyección SQL y no fue ejecutado.';
+        }
+
+        if ($this->event_code === 'honeypot_endpoint_enumeration') {
+            return 'Alta confianza: la misma IP consultó varios recursos distintos del señuelo dentro de la ventana de detección.';
+        }
+
+        if ($this->event_code === 'honeypot_mass_query_attempt') {
+            return 'Solicitud al señuelo con indicadores de extracción masiva; revisar frecuencia y otras señales de la misma IP.';
+        }
+
+        if ($this->event_code === 'honeypot_restricted_access') {
+            return 'Intento de consultar un recurso marcado como restringido dentro de la API señuelo.';
+        }
+
+        if ($this->event_code === 'honeypot_interaction') {
+            return 'Interacción con un recurso que no utiliza ningún cliente legítimo; correlacionar con reincidencia y rutas consultadas.';
+        }
+
         if ($this->event_code === 'menu_siniestros_authorized_delivered') {
             return 'Evidencia del servidor: el menú fue autorizado e incluido en la respuesta HTML.';
         }

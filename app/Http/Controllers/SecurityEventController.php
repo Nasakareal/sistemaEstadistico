@@ -120,7 +120,34 @@ class SecurityEventController extends Controller
             ->pluck('event_code');
 
         $reviewThreshold = (int) config('security_logging.review_ip_threshold', 20);
+        $honeypotMapPoints = SecurityEvent::query()
+            ->where('event_code', 'like', 'honeypot\_%')
+            ->where('last_seen_at', '>=', Carbon::now()->subDay())
+            ->orderByDesc('last_seen_at')
+            ->limit(1000)
+            ->get()
+            ->map(function (SecurityEvent $event) {
+                $geo = (array) ($event->metadata['source_geo'] ?? []);
 
+                if (!is_numeric($geo['latitude'] ?? null) || !is_numeric($geo['longitude'] ?? null)) {
+                    return null;
+                }
+
+                return [
+                    'lat' => (float) $geo['latitude'],
+                    'lng' => (float) $geo['longitude'],
+                    'country' => $geo['country'] ?? $geo['country_code'] ?? null,
+                    'region' => $geo['region'] ?? null,
+                    'city' => $geo['city'] ?? null,
+                    'network' => $geo['network'] ?? null,
+                    'ip' => $event->ip_address,
+                    'event' => $event->event_code,
+                    'count' => (int) $event->occurrences,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
         return view('admin.settings.security_events.index', compact(
             'events',
             'summary',
@@ -128,7 +155,8 @@ class SecurityEventController extends Controller
             'categories',
             'eventCodes',
             'filters',
-            'reviewThreshold'
+            'reviewThreshold',
+            'honeypotMapPoints'
         ));
     }
 

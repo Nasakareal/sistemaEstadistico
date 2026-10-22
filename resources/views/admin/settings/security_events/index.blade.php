@@ -155,6 +155,25 @@
         </div>
     </div>
 
+    <div class="card card-outline card-info">
+        <div class="card-header d-flex align-items-center">
+            <h3 class="card-title"><i class="fas fa-globe-americas mr-1"></i>Mapa aproximado del honeypot — últimas 24 horas</h3>
+            <span class="badge badge-info ml-auto">{{ number_format(count($honeypotMapPoints)) }} ubicaciones</span>
+        </div>
+        <div class="card-body p-0 position-relative">
+            <div id="honeypotAttackMap" class="honeypot-attack-map"></div>
+            @if(empty($honeypotMapPoints))
+                <div class="honeypot-map-empty">
+                    <i class="fas fa-map-marked-alt mr-1"></i>
+                    Aún no hay eventos geolocalizados. El proceso programado agrega la ubicación después de registrar el ataque.
+                </div>
+            @endif
+        </div>
+        <div class="card-footer small text-muted">
+            La ubicación corresponde a la red asociada con la IP y es aproximada. Puede señalar un ISP, centro de datos, VPN o proxy; no identifica un domicilio.
+        </div>
+    </div>
+
     <div class="card card-outline card-dark">
         <div class="card-header d-flex align-items-center">
             <h3 class="card-title"><i class="fas fa-clock-rotate-left mr-1"></i>Historial</h3>
@@ -220,10 +239,57 @@
 @stop
 
 @section('css')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
     .security-events-table { min-width: 1180px; }
     .security-path { max-width: 330px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .security-json { max-width: 520px; max-height: 260px; overflow: auto; margin: .5rem 0 0; padding: .6rem; color: #e9ecef; background: #212529; border-radius: .35rem; font-size: 11px; }
     details summary { cursor: pointer; color: #007bff; }
+    .honeypot-attack-map { height: 430px; background: #172033; }
+    .honeypot-map-empty { position: absolute; z-index: 500; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 520px; padding: .8rem 1rem; color: #495057; background: rgba(255,255,255,.94); border-radius: .35rem; box-shadow: 0 2px 12px rgba(0,0,0,.18); text-align: center; }
 </style>
+@stop
+
+@section('js')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const node = document.getElementById('honeypotAttackMap');
+    if (!node || typeof L === 'undefined') return;
+
+    const points = {!! json_encode($honeypotMapPoints, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
+    const map = L.map(node, { worldCopyJump: true, minZoom: 2 }).setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const escapeHtml = (value) => String(value == null ? '—' : value).replace(/[&<>'"]/g, function (char) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char];
+    });
+    const bounds = [];
+
+    points.forEach(function (point) {
+        const radius = Math.max(6, Math.min(22, 5 + Math.log2(Math.max(1, point.count)) * 3));
+        const place = [point.city, point.region, point.country].filter(Boolean).join(', ') || 'Ubicación no nombrada';
+        const marker = L.circleMarker([point.lat, point.lng], {
+            radius: radius,
+            color: '#721c24',
+            weight: 1,
+            fillColor: '#dc3545',
+            fillOpacity: .68
+        }).addTo(map);
+        marker.bindPopup(
+            '<strong>' + escapeHtml(place) + '</strong><br>' +
+            'IP: <code>' + escapeHtml(point.ip) + '</code><br>' +
+            'Red: ' + escapeHtml(point.network) + '<br>' +
+            'Evento: ' + escapeHtml(point.event) + '<br>' +
+            'Registros agrupados: ' + escapeHtml(point.count)
+        );
+        bounds.push([point.lat, point.lng]);
+    });
+
+    if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
+});
+</script>
 @stop

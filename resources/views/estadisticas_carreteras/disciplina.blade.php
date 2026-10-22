@@ -101,7 +101,7 @@
 <p class="sv-report-note"><i class="fa-solid fa-circle-info"></i> El orden muestra recurrencia documental: total de registros, después arrestos y finalmente amonestaciones. No constituye por sí mismo una valoración definitiva del desempeño ni sustituye la revisión del expediente y el debido proceso.</p>
 
 @can('editar personal')
-<div class="modal fade" id="modalDisciplina" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade modal-opaque" id="modalDisciplina" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <form id="formDisciplina" method="POST" action="#" enctype="multipart/form-data">
             @csrf
@@ -130,7 +130,51 @@
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-carreteras-reportes.css') }}">
-<style>.sv-report-kpi.red span{background:rgba(220,38,38,.14);color:#dc2626}.discipline{border-left:4px solid #dc2626}@media print{.no-print,.modal{display:none!important}}</style>
+<style>
+    .sv-report-kpi.red span { background: rgba(220, 38, 38, .14); color: #dc2626; }
+    .discipline { border-left: 4px solid #dc2626; }
+
+    #modalDisciplina .modal-content {
+        color: #e5e7eb !important;
+        background: #1f2937 !important;
+        border: 1px solid rgba(255, 255, 255, .14) !important;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, .8) !important;
+        opacity: 1 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        overflow: hidden;
+    }
+
+    #modalDisciplina .modal-header,
+    #modalDisciplina .modal-footer {
+        background: #111827 !important;
+        border-color: rgba(255, 255, 255, .12) !important;
+    }
+
+    #modalDisciplina .modal-body { background: #1f2937 !important; }
+    #modalDisciplina .modal-title,
+    #modalDisciplina label { color: #f8fafc !important; }
+    #modalDisciplina .close { color: #f8fafc !important; opacity: .9; text-shadow: none; }
+    #modalDisciplina .text-muted { color: #aebed1 !important; }
+
+    #modalDisciplina .form-control {
+        color: #f8fafc !important;
+        background: #0b1220 !important;
+        border: 1px solid rgba(255, 255, 255, .16) !important;
+    }
+
+    #modalDisciplina .form-control:focus {
+        color: #fff !important;
+        background: #070d18 !important;
+        border-color: rgba(239, 68, 68, .7) !important;
+        box-shadow: 0 0 0 .2rem rgba(239, 68, 68, .2) !important;
+    }
+
+    #modalDisciplina select option { color: #111827; background: #fff; }
+    .modal-backdrop.show { opacity: .86 !important; }
+
+    @media print { .no-print, .modal { display: none !important; } }
+</style>
 @stop
 
 @section('js')

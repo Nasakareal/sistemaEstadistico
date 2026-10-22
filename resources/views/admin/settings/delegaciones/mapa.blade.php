@@ -109,6 +109,10 @@
             <h3 class="card-title">Distribución territorial por delegación padre</h3>
 
             <div class="card-tools">
+                <button type="button" class="btn btn-outline-primary btn-sm mr-1" id="btnToggleUbicaciones" aria-pressed="true">
+                    <i class="fa-solid fa-eye-slash"></i>
+                    <span>Ocultar ubicaciones</span>
+                </button>
                 <a href="{{ route('delegaciones.index') }}" class="btn btn-secondary btn-sm">
                     <i class="fa-solid fa-arrow-left"></i> Regresar
                 </a>
@@ -148,6 +152,7 @@
     const capasPorPadre = {};
     const marcadoresPorPadre = {};
     const marcadoresDelegaciones = L.layerGroup().addTo(mapa);
+    let ubicacionesVisibles = true;
 
     const iconoDelegacion = L.icon({
         iconUrl: '{{ asset('img/barracks.png') }}',
@@ -162,10 +167,12 @@
         fetch('{{ route('mapa.delegaciones.data') }}').then(r => r.json())
     ]).then(([geojson, data]) => {
         data.forEach(d => {
-            registrarDelegacionPorMunicipio(d);
+            if (d.operativa) {
+                registrarDelegacionPorMunicipio(d);
+            }
             const coordenadas = obtenerCoordenadas(d);
 
-            if (coordenadas) {
+            if (d.operativa && coordenadas) {
                 delegacionesConCoordenadas.push({
                     delegacion: d,
                     coordenadas
@@ -179,6 +186,7 @@
                     municipio: d.municipio || d.nombre,
                     clave: d.clave,
                     color: d.color,
+                    operativa: Boolean(d.operativa),
                     total_hijas: 0
                 };
             }
@@ -273,7 +281,10 @@
                             <div class="delegacion-municipio">${escaparHtml(padre.municipio)}</div>
                         </div>
                     </div>
-                    <span class="badge badge-primary badge-hijas">${totalHijas} hijas</span>
+                    <div class="text-right">
+                        ${padre.operativa ? '' : '<span class="badge badge-info d-block mb-1">Solo región</span>'}
+                        <span class="badge badge-primary badge-hijas">${totalHijas} hijas</span>
+                    </div>
                 </div>
             `;
         });
@@ -339,6 +350,10 @@
     }
 
     function crearMarcadorDelegacion(delegacion, featuresMunicipios) {
+        if (!delegacion.operativa) {
+            return null;
+        }
+
         const coordenadas = obtenerCoordenadas(delegacion);
 
         if (!coordenadas) {
@@ -367,6 +382,23 @@
 
         return marker;
     }
+
+    $('#btnToggleUbicaciones').on('click', function() {
+        ubicacionesVisibles = !ubicacionesVisibles;
+
+        if (ubicacionesVisibles) {
+            marcadoresDelegaciones.addTo(mapa);
+        } else {
+            mapa.removeLayer(marcadoresDelegaciones);
+        }
+
+        const boton = $(this);
+        boton.attr('aria-pressed', ubicacionesVisibles ? 'true' : 'false');
+        boton.find('i')
+            .toggleClass('fa-eye-slash', ubicacionesVisibles)
+            .toggleClass('fa-eye', !ubicacionesVisibles);
+        boton.find('span').text(ubicacionesVisibles ? 'Ocultar ubicaciones' : 'Mostrar ubicaciones');
+    });
 
     function obtenerMunicipioPorCoordenadas(coordenadas, features) {
         const feature = features.find(item => puntoDentroDeFeature(coordenadas, item));

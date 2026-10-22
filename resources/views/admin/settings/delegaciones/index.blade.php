@@ -47,6 +47,7 @@
                                 <th><center>Dirección completa</center></th>
                                 <th><center>Padre</center></th>
                                 <th><center>Hijas</center></th>
+                                <th><center>Operación</center></th>
                                 <th><center>Estado</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
@@ -76,6 +77,14 @@
                                             {{ $delegacion->hijas->count() }}
                                         @else
                                             —
+                                        @endif
+                                    </td>
+
+                                    <td style="text-align:center">
+                                        @if ($delegacion->operativa)
+                                            <span class="badge badge-primary">OPERATIVA</span>
+                                        @else
+                                            <span class="badge badge-info">SOLO REGIÓN</span>
                                         @endif
                                     </td>
 

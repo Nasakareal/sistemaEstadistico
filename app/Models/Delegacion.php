@@ -19,11 +19,13 @@ class Delegacion extends Model
         'lat',
         'lng',
         'activa',
+        'operativa',
         'delegacion_padre_id',
     ];
 
     protected $casts = [
         'activa' => 'boolean',
+        'operativa' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
     ];

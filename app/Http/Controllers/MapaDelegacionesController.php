@@ -60,6 +60,7 @@ class MapaDelegacionesController extends Controller
                 'direccion_completa' => $delegacion->direccion_completa,
                 'lat' => $delegacion->lat,
                 'lng' => $delegacion->lng,
+                'operativa' => (bool) $delegacion->operativa,
                 'color' => $colorPorPadre[$padreId] ?? '#64748b',
             ];
         });

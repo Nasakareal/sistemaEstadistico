@@ -35,6 +35,7 @@ class DelegacionDireccionCompletaTest extends TestCase
             $table->decimal('lat', 10, 7)->nullable();
             $table->decimal('lng', 10, 7)->nullable();
             $table->boolean('activa')->default(true);
+            $table->boolean('operativa')->default(true);
             $table->foreignId('delegacion_padre_id')->nullable()->constrained('delegaciones');
             $table->timestamps();
         });
@@ -50,6 +51,7 @@ class DelegacionDireccionCompletaTest extends TestCase
             'lat' => '19.7023000',
             'lng' => '-101.1921000',
             'activa' => '1',
+            'operativa' => '1',
             'hijas' => [[
                 'clave' => 'H01',
                 'nombre' => 'Subdelegación Norte',
@@ -84,6 +86,7 @@ class DelegacionDireccionCompletaTest extends TestCase
             'direccion_completa' => 'Av. Acueducto 123, Col. Centro, C.P. 58000',
             'lat' => '19.7023000',
             'lng' => '-101.1921000',
+            'operativa' => true,
             'color' => '#2563eb',
         ], $mapa);
 
@@ -91,5 +94,35 @@ class DelegacionDireccionCompletaTest extends TestCase
             'Calle Norte 45, Col. Industrial, C.P. 58130',
             collect($mapa)->firstWhere('id', $hija->id)['direccion_completa']
         );
+    }
+
+    public function test_publica_la_region_pero_no_la_marca_como_delegacion_operativa(): void
+    {
+        $region = Delegacion::query()->create([
+            'clave' => 'R01',
+            'nombre' => 'Región Zamora',
+            'municipio' => 'Zamora',
+            'lat' => '19.9867310',
+            'lng' => '-102.2879960',
+            'activa' => true,
+            'operativa' => false,
+        ]);
+
+        $jacona = Delegacion::query()->create([
+            'clave' => 'J01',
+            'nombre' => 'Jacona',
+            'municipio' => 'Jacona',
+            'lat' => '19.9543607',
+            'lng' => '-102.2977704',
+            'activa' => true,
+            'operativa' => true,
+            'delegacion_padre_id' => $region->id,
+        ]);
+
+        $mapa = collect($this->app->make(MapaDelegacionesController::class)->data()->getData(true));
+
+        $this->assertFalse($mapa->firstWhere('id', $region->id)['operativa']);
+        $this->assertTrue($mapa->firstWhere('id', $jacona->id)['operativa']);
+        $this->assertSame($region->id, $mapa->firstWhere('id', $jacona->id)['delegacion_padre_id']);
     }
 }

@@ -57,6 +57,7 @@ class DelegacionController extends Controller
             'lat' => ['nullable', 'numeric'],
             'lng' => ['nullable', 'numeric'],
             'activa' => ['nullable', 'boolean'],
+            'operativa' => ['nullable', 'boolean'],
 
             'delegacion_padre_id' => [
                 'nullable',
@@ -76,7 +77,7 @@ class DelegacionController extends Controller
             'hijas.*.activa' => ['nullable', 'boolean'],
         ]);
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $request) {
             $delegacion = Delegacion::create([
                 'clave' => $data['clave'] ?? null,
                 'nombre' => $data['nombre'],
@@ -85,6 +86,7 @@ class DelegacionController extends Controller
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
                 'activa' => (bool) ($data['activa'] ?? true),
+                'operativa' => $request->boolean('operativa'),
                 'delegacion_padre_id' => $data['delegacion_padre_id'] ?? null,
             ]);
 
@@ -152,6 +154,7 @@ class DelegacionController extends Controller
             'lat' => ['nullable', 'numeric'],
             'lng' => ['nullable', 'numeric'],
             'activa' => ['nullable', 'boolean'],
+            'operativa' => ['nullable', 'boolean'],
 
             'delegacion_padre_id' => [
                 'nullable',
@@ -176,7 +179,7 @@ class DelegacionController extends Controller
             'hijas_delete.*' => ['integer', 'exists:delegaciones,id'],
         ]);
 
-        DB::transaction(function () use ($data, $delegacion) {
+        DB::transaction(function () use ($data, $delegacion, $request) {
 
             if (!empty($data['delegacion_padre_id'])) {
                 $isDirectChild = Delegacion::query()
@@ -197,6 +200,7 @@ class DelegacionController extends Controller
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
                 'activa' => (bool) ($data['activa'] ?? true),
+                'operativa' => $request->boolean('operativa'),
                 'delegacion_padre_id' => $data['delegacion_padre_id'] ?? null,
             ]);
 

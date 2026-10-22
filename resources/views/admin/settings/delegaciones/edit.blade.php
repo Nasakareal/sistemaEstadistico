@@ -157,6 +157,23 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Operación</label>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox"
+                                               class="custom-control-input"
+                                               id="operativa"
+                                               name="operativa"
+                                               value="1"
+                                               {{ old('operativa', $delegacion->operativa ? '1' : '') ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="operativa">Opera como delegación</label>
+                                    </div>
+                                    <small class="text-muted">Desactívalo si el registro sólo se conserva como región.</small>
+                                    @error('operativa') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
                         </div>
 
                         <hr>

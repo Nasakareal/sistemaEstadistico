@@ -73,6 +73,17 @@
                             </div>
                         </div>
 
+                        <div class="col-md-2 mt-3">
+                            <div class="small text-muted">Operación</div>
+                            <div class="font-weight-bold">
+                                @if ($delegacion->operativa)
+                                    <span class="badge badge-primary">OPERATIVA</span>
+                                @else
+                                    <span class="badge badge-info">SOLO REGIÓN</span>
+                                @endif
+                            </div>
+                        </div>
+
                         <div class="col-md-12 mt-3">
                             <div class="small text-muted">Dirección completa</div>
                             <div class="font-weight-bold">{{ $delegacion->direccion_completa ?: '—' }}</div>

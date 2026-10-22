@@ -274,6 +274,27 @@ class RendimientoPeritosController extends Controller
             ->limit(8)
             ->get();
 
+        // Esta comparación usa el número económico escrito en el propio siniestro.
+        // Solo se normalizan espacios y mayúsculas; no se mezcla con la patrulla actual del perito.
+        $porUnidadSiniestro = (clone $base)
+            ->selectRaw(<<<'SQL'
+                COALESCE(NULLIF(UPPER(TRIM(hechos.unidad)), ''), 'SIN UNIDAD') AS unidad_capturada,
+                COUNT(*) AS total,
+                SUM(CASE WHEN turnos_captura.nombre = 'A' THEN 1 ELSE 0 END) AS turno_a,
+                SUM(CASE WHEN turnos_captura.nombre = 'B' THEN 1 ELSE 0 END) AS turno_b
+            SQL)
+            ->groupBy('unidad_capturada')
+            ->orderByDesc('total')
+            ->limit(15)
+            ->get()
+            ->map(function ($fila) {
+                $fila->total = (int) $fila->total;
+                $fila->turno_a = (int) $fila->turno_a;
+                $fila->turno_b = (int) $fila->turno_b;
+
+                return $fila;
+            });
+
         $categoriasActividad = (clone $baseActividades)
             ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
             ->selectRaw("COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADA') AS categoria, COUNT(*) AS total")
@@ -307,6 +328,7 @@ class RendimientoPeritosController extends Controller
             'porTurno' => $porTurno,
             'diario' => $diario,
             'tiposHecho' => $tiposHecho,
+            'porUnidadSiniestro' => $porUnidadSiniestro,
             'categoriasActividad' => $categoriasActividad,
             'comparacion' => $comparacion,
             'minimoRegistrosCalificacion' => $minimoRegistrosCalificacion,

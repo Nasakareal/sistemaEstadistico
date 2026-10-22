@@ -205,6 +205,14 @@
         </div>
     </div>
 
+    <section class="rp-panel">
+        <div class="rp-panel__head">
+            <div><h2>Siniestros por unidad capturada</h2><p>Compara el número escrito en el campo “Unidad” del siniestro; no usa la patrulla actual del perito.</p></div>
+            <span class="rp-chip">Top {{ $porUnidadSiniestro->count() }}</span>
+        </div>
+        <div class="rp-chart rp-chart--units"><canvas id="chartUnidadesSiniestro"></canvas></div>
+    </section>
+
     <details class="rp-method">
         <summary class="rp-method__intro">
             <span class="rp-method__icon"><i class="fas fa-scale-balanced"></i></span>
@@ -286,7 +294,7 @@
     .rp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.rp-kpi{display:flex;gap:12px;min-height:132px;padding:17px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055)}.rp-kpi__icon{display:grid;place-items:center;flex:0 0 39px;height:39px;border-radius:11px;font-size:1rem}.rp-kpi small,.rp-kpi strong,.rp-kpi em{display:block}.rp-kpi small{min-height:32px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700}.rp-kpi strong{margin:2px 0;font-size:1.55rem;line-height:1.1;color:#111827}.rp-kpi em{font-size:.73rem;color:#64748b;font-style:normal}.rp-kpi--blue .rp-kpi__icon{background:#dbeafe;color:#2563eb}.rp-kpi--green .rp-kpi__icon{background:#d1fae5;color:#059669}.rp-kpi--violet .rp-kpi__icon{background:#ede9fe;color:#7c3aed}.rp-kpi--amber .rp-kpi__icon{background:#fef3c7;color:#d97706}.rp-kpi--cyan .rp-kpi__icon{background:#cffafe;color:#0891b2}.rp-kpi--rose .rp-kpi__icon{background:#ffe4e6;color:#e11d48}.rp-kpi--teal .rp-kpi__icon{background:#ccfbf1;color:#0f766e}.rp-kpi--indigo .rp-kpi__icon{background:#e0e7ff;color:#4338ca}
     .rp-insights{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.rp-insight{padding:15px 18px;border-radius:14px;background:#111c36;color:#fff}.rp-insight span,.rp-insight strong,.rp-insight small{display:block}.rp-insight span{font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#93c5fd}.rp-insight strong{overflow:hidden;margin:4px 0 2px;text-overflow:ellipsis;white-space:nowrap;font-size:1rem}.rp-insight small{color:#b8c5dc}
     .rp-method{margin-bottom:18px;padding:14px 18px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055)}.rp-method__intro{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none}.rp-method__intro::-webkit-details-marker{display:none}.rp-method__intro>div{flex:1}.rp-method__chevron{transition:transform .2s ease}.rp-method[open] .rp-method__chevron{transform:rotate(180deg)}.rp-method__icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:12px;background:#e0e7ff;color:#4338ca}.rp-method h2{margin:0 0 3px;font-size:1.02rem;font-weight:800}.rp-method p{margin:0;color:#64748b;font-size:.79rem}.rp-method__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.rp-method__grid div{padding:11px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.rp-method__grid b,.rp-method__grid span{display:block}.rp-method__grid b{font-size:.75rem;color:#1e293b}.rp-method__grid span{margin-top:3px;color:#64748b;font-size:.7rem;line-height:1.35}.rp-method__foot{margin-top:12px!important}.rp-method__foot i{margin-right:5px;color:#2563eb}
-    .rp-panel{margin-bottom:18px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055);overflow:hidden}.rp-panel__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px 10px}.rp-panel__head h2{margin:0 0 3px;color:#17213a;font-size:1.05rem;font-weight:800}.rp-panel__head p{margin:0;color:var(--rp-muted);font-size:.78rem}.rp-chip{padding:5px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:.72rem;font-weight:700}.rp-chart{position:relative;height:275px;padding:8px 17px 18px}.rp-chart--wide{height:310px}
+    .rp-panel{margin-bottom:18px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055);overflow:hidden}.rp-panel__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px 10px}.rp-panel__head h2{margin:0 0 3px;color:#17213a;font-size:1.05rem;font-weight:800}.rp-panel__head p{margin:0;color:var(--rp-muted);font-size:.78rem}.rp-chip{padding:5px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:.72rem;font-weight:700}.rp-chart{position:relative;height:275px;padding:8px 17px 18px}.rp-chart--wide{height:310px}.rp-chart--units{height:480px}
     .rp-table{font-size:.79rem;color:#334155}.rp-table thead th{border-top:0;border-bottom:1px solid var(--rp-line);background:#f8fafc;color:#64748b;font-size:.68rem;text-transform:uppercase;letter-spacing:.035em;white-space:nowrap}.rp-table td,.rp-table th{vertical-align:middle;padding:.78rem .7rem}.rp-table tbody tr:hover{background:#fafcff}.rp-table--ranking{min-width:1050px}.rp-table--ranking td{white-space:nowrap}.rp-table--ranking td:nth-child(2){min-width:220px;white-space:normal}.rp-assignment{min-width:150px}.rp-turno{display:inline-grid;place-items:center;width:28px;height:28px;margin-right:6px;border-radius:8px;font-weight:800}.rp-turno--a{background:#dbeafe;color:#1d4ed8}.rp-turno--b{background:#fef3c7;color:#92400e}.rp-profile{display:inline-block;padding:4px 8px;border-radius:999px;font-size:.67rem;font-weight:800;text-transform:uppercase}.rp-profile--motocicleta{background:#cffafe;color:#0e7490}.rp-profile--patrulla{background:#dbeafe;color:#1d4ed8}.rp-profile--sin-asignacion{background:#e2e8f0;color:#334155}.rp-unit{display:block;margin:4px 0 0 35px;color:#94a3b8}.rp-score{display:inline-flex;align-items:flex-start;flex-direction:column;min-width:92px;padding:7px 10px;border-radius:10px}.rp-score b{font-size:1rem;line-height:1}.rp-score small{margin-top:4px;font-size:.64rem}.rp-score.is-good{background:#d1fae5;color:#065f46}.rp-score.is-mid{background:#fef3c7;color:#92400e}.rp-score.is-low{background:#fee2e2;color:#991b1b}.rp-score.is-empty{background:#e2e8f0;color:#334155}.rp-cell-stack b,.rp-cell-stack small{display:block}.rp-cell-stack small{margin-top:4px;color:#94a3b8;font-size:.68rem}.rp-text-danger{color:#fca5a5!important}.rp-progress{display:inline-block;width:55px;height:6px;margin-right:7px;border-radius:99px;background:#e5e7eb;overflow:hidden;vertical-align:middle}.rp-progress i{display:block;height:100%;border-radius:inherit;background:#10b981}.rp-rank{color:#94a3b8;font-weight:800}.rp-empty{padding:35px!important;text-align:center;color:#94a3b8}.rp-search{position:relative}.rp-search i{position:absolute;left:11px;top:11px;color:#94a3b8}.rp-search input{width:240px;height:37px;padding:7px 12px 7px 33px;border:1px solid #dbe2ec;border-radius:9px;outline:0}.rp-search input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
     /* Mismo lenguaje visual oscuro y translúcido que las demás estadísticas. */
     .rp-hero{border:1px solid rgba(255,255,255,.12);background:radial-gradient(700px 280px at 20% 30%,rgba(45,168,255,.20),transparent 60%),radial-gradient(700px 280px at 80% 30%,rgba(124,92,255,.18),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));box-shadow:0 18px 55px rgba(0,0,0,.35)}
@@ -317,6 +325,7 @@
     const diario = @json($diario);
     const turnos = @json($porTurno);
     const tipos = @json($tiposHecho);
+    const unidadesSiniestro = @json($porUnidadSiniestro);
     const categorias = @json($categoriasActividad);
     const common = {
         responsive: true,
@@ -356,6 +365,25 @@
             type: 'bar',
             data: { labels: categorias.map(x => x.categoria), datasets: [{ label: 'Actividades', data: categorias.map(x => x.total), backgroundColor: '#8b5cf6', borderRadius: 5 }] },
             options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ...common.scales.y }, y: { ...common.scales.x, ticks: { color: 'rgba(234,240,255,.68)', callback: function(value) { const label = this.getLabelForValue(value); return label.length > 28 ? label.slice(0, 28) + '…' : label; } } } } }
+        });
+
+        new Chart(document.getElementById('chartUnidadesSiniestro'), {
+            type: 'bar',
+            data: {
+                labels: unidadesSiniestro.map(x => x.unidad_capturada),
+                datasets: [
+                    { label: 'Turno A', data: unidadesSiniestro.map(x => x.turno_a), backgroundColor: '#2563eb', borderRadius: 4 },
+                    { label: 'Turno B', data: unidadesSiniestro.map(x => x.turno_b), backgroundColor: '#f59e0b', borderRadius: 4 }
+                ]
+            },
+            options: {
+                ...common,
+                indexAxis: 'y',
+                scales: {
+                    x: { ...common.scales.y, stacked: true },
+                    y: { ...common.scales.x, stacked: true, ticks: { color: 'rgba(234,240,255,.78)' } }
+                }
+            }
         });
     }
 

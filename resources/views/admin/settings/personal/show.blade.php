@@ -1460,6 +1460,8 @@
                                 <option value="FALTA">FALTA</option>
                                 <option value="COMISION">COMISION</option>
                                 <option value="SUSPENSION">SUSPENSION</option>
+                                <option value="AMONESTACION">AMONESTACIÓN</option>
+                                <option value="ARRESTO">ARRESTO</option>
                                 <option value="SERVICIO">SERVICIO</option>
                                 <option value="OTRO">OTRO</option>
                             </select>

@@ -60,4 +60,41 @@ class PersonalIncidenciaDocumentoTest extends TestCase
         $this->assertSame($personal->id, $documento->personal_id);
         Storage::disk('public')->assertExists($documento->archivo_path);
     }
+
+    public function test_permite_registrar_amonestacion_y_arresto_en_la_misma_fecha(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $amonestacion = IncidenciaTipo::query()->firstOrCreate(
+            ['clave' => 'AMONESTACION'],
+            ['nombre' => 'AMONESTACIÓN', 'categoria' => 'DISCIPLINA', 'activo' => true]
+        );
+        $arresto = IncidenciaTipo::query()->firstOrCreate(
+            ['clave' => 'ARRESTO'],
+            ['nombre' => 'ARRESTO', 'categoria' => 'DISCIPLINA', 'activo' => true]
+        );
+        $personal = Personal::query()->create([
+            'unidad_id' => $unidad->id,
+            'nombre' => 'DISCIPLINA',
+            'ap_paterno' => 'PRUEBA',
+            'estatus' => 'ACTIVO',
+        ]);
+
+        foreach ([$amonestacion, $arresto] as $indice => $tipo) {
+            $request = Request::create('/personal/' . $personal->id . '/incidencias', 'POST', [
+                'tipo' => $tipo->clave,
+                'fecha_inicio' => '2026-10-15',
+                'folio' => 'DISC-' . ($indice + 1),
+                'motivo' => 'PRUEBA',
+                'return_to' => 'estadisticas_carreteras.disciplina',
+            ]);
+
+            $response = (new PersonalIncidenciaController())->store($request, $personal);
+            $this->assertSame(route('estadisticas_carreteras.disciplina'), $response->getTargetUrl());
+        }
+
+        $this->assertSame(2, PersonalIncidencia::query()
+            ->where('personal_id', $personal->id)
+            ->whereDate('fecha_inicio', '2026-10-15')
+            ->count());
+    }
 }

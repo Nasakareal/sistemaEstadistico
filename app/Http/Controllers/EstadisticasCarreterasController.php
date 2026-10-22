@@ -312,6 +312,154 @@ class EstadisticasCarreterasController extends Controller
         ]);
     }
 
+    public function disciplina(Request $request)
+    {
+        $this->applyDefaultReportDates($request);
+        $validated = $request->validate([
+            'desde' => ['required', 'date'],
+            'hasta' => ['required', 'date', 'after_or_equal:desde'],
+            'destacamento_id' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $desde = Carbon::parse($validated['desde'])->toDateString();
+        $hasta = Carbon::parse($validated['hasta'])->toDateString();
+        $destacamentoId = (int) ($validated['destacamento_id'] ?? 0);
+        $search = trim((string) ($validated['q'] ?? ''));
+        $unitId = $this->carreterasUnitId();
+        $user = $request->user();
+
+        $personalQuery = DB::table('personals')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'personals.destacamento_id')
+            ->where('personals.unidad_id', $unitId)
+            ->whereNull('personals.deleted_at');
+
+        if ($destacamentoId > 0) {
+            $personalQuery->where('personals.destacamento_id', $destacamentoId);
+        }
+
+        if ($search !== '') {
+            $like = "%{$search}%";
+            $personalQuery->where(function ($query) use ($like) {
+                $query->where('personals.nombre', 'like', $like)
+                    ->orWhere('personals.ap_paterno', 'like', $like)
+                    ->orWhere('personals.ap_materno', 'like', $like)
+                    ->orWhere('personals.numero_empleado', 'like', $like)
+                    ->orWhere('personals.numero_placa', 'like', $like);
+            });
+        }
+
+        if ($user && !$user->hasRole('Superadmin')) {
+            if ((int) ($user->unidad_id ?? 0) !== $unitId) {
+                $personalQuery->whereRaw('1 = 0');
+            } elseif (!is_null($user->destacamento_id)) {
+                $personalQuery->where('personals.destacamento_id', (int) $user->destacamento_id);
+            }
+        }
+
+        $personal = $personalQuery->select([
+            'personals.id',
+            'personals.nombre',
+            'personals.ap_paterno',
+            'personals.ap_materno',
+            'personals.numero_empleado',
+            'personals.numero_placa',
+            'personals.estatus',
+            DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->get();
+
+        $personalIds = $personal->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $incidencias = collect();
+
+        if ($personalIds) {
+            $incidencias = DB::table('personal_incidencias')
+                ->join('incidencia_tipos', 'incidencia_tipos.id', '=', 'personal_incidencias.incidencia_tipo_id')
+                ->whereIn('personal_incidencias.personal_id', $personalIds)
+                ->where('personal_incidencias.activo', true)
+                ->whereBetween('personal_incidencias.fecha_inicio', [$desde, $hasta])
+                ->where(function ($query) {
+                    $query->whereRaw("UPPER(TRIM(incidencia_tipos.clave)) IN ('AMONESTACION', 'ARRESTO')")
+                        ->orWhereRaw("UPPER(TRIM(incidencia_tipos.nombre)) IN ('AMONESTACION', 'AMONESTACIÓN', 'ARRESTO')");
+                })
+                ->select([
+                    'personal_incidencias.id',
+                    'personal_incidencias.personal_id',
+                    'personal_incidencias.fecha_inicio',
+                    'personal_incidencias.fecha_fin',
+                    'personal_incidencias.folio',
+                    'personal_incidencias.motivo',
+                    'personal_incidencias.observaciones',
+                    'personal_incidencias.documento_id',
+                    'incidencia_tipos.clave as tipo_clave',
+                    'incidencia_tipos.nombre as tipo_nombre',
+                ])
+                ->orderByDesc('personal_incidencias.fecha_inicio')
+                ->orderByDesc('personal_incidencias.id')
+                ->get();
+        }
+
+        $porPersonal = $incidencias->groupBy('personal_id');
+        $ranking = $personal->map(function ($persona) use ($porPersonal) {
+            $items = $porPersonal->get($persona->id, collect());
+            $arrestos = $items->filter(fn ($item) => strtoupper(trim((string) $item->tipo_clave)) === 'ARRESTO')->count();
+            $amonestaciones = $items->count() - $arrestos;
+            $ultima = $items->first();
+
+            return [
+                'personal_id' => (int) $persona->id,
+                'nombre' => trim(implode(' ', array_filter([
+                    $persona->ap_paterno,
+                    $persona->ap_materno,
+                    $persona->nombre,
+                ], fn ($value) => trim((string) $value) !== ''))),
+                'numero_empleado' => $persona->numero_empleado,
+                'numero_placa' => $persona->numero_placa,
+                'estatus' => $persona->estatus,
+                'destacamento' => $persona->destacamento,
+                'amonestaciones' => $amonestaciones,
+                'arrestos' => $arrestos,
+                'total' => $items->count(),
+                'ultima_fecha' => $ultima ? Carbon::parse($ultima->fecha_inicio) : null,
+                'ultimo_tipo' => $ultima->tipo_nombre ?? null,
+            ];
+        })->sort(function ($a, $b) {
+            if ($a['total'] !== $b['total']) return $b['total'] <=> $a['total'];
+            if ($a['arrestos'] !== $b['arrestos']) return $b['arrestos'] <=> $a['arrestos'];
+            if ($a['amonestaciones'] !== $b['amonestaciones']) return $b['amonestaciones'] <=> $a['amonestaciones'];
+            return strcmp($a['nombre'], $b['nombre']);
+        })->values()->map(function ($row, $index) {
+            $row['posicion'] = $index + 1;
+            return $row;
+        });
+
+        $nombresPersonal = $personal->mapWithKeys(function ($persona) {
+            return [(int) $persona->id => trim(implode(' ', array_filter([
+                $persona->ap_paterno,
+                $persona->ap_materno,
+                $persona->nombre,
+            ], fn ($value) => trim((string) $value) !== '')))];
+        });
+
+        $recientes = $incidencias->take(50)->map(function ($incidencia) use ($nombresPersonal) {
+            $incidencia->nombre_personal = $nombresPersonal->get((int) $incidencia->personal_id, 'PERSONAL NO DISPONIBLE');
+            return $incidencia;
+        });
+
+        return view('estadisticas_carreteras.disciplina', [
+            'ranking' => $ranking,
+            'personal' => $ranking->sortBy('nombre')->values(),
+            'recientes' => $recientes,
+            'totales' => [
+                'personal' => $ranking->count(),
+                'con_incidencias' => $ranking->where('total', '>', 0)->count(),
+                'amonestaciones' => (int) $ranking->sum('amonestaciones'),
+                'arrestos' => (int) $ranking->sum('arrestos'),
+            ],
+            'destacamentos' => $this->reportDetachments($request),
+            'filtros' => $this->reportFilters($request),
+        ]);
+    }
+
     public function rendimiento(Request $request)
     {
         $validated = $request->validate([

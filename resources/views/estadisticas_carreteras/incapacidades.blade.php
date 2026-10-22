@@ -15,6 +15,7 @@
         <a href="{{ route('estadisticas_carreteras.elementos', request()->query()) }}" class="btn"><i class="fa-solid fa-ranking-star"></i> Elementos</a>
         <a href="{{ route('estadisticas_carreteras.rendimiento', request()->query()) }}" class="btn"><i class="fa-solid fa-award"></i> Rendimiento</a>
         <a href="{{ route('estadisticas_carreteras.incapacidades', request()->query()) }}" class="btn active"><i class="fa-solid fa-notes-medical"></i> Incapacidades</a>
+        <a href="{{ route('estadisticas_carreteras.disciplina', request()->query()) }}" class="btn"><i class="fa-solid fa-scale-balanced"></i> Disciplina</a>
         <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir</button>
     </div>
 </div>

@@ -38,6 +38,7 @@ class PersonalIncidenciaController extends Controller
             'observaciones' => 'nullable|string|max:1000',
             'documento_id' => 'nullable|integer|exists:personal_documentos,id',
             'archivo_incidencia' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'return_to' => 'nullable|in:estadisticas_carreteras.disciplina',
         ]);
 
         $rutaNueva = null;
@@ -54,7 +55,10 @@ class PersonalIncidenciaController extends Controller
             $inicio = $validated['fecha_inicio'];
             $fin = $validated['fecha_fin'] ?? null;
 
-            $traslapa = PersonalIncidencia::query()
+            $esDisciplina = strtoupper(trim((string) $tipo->categoria)) === 'DISCIPLINA'
+                || in_array(strtoupper(trim((string) $tipo->clave)), ['AMONESTACION', 'ARRESTO'], true);
+
+            $traslapa = !$esDisciplina && PersonalIncidencia::query()
                 ->where('personal_id', $personal->id)
                 ->where(function ($q) use ($inicio, $fin) {
                     $q->where(function ($qq) use ($inicio, $fin) {
@@ -133,6 +137,12 @@ class PersonalIncidenciaController extends Controller
                     'activo' => 1,
                 ]);
             });
+
+            if (($validated['return_to'] ?? null) === 'estadisticas_carreteras.disciplina') {
+                return redirect()
+                    ->route('estadisticas_carreteras.disciplina')
+                    ->with('success', 'Incidencia disciplinaria registrada correctamente.');
+            }
 
             return redirect()
                 ->route('personal.show', $personal->id)

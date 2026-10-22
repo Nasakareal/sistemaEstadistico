@@ -621,6 +621,13 @@ return [
                             'can'     => 'menu-estadisticas-carreteras',
                         ],
                         [
+                            'text'    => 'Disciplina del personal',
+                            'icon'    => 'fa-solid fa-scale-balanced',
+                            'classes' => 'text-danger',
+                            'route'   => 'estadisticas_carreteras.disciplina',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
                             'text'    => 'Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',

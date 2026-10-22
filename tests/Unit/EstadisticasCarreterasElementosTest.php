@@ -206,6 +206,59 @@ class EstadisticasCarreterasElementosTest extends TestCase
         $this->assertSame(61, $data['totales']['dias']);
     }
 
+    public function test_disciplina_muestra_todo_el_personal_y_ordena_por_mayor_recurrencia(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $usuario = User::factory()->create(['unidad_id' => $unidad->id]);
+        $amonestacion = IncidenciaTipo::query()->firstOrCreate(
+            ['clave' => 'AMONESTACION'],
+            ['nombre' => 'AMONESTACIÓN', 'categoria' => 'DISCIPLINA', 'activo' => true]
+        );
+        $arresto = IncidenciaTipo::query()->firstOrCreate(
+            ['clave' => 'ARRESTO'],
+            ['nombre' => 'ARRESTO', 'categoria' => 'DISCIPLINA', 'activo' => true]
+        );
+        $primero = Personal::query()->create([
+            'unidad_id' => $unidad->id,
+            'nombre' => 'RECURRENTE',
+            'ap_paterno' => 'ELEMENTO',
+            'estatus' => 'ACTIVO',
+        ]);
+        $sinIncidencias = Personal::query()->create([
+            'unidad_id' => $unidad->id,
+            'nombre' => 'LIMPIO',
+            'ap_paterno' => 'ELEMENTO',
+            'estatus' => 'ACTIVO',
+        ]);
+
+        foreach ([$amonestacion->id, $amonestacion->id, $arresto->id] as $indice => $tipoId) {
+            PersonalIncidencia::query()->create([
+                'personal_id' => $primero->id,
+                'incidencia_tipo_id' => $tipoId,
+                'fecha_inicio' => '2026-10-' . str_pad((string) ($indice + 1), 2, '0', STR_PAD_LEFT),
+                'motivo' => 'PRUEBA DISCIPLINARIA',
+                'activo' => true,
+            ]);
+        }
+
+        $request = Request::create('/estadisticas-carreteras/disciplina', 'GET', [
+            'desde' => '2026-10-01',
+            'hasta' => '2026-10-31',
+        ]);
+        $request->setUserResolver(fn () => $usuario);
+
+        $data = (new EstadisticasCarreterasController())->disciplina($request)->getData();
+        $lider = $data['ranking']->first();
+        $filaLimpia = $data['ranking']->firstWhere('personal_id', $sinIncidencias->id);
+
+        $this->assertSame($primero->id, $lider['personal_id']);
+        $this->assertSame(2, $lider['amonestaciones']);
+        $this->assertSame(1, $lider['arrestos']);
+        $this->assertSame(3, $lider['total']);
+        $this->assertSame(0, $filaLimpia['total']);
+        $this->assertSame(1, $data['totales']['con_incidencias']);
+    }
+
     public function test_rendimiento_compara_elementos_del_mismo_destacamento_y_atribuye_las_puestas_por_nombre(): void
     {
         $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();

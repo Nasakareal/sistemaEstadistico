@@ -147,6 +147,8 @@ class ConduceLegalidadController extends Controller
             ->orderBy('gruas.nombre')
             ->get();
 
+        $this->marcarGruasComoVialidadesUrbanas($gruas, $operativo);
+
         return response()->json([
             'data' => $gruas,
         ]);
@@ -3691,8 +3693,33 @@ class ConduceLegalidadController extends Controller
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereHas('unidades', function ($unidades) use ($unidadId) {
-            $unidades->where('unidades.id', $unidadId);
+        $unidadGruasId = $unidadId === self::UNIDAD_VIALIDADES_URBANAS
+            ? self::UNIDAD_SINIESTROS
+            : $unidadId;
+
+        return $query->whereHas('unidades', function ($unidades) use ($unidadGruasId) {
+            $unidades->where('unidades.id', $unidadGruasId);
+        });
+    }
+
+    private function marcarGruasComoVialidadesUrbanas($gruas, ConduceLegalidadOperativo $operativo): void
+    {
+        if ((int) $operativo->unidad_id !== self::UNIDAD_VIALIDADES_URBANAS) {
+            return;
+        }
+
+        $gruas->each(function (Grua $grua) {
+            if ($grua->unidades->contains(fn ($unidad) => (int) $unidad->id === self::UNIDAD_VIALIDADES_URBANAS)) {
+                return;
+            }
+
+            $unidad = new Unidad();
+            $unidad->forceFill([
+                'id' => self::UNIDAD_VIALIDADES_URBANAS,
+                'nombre' => 'Unidad de Protección en Vialidades Urbanas',
+                'slug' => 'vialidades-urbanas',
+            ]);
+            $grua->unidades->push($unidad);
         });
     }
 

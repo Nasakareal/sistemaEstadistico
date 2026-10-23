@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadOperativo;
+use App\Models\Grua;
+use App\Models\Unidad;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -76,6 +78,36 @@ class ConduceLegalidadGruaScopeTest extends TestCase
         $query = $queryMethod->invoke(new ConduceLegalidadController(), $operativo);
 
         $this->assertSame([1], $query->pluck('gruas.id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_operativo_de_vialidades_urbanas_usa_las_gruas_de_siniestros(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['unidad_id' => 5, 'delegacion_id' => null]);
+
+        $queryMethod = new ReflectionMethod(ConduceLegalidadController::class, 'gruasOperativoQuery');
+        $queryMethod->setAccessible(true);
+        $query = $queryMethod->invoke(new ConduceLegalidadController(), $operativo);
+
+        $this->assertSame([3], $query->pluck('gruas.id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_catalogo_de_vialidades_no_es_descartado_por_la_app_instalada(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['unidad_id' => 5]);
+
+        $grua = new Grua();
+        $grua->forceFill(['id' => 3, 'nombre' => 'GRÚAS SINIESTROS']);
+        $unidadSiniestros = new Unidad();
+        $unidadSiniestros->forceFill(['id' => 1, 'nombre' => 'Siniestros']);
+        $grua->setRelation('unidades', collect([$unidadSiniestros]));
+
+        $payloadMethod = new ReflectionMethod(ConduceLegalidadController::class, 'marcarGruasComoVialidadesUrbanas');
+        $payloadMethod->setAccessible(true);
+        $payloadMethod->invoke(new ConduceLegalidadController(), collect([$grua]), $operativo);
+
+        $this->assertSame([1, 5], $grua->unidades->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 
     public function test_rechaza_grua_de_otra_delegacion_en_la_alimentacion(): void

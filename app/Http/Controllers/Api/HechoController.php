@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Helpers\StreetNormalizer;
 use App\Models\Hechos;
+use App\Models\Patrulla;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,30 @@ class HechoController extends Controller
     private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
     private const COND     = ['BUENO','REGULAR','MALO'];
     private const SITUAS   = ['RESUELTO','PENDIENTE','TURNADO','REPORTE'];
+
+    public function patrullasSiniestros(Request $request)
+    {
+        $user = $request->user();
+
+        abort_unless($user && (int) $user->unidad_id === 1, 403);
+
+        $patrullas = Patrulla::query()
+            ->where('unidad_id', 1)
+            ->where('activa', true)
+            ->get(['id', 'numero_economico'])
+            ->filter(fn (Patrulla $patrulla) => trim((string) $patrulla->numero_economico) !== '')
+            ->sort(fn (Patrulla $left, Patrulla $right) => strnatcasecmp(
+                (string) $left->numero_economico,
+                (string) $right->numero_economico
+            ))
+            ->values()
+            ->map(fn (Patrulla $patrulla) => [
+                'id' => $patrulla->id,
+                'numero_economico' => trim((string) $patrulla->numero_economico),
+            ]);
+
+        return response()->json(['data' => $patrullas]);
+    }
 
     public function index(Request $request)
     {

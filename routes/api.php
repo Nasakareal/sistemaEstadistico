@@ -523,6 +523,8 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
     Route::get('/gruas/resumen-semanal', [GruaController::class, 'resumenSemanal'])->middleware('can:ver estadisticas');
     Route::get('/gruas/resumen-semanal-detallado', [GruaController::class, 'resumenSemanalDetallado'])->middleware('can:ver estadisticas');
 
+    Route::get('/hechos/catalogos/patrullas-siniestros', [HechoController::class, 'patrullasSiniestros'])
+        ->middleware('can:crear hechos');
     Route::get('/hechos/buscar', [HechoController::class, 'buscar'])->middleware('can:ver hechos');
     Route::get('/hechos/seguimiento', [HechoController::class, 'seguimiento'])->middleware('can:ver hechos');
     Route::get('/hechos', [HechoController::class, 'index'])->middleware('can:ver hechos');

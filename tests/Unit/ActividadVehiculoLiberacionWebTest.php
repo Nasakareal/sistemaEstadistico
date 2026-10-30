@@ -27,4 +27,13 @@ class ActividadVehiculoLiberacionWebTest extends TestCase
         $this->assertStringContainsString('$fechaResguardo', $acuse);
         $this->assertStringContainsString('$hecho?->oficio_mp', $acuse);
     }
+
+    public function test_listado_web_no_limita_operativos_activos_al_mes_actual(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/ConduceLegalidadWebController.php'));
+        $view = file_get_contents(resource_path('views/conduce_legalidad/index.blade.php'));
+
+        $this->assertStringContainsString("query->remove('mes')", $controller);
+        $this->assertStringNotContainsString('type="month"', $view);
+    }
 }

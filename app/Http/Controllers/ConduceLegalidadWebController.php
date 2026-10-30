@@ -10,6 +10,12 @@ class ConduceLegalidadWebController extends Controller
 {
     public function index(Request $request, ApiConduceLegalidadController $apiController)
     {
+        // La app móvil lista todos los operativos activos, aunque hayan iniciado
+        // en un mes anterior. Evitamos que un parámetro conservado en la URL
+        // o por el navegador oculte operativos que todavía siguen activos.
+        $request->query->remove('mes');
+        $request->request->remove('mes');
+
         $request->merge([
             'tipo_operativo' => 'conduce_legalidad',
             'per_page' => $request->input('per_page', 24),

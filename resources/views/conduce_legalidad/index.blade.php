@@ -20,16 +20,12 @@
         <div class="card-body">
             <form method="GET" action="{{ route('conduce_legalidad.index') }}">
                 <div class="row align-items-end">
-                    <div class="col-md-4 mb-2">
+                    <div class="col-md-6 mb-2">
                         <label for="buscar">Buscar</label>
                         <input id="buscar" name="buscar" class="form-control" value="{{ request('buscar') }}" placeholder="Lugar, municipio, colonia o número">
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <label for="mes">Mes</label>
-                        <input id="mes" type="month" name="mes" class="form-control" value="{{ request('mes') }}">
-                    </div>
                     @if(!empty($abilities['can_create_operativo']))
-                        <div class="col-md-3 mb-2">
+                        <div class="col-md-4 mb-2">
                             <label for="estado">Estado</label>
                             <select id="estado" name="estado" class="form-control">
                                 <option value="">Activos</option>

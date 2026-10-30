@@ -212,27 +212,6 @@ class ConduceLegalidadController extends Controller
                     $capturas->where('created_by', $user->id);
                 },
             ])
-            ->addSelect([
-                'vehiculos_count' => DB::table('conduce_legalidad_vehiculos as resumen_vehiculos')
-                    ->join('conduce_legalidad_capturas as resumen_capturas_vehiculos', 'resumen_capturas_vehiculos.id', '=', 'resumen_vehiculos.captura_id')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('resumen_capturas_vehiculos.operativo_id', 'conduce_legalidad_operativos.id'),
-                'vehiculos_resguardados_count' => DB::table('conduce_legalidad_vehiculos as resumen_resguardados')
-                    ->join('conduce_legalidad_capturas as resumen_capturas_resguardados', 'resumen_capturas_resguardados.id', '=', 'resumen_resguardados.captura_id')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('resumen_capturas_resguardados.operativo_id', 'conduce_legalidad_operativos.id')
-                    ->where(function ($resguardados) {
-                        $resguardados->where('resumen_resguardados.retencion_vehiculo', true)
-                            ->orWhereNotNull('resumen_resguardados.grua_id')
-                            ->orWhereNotNull('resumen_resguardados.corralon_id')
-                            ->orWhereRaw("TRIM(COALESCE(resumen_resguardados.grua, '')) <> ''")
-                            ->orWhereRaw("TRIM(COALESCE(resumen_resguardados.corralon, '')) <> ''");
-                    }),
-                'personas_count' => DB::table('conduce_legalidad_personas as resumen_personas')
-                    ->join('conduce_legalidad_capturas as resumen_capturas_personas', 'resumen_capturas_personas.id', '=', 'resumen_personas.captura_id')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('resumen_capturas_personas.operativo_id', 'conduce_legalidad_operativos.id'),
-            ])
             ->orderByDesc('fecha')
             ->orderByDesc('id');
 
@@ -291,12 +270,27 @@ class ConduceLegalidadController extends Controller
             });
         }
 
+        $filteredIds = (clone $query)
+            ->getQuery()
+            ->cloneWithout(['columns', 'orders'])
+            ->cloneWithoutBindings(['select', 'order'])
+            ->select('conduce_legalidad_operativos.id');
+        $resumen = [
+            'operativos' => DB::query()
+                ->fromSub(clone $filteredIds, 'operativos_filtrados')
+                ->count(),
+            'registros' => DB::table('conduce_legalidad_capturas')
+                ->whereIn('operativo_id', clone $filteredIds)
+                ->count(),
+        ];
+
         $perPage = max(1, min((int) $request->query('per_page', 30), 100));
         $page = $query->paginate($perPage);
 
         return response()->json([
             'ok' => true,
             'abilities' => $this->abilitiesPayload($user),
+            'resumen' => $resumen,
             'data' => $page->getCollection()
                 ->map(fn (ConduceLegalidadOperativo $operativo) => $this->operativoPayload($operativo, $user))
                 ->values(),
@@ -4036,10 +4030,6 @@ class ConduceLegalidadController extends Controller
             'creador' => $this->userPayload($operativo->creador),
             'total_capturas' => $totalCapturas,
             'mis_capturas' => (int) $misCapturas,
-            'capturas_contables' => (int) ($operativo->capturas_count ?? $totalCapturas),
-            'total_vehiculos' => (int) ($operativo->vehiculos_count ?? 0),
-            'vehiculos_resguardados' => (int) ($operativo->vehiculos_resguardados_count ?? 0),
-            'total_personas' => (int) ($operativo->personas_count ?? 0),
             'created_at' => optional($operativo->created_at)->toISOString(),
             'updated_at' => optional($operativo->updated_at)->toISOString(),
         ];

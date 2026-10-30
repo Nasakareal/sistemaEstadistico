@@ -298,6 +298,12 @@ return [
                 ],
             ],
         ],
+        [
+            'text'    => 'Conduce con Legalidad',
+            'icon'    => 'fa-solid fa-shield-halved',
+            'classes' => 'bg-blue text-white',
+            'route'   => 'conduce_legalidad.index',
+        ],
         /*
         [
             'text'    => 'Operativos',

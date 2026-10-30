@@ -493,6 +493,7 @@ class ActividadController extends Controller
             'revisor',
             'vehiculos',
             'vehiculos.conductores',
+            'vehiculos.liberacion',
             'personas.vehiculo',
             'fomentoCulturaVialDetalle',
         ]);
@@ -523,7 +524,7 @@ class ActividadController extends Controller
             $usuario
         );
 
-        $actividad->load(['vehiculos', 'fomentoCulturaVialDetalle']);
+        $actividad->load(['vehiculos.liberacion', 'fomentoCulturaVialDetalle']);
 
         $gruas = $this->obtenerGruasDisponiblesParaUsuario($usuario);
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);

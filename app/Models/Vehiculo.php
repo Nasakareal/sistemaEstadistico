@@ -88,6 +88,11 @@ class Vehiculo extends Model
         return $this->belongsToMany(\App\Models\Actividad::class, 'actividad_vehiculo', 'vehiculo_id', 'actividad_id')->withTimestamps();
     }
 
+    public function liberacion()
+    {
+        return $this->hasOne(Liberacion::class, 'vehiculo_id');
+    }
+
     public function operativoDispositivos()
     {
         return $this->belongsToMany(

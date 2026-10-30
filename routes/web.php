@@ -104,6 +104,7 @@ use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\BoquillaDotacionController;
 
 use App\Http\Controllers\ComunicacionController;
+use App\Http\Controllers\ConduceLegalidadWebController;
 
 use App\Http\Controllers\CaleaDirectivaController;
 use App\Http\Controllers\CaleaDirectivaVersionController;
@@ -250,6 +251,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/waze/alerts/{alert}/read', [WazeAlertWebController::class, 'markRead'])->name('waze.alerts.read');
     Route::post('/waze/alerts/read-all', [WazeAlertWebController::class, 'markAllRead'])->name('waze.alerts.read_all');
     Route::get('/waze/alerts/unread-count', [WazeAlertWebController::class, 'unreadCount'])->name('waze.alerts.unread_count');
+});
+
+Route::prefix('conduce-legalidad')->middleware(['auth'])->group(function () {
+    Route::get('/', [ConduceLegalidadWebController::class, 'index'])->name('conduce_legalidad.index');
+    Route::get('/operativos/{operativo}', [ConduceLegalidadWebController::class, 'show'])
+        ->whereNumber('operativo')
+        ->name('conduce_legalidad.show');
 });
 
 Route::middleware(['auth'])->group(function () {

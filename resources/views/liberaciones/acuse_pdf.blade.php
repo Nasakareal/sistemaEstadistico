@@ -155,7 +155,7 @@
   <table class="main-table">
     <tr>
       <th>Fecha de resguardo</th>
-      <td>{{ \Carbon\Carbon::parse($liberacion->hecho->fecha)->format('d/m/Y') }}</td>
+      <td>{{ $fechaResguardo ? \Carbon\Carbon::parse($fechaResguardo)->format('d/m/Y') : 'No especificada' }}</td>
     </tr>
     <tr><th>Marca</th><td>{{ $vehiculo->marca }}</td></tr>
     <tr><th>Tipo</th><td>{{ $vehiculo->tipo }}</td></tr>
@@ -172,7 +172,7 @@
         @php
           $motivo = trim((string)($liberacion->motivo_liberacion ?? ''));
           $esOrdenMP = ($motivo === 'Orden del Ministerio Público');
-          $oficioMp = trim((string)($hecho->oficio_mp ?? ''));
+          $oficioMp = trim((string)($hecho?->oficio_mp ?? ''));
         @endphp
 
         @if($esOrdenMP && $oficioMp !== '')

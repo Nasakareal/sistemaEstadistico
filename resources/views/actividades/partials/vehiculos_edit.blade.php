@@ -114,6 +114,20 @@
                                     Antecedente: {{ $vehiculo->antecedente_vehiculo ? 'SÍ' : 'NO' }}
                                 </span>
 
+                                @if($vehiculo->liberacion)
+                                    <a href="{{ route('liberacion.detalles', $vehiculo->id) }}" class="btn btn-outline-info btn-sm">
+                                        <i class="fa-solid fa-file-circle-check"></i> Ver liberación
+                                    </a>
+                                @elseif($vehiculo->tieneCorralonValido())
+                                    <a href="{{ route('liberacion.create', $vehiculo->id) }}" class="btn btn-outline-success btn-sm">
+                                        <i class="fa-solid fa-lock-open"></i> Liberar vehículo
+                                    </a>
+                                @else
+                                    <span class="badge badge-secondary" title="Registra un corralón para poder liberar el vehículo">
+                                        <i class="fa-solid fa-warehouse"></i> Sin corralón
+                                    </span>
+                                @endif
+
                                 @if($vehiculoGruaBloqueada)
                                     <span class="badge badge-warning">
                                         <i class="fa-solid fa-lock"></i> Grúa bloqueada

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Liberacion;
 use App\Models\Vehiculo;
 use App\Models\Hechos;
+use App\Models\Actividad;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -93,6 +94,8 @@ class LiberacionController extends Controller
         $qrBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath));
 
         $hecho = $liberacion->hecho;
+        $actividad = $this->actividadDelVehiculo($vehiculo);
+        $fechaResguardo = $hecho?->fecha ?: $actividad?->fecha ?: $vehiculo->created_at;
 
         $servicio = $vehiculo->servicios()
             ->with('grua')
@@ -109,6 +112,8 @@ class LiberacionController extends Controller
             'liberacion'   => $liberacion,
             'qrBase64'     => $qrBase64,
             'hecho'        => $hecho,
+            'actividad'    => $actividad,
+            'fechaResguardo' => $fechaResguardo,
 
             'nombreGrua'   => $nombreGrua,
         ]);
@@ -231,6 +236,14 @@ class LiberacionController extends Controller
         if ($hecho) {
             return redirect()
                 ->route('hechos.show', $hecho->id)
+                ->with('error', $mensaje);
+        }
+
+        $actividad = $vehiculo->actividades()->first();
+
+        if ($actividad) {
+            return redirect()
+                ->route('actividades.show', $actividad->id)
                 ->with('error', $mensaje);
         }
 
@@ -373,6 +386,15 @@ class LiberacionController extends Controller
     {
         return $vehiculo->hechos()
             ->with(['delegacion', 'creator'])
+            ->first();
+    }
+
+    private function actividadDelVehiculo(Vehiculo $vehiculo): ?Actividad
+    {
+        return $vehiculo->actividades()
+            ->with(['delegacion', 'creador'])
+            ->orderByDesc('actividades.fecha')
+            ->orderByDesc('actividades.id')
             ->first();
     }
 }

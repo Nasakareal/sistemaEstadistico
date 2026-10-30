@@ -27,6 +27,7 @@ use App\Support\TelefonoMexico;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -42,7 +43,7 @@ class ConduceLegalidadController extends Controller
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo de Alcoholimetría';
     private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
     private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
-    private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
+    private const ESTADOS = ['activo', 'cerrado', 'cancelado', 'standby'];
     private const ESTADOS_CIVILES = ['SOLTERO(A)', 'CASADO(A)', 'VIUDO(A)', 'DIVORCIADO(A)'];
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
@@ -92,6 +93,7 @@ class ConduceLegalidadController extends Controller
                     'activo' => 'Activo',
                     'cerrado' => 'Cerrado',
                     'cancelado' => 'Cancelado',
+                    'standby' => 'Standby',
                 ],
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
@@ -420,6 +422,7 @@ class ConduceLegalidadController extends Controller
         abort_unless($this->canCreateOperativo($user), 403);
 
         $validated = $request->validate($this->operativoRulesForUser($user));
+        $this->assertStandbyUsesProtectedEndpoint(null, $validated['estado'] ?? 'activo');
         $now = now();
         $schedule = $this->resolveOperativoSchedule($user, $validated, $now);
         $scope = $this->resolveOperativoScope($user, $validated);
@@ -551,6 +554,7 @@ class ConduceLegalidadController extends Controller
         $validated = $request->validate($this->operativoRulesForUser($user, $operativo));
         $oldEstado = $operativo->estado;
         $requestedEstado = $validated['estado'] ?? $oldEstado;
+        $this->assertStandbyUsesProtectedEndpoint($oldEstado, $requestedEstado);
         if ($oldEstado !== 'activo' && $requestedEstado === 'activo') {
             abort_unless($this->canReactivateOperativo($user), 403);
         }
@@ -600,7 +604,7 @@ class ConduceLegalidadController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        if ($oldEstado === 'activo' && in_array($operativo->estado, ['cerrado', 'cancelado'], true)) {
+        if ($oldEstado === 'activo' && in_array($operativo->estado, ['cerrado', 'cancelado', 'standby'], true)) {
             $operativo->closed_by = $user->id;
             $operativo->hora_cierre = $operativo->hora_cierre ?: now()->format('H:i:s');
         }
@@ -622,33 +626,35 @@ class ConduceLegalidadController extends Controller
 
     public function destroyOperativo(
         Request $request,
-        ConduceLegalidadOperativo $operativo,
-        ConduceLegalidadActividadSyncService $actividadSync
+        ConduceLegalidadOperativo $operativo
     )
     {
         $user = $request->user();
         abort_unless($this->canDeleteOperativo($user), 403);
         $this->assertPuedeVerOperativo($operativo, $user);
 
-        DB::transaction(function () use ($operativo, $actividadSync) {
-            $actividades = $operativo->capturas()
-                ->with('actividad')
-                ->get()
-                ->pluck('actividad')
-                ->filter()
-                ->unique('id')
-                ->values();
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+            'confirmations' => ['required', 'integer', Rule::in([3])],
+            'confirmation_text' => ['required', 'string', Rule::in(['STANDBY'])],
+        ]);
 
-            $operativo->delete();
+        if (!Hash::check($validated['password'], (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['La contraseña es incorrecta.'],
+            ]);
+        }
 
-            foreach ($actividades as $actividad) {
-                $actividadSync->deleteLinkedActivity($actividad);
-            }
-        });
+        $operativo->forceFill([
+            'estado' => 'standby',
+            'hora_cierre' => $operativo->hora_cierre ?: now()->format('H:i:s'),
+            'closed_by' => $user->id,
+            'updated_by' => $user->id,
+        ])->save();
 
         return response()->json([
             'ok' => true,
-            'message' => 'Operativo eliminado correctamente.',
+            'message' => 'Operativo puesto en standby. No se eliminó información.',
         ]);
     }
 
@@ -4777,7 +4783,16 @@ class ConduceLegalidadController extends Controller
 
     private function canDeleteOperativo($user): bool
     {
-        return $this->canDeleteAdministrativo($user);
+        return (int) ($user->id ?? 0) === 1;
+    }
+
+    private function assertStandbyUsesProtectedEndpoint(?string $oldEstado, string $requestedEstado): void
+    {
+        abort_if(
+            $oldEstado !== 'standby' && $requestedEstado === 'standby',
+            422,
+            'Para poner un operativo en standby usa la acción protegida con contraseña.'
+        );
     }
 
     private function canDeleteCaptura($user): bool

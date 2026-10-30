@@ -9,6 +9,7 @@ use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Grua;
 use Carbon\CarbonImmutable;
 use ReflectionMethod;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class ConduceLegalidadOperativoAccessTest extends TestCase
@@ -61,6 +62,26 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
     {
         $this->assertTrue($this->canReactivate($this->user('Superadmin')));
         $this->assertFalse($this->canReactivate($this->user('Administrador')));
+    }
+
+    public function test_only_user_id_one_can_put_operatives_in_standby(): void
+    {
+        $this->assertTrue($this->canDeleteOperativo($this->user('Superadmin', 1, null, 1)));
+        $this->assertFalse($this->canDeleteOperativo($this->user('Superadmin', 1, null, 2)));
+        $this->assertFalse($this->canDeleteOperativo($this->user('Administrador', 1, null, 3)));
+    }
+
+    public function test_standby_cannot_bypass_the_password_endpoint_through_update(): void
+    {
+        try {
+            $this->assertStandbyTransition('activo', 'standby');
+            $this->fail('The direct standby transition should have been rejected.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
+
+        $this->assertStandbyTransition('standby', 'standby');
+        $this->addToAssertionCount(1);
     }
 
     public function test_low_vialidades_role_cannot_manage_other_users_captures(): void
@@ -520,6 +541,21 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user);
+    }
+
+    private function canDeleteOperativo($user): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'canDeleteOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user);
+    }
+
+    private function assertStandbyTransition(?string $oldEstado, string $requestedEstado): void
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'assertStandbyUsesProtectedEndpoint');
+        $method->setAccessible(true);
+        $method->invoke(new ConduceLegalidadController(), $oldEstado, $requestedEstado);
     }
 
     private function canManage($user): bool

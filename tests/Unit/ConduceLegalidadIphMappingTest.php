@@ -12,6 +12,17 @@ use Tests\TestCase;
 
 class ConduceLegalidadIphMappingTest extends TestCase
 {
+    public function test_nombre_operativo_completo_para_vialidades_urbanas(): void
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'unidadOperativaTexto');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS',
+            $method->invoke(new ConduceLegalidadController(), 5)
+        );
+    }
+
     public function test_separa_el_nombre_escrito_del_agente_para_el_iph(): void
     {
         $method = new ReflectionMethod(ConduceLegalidadController::class, 'agenteCapturaData');

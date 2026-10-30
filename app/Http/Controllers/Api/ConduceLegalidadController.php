@@ -13,6 +13,7 @@ use App\Models\Delegacion;
 use App\Models\Grua;
 use App\Models\Hechos;
 use App\Models\LicenciaPuntoInfraccion;
+use App\Models\Personal;
 use App\Models\Unidad;
 use App\Models\User;
 use App\Services\CodigoPostalGeoService;
@@ -36,6 +37,7 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_DELEGACIONES = 2;
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
+    private const UNIDAD_FOMENTO_CULTURA_VIAL = 6;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo de Alcoholimetría';
     private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
@@ -97,6 +99,7 @@ class ConduceLegalidadController extends Controller
                 'fundamentos_actividad_corralon' => $this->fundamentosActividadCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
                 'formatos_impresion' => $this->formatosImpresionPayload(),
+                'agentes' => $this->agentesVialidadesPayload(),
                 'unidades' => $canAssignScope
                     ? Unidad::query()
                         ->where('activa', true)
@@ -111,6 +114,40 @@ class ConduceLegalidadController extends Controller
                     : [],
             ],
         ]);
+    }
+
+    private function agentesVialidadesPayload()
+    {
+        return Personal::query()
+                    ->where('unidad_id', self::UNIDAD_VIALIDADES_URBANAS)
+                    ->where('estatus', 'ACTIVO')
+                    ->whereNotNull('numero_placa')
+                    ->where('numero_placa', '<>', '')
+                    ->orderBy('ap_paterno')
+                    ->orderBy('ap_materno')
+                    ->orderBy('nombre')
+                    ->get([
+                        'id',
+                        'nombre',
+                        'ap_paterno',
+                        'ap_materno',
+                        'numero_placa',
+                    ])
+                    ->map(function (Personal $personal) {
+                        return [
+                            'id' => (int) $personal->id,
+                            'nombres' => $personal->nombre,
+                            'apellido_paterno' => $personal->ap_paterno,
+                            'apellido_materno' => $personal->ap_materno,
+                            'numero_placa' => $personal->numero_placa,
+                            'nombre_completo' => trim(implode(' ', array_filter([
+                                $personal->nombre,
+                                $personal->ap_paterno,
+                                $personal->ap_materno,
+                            ]))),
+                        ];
+                    })
+                    ->values();
     }
 
     public function gruasSiniestros(Request $request)
@@ -172,6 +209,27 @@ class ConduceLegalidadController extends Controller
                 'capturas as mis_capturas_count' => function ($capturas) use ($user) {
                     $capturas->where('created_by', $user->id);
                 },
+            ])
+            ->addSelect([
+                'vehiculos_count' => DB::table('conduce_legalidad_vehiculos as resumen_vehiculos')
+                    ->join('conduce_legalidad_capturas as resumen_capturas_vehiculos', 'resumen_capturas_vehiculos.id', '=', 'resumen_vehiculos.captura_id')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('resumen_capturas_vehiculos.operativo_id', 'conduce_legalidad_operativos.id'),
+                'vehiculos_resguardados_count' => DB::table('conduce_legalidad_vehiculos as resumen_resguardados')
+                    ->join('conduce_legalidad_capturas as resumen_capturas_resguardados', 'resumen_capturas_resguardados.id', '=', 'resumen_resguardados.captura_id')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('resumen_capturas_resguardados.operativo_id', 'conduce_legalidad_operativos.id')
+                    ->where(function ($resguardados) {
+                        $resguardados->where('resumen_resguardados.retencion_vehiculo', true)
+                            ->orWhereNotNull('resumen_resguardados.grua_id')
+                            ->orWhereNotNull('resumen_resguardados.corralon_id')
+                            ->orWhereRaw("TRIM(COALESCE(resumen_resguardados.grua, '')) <> ''")
+                            ->orWhereRaw("TRIM(COALESCE(resumen_resguardados.corralon, '')) <> ''");
+                    }),
+                'personas_count' => DB::table('conduce_legalidad_personas as resumen_personas')
+                    ->join('conduce_legalidad_capturas as resumen_capturas_personas', 'resumen_capturas_personas.id', '=', 'resumen_personas.captura_id')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('resumen_capturas_personas.operativo_id', 'conduce_legalidad_operativos.id'),
             ])
             ->orderByDesc('fecha')
             ->orderByDesc('id');
@@ -1447,9 +1505,11 @@ class ConduceLegalidadController extends Controller
 
         $placaAgente = $this->nullableString($captura->agente_numero_placa)
             ?: $this->nullableString(data_get($creadorPayload, 'numero_placa'));
-        $unidadAgente = $this->nullableString($captura->agente_adscripcion)
-            ?: $this->nullableString(data_get($creadorPayload, 'adscripcion'))
-            ?: $this->unidadOperativaTexto($adscripcion['unidad_id']);
+        $unidadAgente = (int) $adscripcion['unidad_id'] === self::UNIDAD_VIALIDADES_URBANAS
+            ? $this->unidadOperativaTexto(self::UNIDAD_VIALIDADES_URBANAS)
+            : ($this->nullableString($captura->agente_adscripcion)
+                ?: $this->nullableString(data_get($creadorPayload, 'adscripcion'))
+                ?: $this->unidadOperativaTexto($adscripcion['unidad_id']));
         $delegacion = $this->delegacionTexto($adscripcion['delegacion_id']);
         $lugar = $this->lugarConNumero(
             $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
@@ -2533,7 +2593,7 @@ class ConduceLegalidadController extends Controller
             case 4:
                 return 'UNIDAD DE PROTECCION A CARRETERAS';
             case self::UNIDAD_VIALIDADES_URBANAS:
-                return 'UNIDAD DE VIALIDADES URBANAS';
+                return 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS';
             default:
                 return DB::table('unidades')->where('id', $unidadId)->value('nombre') ?: 'SIN DATO';
         }
@@ -3920,12 +3980,13 @@ class ConduceLegalidadController extends Controller
         }
 
         $isManager = $this->canManage($user);
+        $canViewAllCapturas = $isManager || $this->isDelegateOfOperativo($user, $operativo);
         $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
         $misCapturas = $operativo->mis_capturas_count;
         if ($misCapturas === null && $user) {
             $misCapturas = $operativo->capturas()->where('created_by', $user->id)->count();
         }
-        $totalCapturas = $isManager
+        $totalCapturas = $canViewAllCapturas
             ? (int) ($operativo->capturas_count ?? $operativo->capturas()->count())
             : (int) $misCapturas;
 
@@ -3960,6 +4021,7 @@ class ConduceLegalidadController extends Controller
             'firmante_iph_apellido_materno' => $operativo->firmante_iph_apellido_materno,
             'estado' => $operativo->estado,
             'can_feed' => $this->puedeAlimentarOperativo($operativo, $user),
+            'can_view_all_capturas' => $canViewAllCapturas,
             'alimentacion_cierra_en' => optional($alimentacionCierraEn)->toISOString(),
             'alimentacion_cerrada' => $this->alimentacionAlcoholimetriaCerrada($operativo),
             'can_edit' => $this->canManage($user),
@@ -3968,6 +4030,10 @@ class ConduceLegalidadController extends Controller
             'creador' => $this->userPayload($operativo->creador),
             'total_capturas' => $totalCapturas,
             'mis_capturas' => (int) $misCapturas,
+            'capturas_contables' => (int) ($operativo->capturas_count ?? $totalCapturas),
+            'total_vehiculos' => (int) ($operativo->vehiculos_count ?? 0),
+            'vehiculos_resguardados' => (int) ($operativo->vehiculos_resguardados_count ?? 0),
+            'total_personas' => (int) ($operativo->personas_count ?? 0),
             'created_at' => optional($operativo->created_at)->toISOString(),
             'updated_at' => optional($operativo->updated_at)->toISOString(),
         ];
@@ -3983,7 +4049,7 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['operativo', 'creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->loadMissing(['operativo', 'creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'vehiculos.corralonRelacion', 'personas.infraccion', 'fotos']);
 
         return [
             'id' => $captura->id,
@@ -4066,6 +4132,8 @@ class ConduceLegalidadController extends Controller
 
     private function vehiculoPayload(ConduceLegalidadVehiculo $vehiculo): array
     {
+        $corralon = $vehiculo->corralonRelacion;
+
         return [
             'id' => $vehiculo->id,
             'marca' => $vehiculo->marca,
@@ -4084,7 +4152,10 @@ class ConduceLegalidadController extends Controller
             'grua_id' => $vehiculo->grua_id,
             'corralon_id' => $vehiculo->corralon_id,
             'grua' => $vehiculo->grua,
-            'corralon' => $vehiculo->corralon ?: optional($vehiculo->corralonRelacion)->nombre,
+            'corralon' => $vehiculo->corralon ?: optional($corralon)->nombre,
+            'corralon_direccion' => optional($corralon)->ubicacion_corralon
+                ?: optional($corralon)->direccion,
+            'corralon_telefono' => optional($corralon)->telefono,
             'servicio_unidad_id' => $vehiculo->servicio_unidad_id,
             'servicio_delegacion_id' => $vehiculo->servicio_delegacion_id,
             'servicio_created_by' => $vehiculo->servicio_created_by,
@@ -4323,24 +4394,29 @@ class ConduceLegalidadController extends Controller
         }
 
         $unidadId = (int) ($user->unidad_id ?? 0);
-        if ($unidadId <= 0) {
-            $query->whereRaw('1=0');
-            return;
-        }
+        $query->where(function ($visibles) use ($unidadId) {
+            // Todo el personal puede apoyar en cualquier Conduce con Legalidad activo.
+            $visibles->where(function ($apoyo) {
+                $apoyo->where('estado', 'activo')
+                    ->where('tipo_operativo', 'conduce_legalidad');
+            });
 
-        $query->where(function ($unidades) use ($unidadId) {
-            $unidades->where('unidad_id', $unidadId)
-                ->orWhere(function ($legacy) use ($unidadId) {
-                    $legacy->whereNull('unidad_id')
-                        ->whereHas('creador', function ($creador) use ($unidadId) {
-                            $creador->where('unidad_id', $unidadId);
+            // El historial y otros tipos de operativo conservan su adscripcion.
+            if ($unidadId > 0) {
+                $visibles->orWhere(function ($propios) use ($unidadId) {
+                    $propios->where('unidad_id', $unidadId)
+                        ->orWhere(function ($legacy) use ($unidadId) {
+                            $legacy->whereNull('unidad_id')
+                                ->whereHas('creador', function ($creador) use ($unidadId) {
+                                    $creador->where('unidad_id', $unidadId);
+                                });
                         });
                 });
+            }
         });
 
-        // Los operativos de Delegaciones son puntos de trabajo compartidos.
-        // Personal de otra delegacion puede acudir como apoyo y alimentarlos;
-        // la adscripcion contable de cada captura se hereda del operativo.
+        // La adscripcion contable de cada captura se hereda del operativo,
+        // aunque quien la alimente pertenezca a otra unidad o delegacion.
     }
 
     private function canViewOperativo($user, ConduceLegalidadOperativo $operativo): bool
@@ -4354,6 +4430,10 @@ class ConduceLegalidadController extends Controller
         }
 
         $operativo->loadMissing('creador');
+        if ($operativo->estado === 'activo' && $operativo->tipo_operativo === 'conduce_legalidad') {
+            return true;
+        }
+
         $unidadId = (int) ($user->unidad_id ?? 0);
         $unidadOperativo = (int) ($operativo->unidad_id ?? optional($operativo->creador)->unidad_id ?? 0);
         if ($unidadId <= 0 || $unidadOperativo !== $unidadId) {
@@ -4378,7 +4458,20 @@ class ConduceLegalidadController extends Controller
             return;
         }
 
-        $query->where('created_by', $user ? $user->id : null);
+        $query->where(function ($capturas) use ($user) {
+            $capturas->where('created_by', $user ? $user->id : null);
+
+            if ($user
+                && $user->hasRole('Delegado')
+                && $this->isDelegacionesUser($user)
+                && (int) ($user->delegacion_id ?? 0) > 0) {
+                $delegacionId = (int) $user->delegacion_id;
+                $capturas->orWhereHas('operativo', function ($operativos) use ($delegacionId) {
+                    $operativos->where('unidad_id', self::UNIDAD_DELEGACIONES)
+                        ->where('delegacion_id', $delegacionId);
+                });
+            }
+        });
     }
 
     private function canUseRnd($user): bool
@@ -4669,6 +4762,19 @@ class ConduceLegalidadController extends Controller
         return (int) $captura->created_by === (int) $user->id;
     }
 
+    private function isDelegateOfOperativo($user, ConduceLegalidadOperativo $operativo): bool
+    {
+        if (!$user
+            || !$user->hasRole('Delegado')
+            || !$this->isDelegacionesUser($user)) {
+            return false;
+        }
+
+        return (int) ($user->delegacion_id ?? 0) > 0
+            && (int) ($operativo->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES
+            && (int) ($operativo->delegacion_id ?? 0) === (int) $user->delegacion_id;
+    }
+
     private function canDeleteOperativo($user): bool
     {
         return $this->canDeleteAdministrativo($user);
@@ -4710,6 +4816,20 @@ class ConduceLegalidadController extends Controller
     {
         return (int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS
             || optional($user->unidad)->slug === 'vialidades-urbanas';
+    }
+
+    private function isFomentoCulturaVialUser($user): bool
+    {
+        if ((int) ($user->unidad_id ?? 0) === self::UNIDAD_FOMENTO_CULTURA_VIAL) {
+            return true;
+        }
+
+        return in_array(optional($user->unidad)->slug, [
+            'fomento-cultura-vial',
+            'fomento-a-la-cultura-vial',
+            'cultura-vial',
+            'fomento',
+        ], true);
     }
 
     private function lugarConNumero($lugar, $numero): ?string

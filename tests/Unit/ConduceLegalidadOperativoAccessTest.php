@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
+use App\Models\ConduceLegalidadVehiculo;
+use App\Models\Grua;
 use Carbon\CarbonImmutable;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -201,6 +203,89 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertSame(15, $scope['delegacion_id']);
     }
 
+    public function test_all_units_can_support_any_active_conduce_operativo(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill([
+            'unidad_id' => 2,
+            'delegacion_id' => 15,
+            'estado' => 'activo',
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+        $operativo->setRelation('creador', null);
+
+        foreach ([
+            $this->user('Policia', 1, null),
+            $this->user('Policia', 2, 16),
+            $this->user('Administrativo', 3, null),
+            $this->user('Responsable de Turno', 5, null),
+            $this->user('Instructor', 6, null),
+        ] as $supportUser) {
+            $this->assertTrue($this->canView($supportUser, $operativo));
+            $this->assertTrue($this->canFeed($supportUser, $operativo));
+        }
+    }
+
+    public function test_cross_unit_support_does_not_open_closed_or_alcoholimetria_operatives(): void
+    {
+        $supportUser = $this->user('Responsable de Turno', 5, null);
+
+        foreach ([
+            ['estado' => 'cerrado', 'tipo_operativo' => 'conduce_legalidad'],
+            ['estado' => 'activo', 'tipo_operativo' => 'alcoholimetria'],
+        ] as $data) {
+            $operativo = new ConduceLegalidadOperativo();
+            $operativo->forceFill([
+                'unidad_id' => 2,
+                'delegacion_id' => 15,
+                ...$data,
+            ]);
+            $operativo->setRelation('creador', null);
+
+            $this->assertFalse($this->canView($supportUser, $operativo));
+        }
+    }
+
+    public function test_delegate_sees_all_captures_only_for_operatives_in_own_delegation(): void
+    {
+        $delegate = $this->user('Delegado', 2, 15);
+
+        $own = new ConduceLegalidadOperativo();
+        $own->forceFill(['unidad_id' => 2, 'delegacion_id' => 15]);
+
+        $other = new ConduceLegalidadOperativo();
+        $other->forceFill(['unidad_id' => 2, 'delegacion_id' => 16]);
+
+        $this->assertTrue($this->canViewAllCaptures($delegate, $own));
+        $this->assertFalse($this->canViewAllCaptures($delegate, $other));
+        $this->assertFalse(
+            $this->canViewAllCaptures($this->user('Policia', 2, 15), $own)
+        );
+    }
+
+    public function test_vehicle_payload_exposes_corralon_address_and_phone_not_internal_id_as_number(): void
+    {
+        $vehiculo = new ConduceLegalidadVehiculo([
+            'corralon_id' => 101,
+            'corralon' => 'TRANSITO MUNICIPAL URUAPAN',
+        ]);
+        $vehiculo->setRelation('corralonRelacion', new Grua([
+            'nombre' => 'TRANSITO MUNICIPAL URUAPAN',
+            'direccion' => 'DIRECCION ADMINISTRATIVA',
+            'ubicacion_corralon' => 'LIBRAMIENTO ORIENTE 450, URUAPAN',
+            'telefono' => '4521234567',
+        ]));
+
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'vehiculoPayload');
+        $method->setAccessible(true);
+        $payload = $method->invoke(new ConduceLegalidadController(), $vehiculo);
+
+        $this->assertSame('LIBRAMIENTO ORIENTE 450, URUAPAN', $payload['corralon_direccion']);
+        $this->assertSame('4521234567', $payload['corralon_telefono']);
+        $this->assertSame(101, $payload['corralon_id']);
+        $this->assertArrayNotHasKey('numero_corralon', $payload);
+    }
+
     public function test_superadmin_can_view_and_feed_operatives_from_any_delegation(): void
     {
         foreach ([15, 16] as $delegacionId) {
@@ -217,6 +302,70 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
             $this->assertTrue($this->canView($superadmin, $operativo));
             $this->assertTrue($this->canFeed($superadmin, $operativo));
         }
+    }
+
+    public function test_fomento_can_view_and_feed_active_vialidades_operatives_as_support(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill([
+            'unidad_id' => 5,
+            'delegacion_id' => null,
+            'estado' => 'activo',
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+        $operativo->setRelation('creador', null);
+        $fomento = $this->user('Instructor', 6, null);
+
+        $this->assertTrue($this->canView($fomento, $operativo));
+        $this->assertTrue($this->canFeed($fomento, $operativo));
+
+        $scope = $this->resolveCaptureScope($operativo, $fomento);
+        $this->assertSame(5, $scope['unidad_id']);
+        $this->assertNull($scope['delegacion_id']);
+    }
+
+    public function test_fomento_support_opens_active_conduce_operatives_from_other_units(): void
+    {
+        $fomento = $this->user('Instructor', 6, null);
+
+        foreach ([1, 2, 3] as $unidadId) {
+            $operativo = new ConduceLegalidadOperativo();
+            $operativo->forceFill([
+                'unidad_id' => $unidadId,
+                'delegacion_id' => $unidadId === 2 ? 15 : null,
+                'estado' => 'activo',
+                'tipo_operativo' => 'conduce_legalidad',
+            ]);
+            $operativo->setRelation('creador', null);
+
+            $this->assertTrue($this->canView($fomento, $operativo));
+            $this->assertTrue($this->canFeed($fomento, $operativo));
+        }
+    }
+
+    public function test_fomento_support_does_not_open_vialidades_alcoholimetria(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill([
+            'unidad_id' => 5,
+            'delegacion_id' => null,
+            'estado' => 'activo',
+            'tipo_operativo' => 'alcoholimetria',
+        ]);
+        $operativo->setRelation('creador', null);
+
+        $this->assertFalse($this->canView($this->user('Instructor', 6, null), $operativo));
+    }
+
+    public function test_operativo_list_scope_includes_global_active_conduce_and_own_unit(): void
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'scopeOperativos');
+        $method->setAccessible(true);
+        $query = ConduceLegalidadOperativo::query();
+
+        $method->invoke(new ConduceLegalidadController(), $query, $this->user('Instructor', 6, null));
+
+        $this->assertSame(['activo', 'conduce_legalidad', 6, 6], $query->getBindings());
     }
 
     public function test_superadmin_can_assign_delegaciones_scope(): void
@@ -387,6 +536,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user, $captura);
+    }
+
+    private function canViewAllCaptures($user, ConduceLegalidadOperativo $operativo): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'isDelegateOfOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user, $operativo);
     }
 
     private function user(string $role, int $unidadId = 2, ?int $delegacionId = 15, int $id = 1, array $permissions = [])

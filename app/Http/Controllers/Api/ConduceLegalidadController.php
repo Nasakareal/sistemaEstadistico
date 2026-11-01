@@ -43,7 +43,7 @@ class ConduceLegalidadController extends Controller
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo de Alcoholimetría';
     private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
     private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
-    private const ESTADOS = ['activo', 'cerrado', 'cancelado', 'standby'];
+    private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
     private const ESTADOS_CIVILES = ['SOLTERO(A)', 'CASADO(A)', 'VIUDO(A)', 'DIVORCIADO(A)'];
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
@@ -93,7 +93,6 @@ class ConduceLegalidadController extends Controller
                     'activo' => 'Activo',
                     'cerrado' => 'Cerrado',
                     'cancelado' => 'Cancelado',
-                    'standby' => 'Standby',
                 ],
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
@@ -215,7 +214,12 @@ class ConduceLegalidadController extends Controller
             ->orderByDesc('fecha')
             ->orderByDesc('id');
 
-        $this->scopeOperativos($query, $user);
+        $esVistaWeb = $request->attributes->get('conduce_legalidad_web_scope') === true;
+        if ($esVistaWeb) {
+            $this->scopeOperativosVistaWeb($query, $user);
+        } else {
+            $this->scopeOperativos($query, $user);
+        }
 
         if ($request->filled('tipo_operativo')) {
             $tipoOperativo = trim((string) $request->query('tipo_operativo'));
@@ -275,12 +279,21 @@ class ConduceLegalidadController extends Controller
             ->cloneWithout(['columns', 'orders'])
             ->cloneWithoutBindings(['select', 'order'])
             ->select('conduce_legalidad_operativos.id');
+        $capturasFiltradasIds = DB::table('conduce_legalidad_capturas')
+            ->whereIn('operativo_id', clone $filteredIds)
+            ->select('id');
         $resumen = [
             'operativos' => DB::query()
                 ->fromSub(clone $filteredIds, 'operativos_filtrados')
                 ->count(),
             'registros' => DB::table('conduce_legalidad_capturas')
                 ->whereIn('operativo_id', clone $filteredIds)
+                ->count(),
+            'personas' => DB::table('conduce_legalidad_personas')
+                ->whereIn('captura_id', clone $capturasFiltradasIds)
+                ->count(),
+            'vehiculos' => DB::table('conduce_legalidad_vehiculos')
+                ->whereIn('captura_id', clone $capturasFiltradasIds)
                 ->count(),
         ];
 
@@ -292,7 +305,12 @@ class ConduceLegalidadController extends Controller
             'abilities' => $this->abilitiesPayload($user),
             'resumen' => $resumen,
             'data' => $page->getCollection()
-                ->map(fn (ConduceLegalidadOperativo $operativo) => $this->operativoPayload($operativo, $user))
+                ->map(fn (ConduceLegalidadOperativo $operativo) => $this->operativoPayload(
+                    $operativo,
+                    $user,
+                    null,
+                    $esVistaWeb
+                ))
                 ->values(),
             'pagination' => [
                 'current_page' => $page->currentPage(),
@@ -477,13 +495,16 @@ class ConduceLegalidadController extends Controller
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
-        $this->scopeCapturas($capturasQuery, $user);
+        $esVistaWeb = $request->attributes->get('conduce_legalidad_web_scope') === true;
+        if (!$esVistaWeb) {
+            $this->scopeCapturas($capturasQuery, $user);
+        }
         $capturas = $capturasQuery->get();
 
         return response()->json([
             'ok' => true,
             'abilities' => $this->abilitiesPayload($user),
-            'data' => $this->operativoPayload($operativo, $user, $capturas),
+            'data' => $this->operativoPayload($operativo, $user, $capturas, $esVistaWeb),
         ]);
     }
 
@@ -630,7 +651,7 @@ class ConduceLegalidadController extends Controller
         $validated = $request->validate([
             'password' => ['required', 'string'],
             'confirmations' => ['required', 'integer', Rule::in([3])],
-            'confirmation_text' => ['required', 'string', Rule::in(['STANDBY'])],
+            'confirmation_text' => ['required', 'string', Rule::in(['ELIMINAR', 'STANDBY'])],
         ]);
 
         if (!Hash::check($validated['password'], (string) $user->password)) {
@@ -640,15 +661,75 @@ class ConduceLegalidadController extends Controller
         }
 
         $operativo->forceFill([
-            'estado' => 'standby',
             'hora_cierre' => $operativo->hora_cierre ?: now()->format('H:i:s'),
             'closed_by' => $user->id,
             'updated_by' => $user->id,
         ])->save();
+        $operativo->delete();
 
         return response()->json([
             'ok' => true,
-            'message' => 'Operativo puesto en standby. No se eliminó información.',
+            'message' => 'Operativo eliminado correctamente.',
+        ]);
+    }
+
+    public function eliminados(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($this->canDeleteOperativo($user), 403);
+
+        $query = ConduceLegalidadOperativo::onlyTrashed()
+            ->with(['creador', 'delegacion'])
+            ->withCount('capturas')
+            ->orderByDesc('deleted_at');
+
+        if ($request->filled('tipo_operativo')) {
+            $tipoOperativo = trim((string) $request->query('tipo_operativo'));
+            abort_unless(in_array($tipoOperativo, self::TIPOS_OPERATIVO, true), 422);
+            $query->where('tipo_operativo', $tipoOperativo);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => $query->get()->map(fn (ConduceLegalidadOperativo $operativo) => [
+                'id' => $operativo->id,
+                'nombre' => $operativo->nombre,
+                'tipo_operativo' => $operativo->tipo_operativo,
+                'fecha' => optional($operativo->fecha)->format('Y-m-d'),
+                'municipio' => $operativo->municipio,
+                'lugar' => $operativo->lugar,
+                'numero' => $operativo->numero,
+                'total_capturas' => (int) ($operativo->capturas_count ?? 0),
+                'deleted_at' => optional($operativo->deleted_at)->toIso8601String(),
+            ])->values(),
+        ]);
+    }
+
+    public function restoreOperativo(Request $request, int $operativoId)
+    {
+        $user = $request->user();
+        abort_unless($this->canDeleteOperativo($user), 403);
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+        if (!Hash::check($validated['password'], (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['La contraseña es incorrecta.'],
+            ]);
+        }
+
+        $operativo = ConduceLegalidadOperativo::onlyTrashed()->findOrFail($operativoId);
+        if ($operativo->estado === 'standby') {
+            $operativo->estado = 'cancelado';
+        }
+        $operativo->updated_by = $user->id;
+        $operativo->restore();
+        $operativo->save();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Operativo recuperado correctamente.',
         ]);
     }
 
@@ -3966,7 +4047,12 @@ class ConduceLegalidadController extends Controller
         ];
     }
 
-    private function operativoPayload(ConduceLegalidadOperativo $operativo, $user, $capturas = null): array
+    private function operativoPayload(
+        ConduceLegalidadOperativo $operativo,
+        $user,
+        $capturas = null,
+        bool $forzarVistaCompleta = false
+    ): array
     {
         $operativo->loadMissing(['delegacion', 'creador']);
 
@@ -3980,7 +4066,9 @@ class ConduceLegalidadController extends Controller
         }
 
         $isManager = $this->canManage($user);
-        $canViewAllCapturas = $isManager || $this->isDelegateOfOperativo($user, $operativo);
+        $canViewAllCapturas = $forzarVistaCompleta
+            || $isManager
+            || $this->isDelegateOfOperativo($user, $operativo);
         $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
         $misCapturas = $operativo->mis_capturas_count;
         if ($misCapturas === null && $user) {
@@ -4413,6 +4501,34 @@ class ConduceLegalidadController extends Controller
 
         // La adscripcion contable de cada captura se hereda del operativo,
         // aunque quien la alimente pertenezca a otra unidad o delegacion.
+    }
+
+    private function scopeOperativosVistaWeb($query, $user): void
+    {
+        if (!$user) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        if ($user->hasRole('Superadmin') || (int) ($user->unidad_id ?? 0) === 3) {
+            return;
+        }
+
+        $unidadId = (int) ($user->unidad_id ?? 0);
+        if ($unidadId <= 0) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->where(function ($propios) use ($unidadId) {
+            $propios->where('unidad_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_id')
+                        ->whereHas('creador', function ($creador) use ($unidadId) {
+                            $creador->where('unidad_id', $unidadId);
+                        });
+                });
+        });
     }
 
     private function canViewOperativo($user, ConduceLegalidadOperativo $operativo): bool

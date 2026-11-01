@@ -2,8 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\ConduceLegalidadWebController;
+use App\Models\ConduceLegalidadOperativo;
 use App\Models\Vehiculo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ActividadVehiculoLiberacionWebTest extends TestCase
@@ -35,5 +38,45 @@ class ActividadVehiculoLiberacionWebTest extends TestCase
 
         $this->assertStringContainsString("query->remove('mes')", $controller);
         $this->assertStringNotContainsString('type="month"', $view);
+        $this->assertStringContainsString("\$resumen['personas']", $view);
+        $this->assertStringContainsString("\$resumen['vehiculos']", $view);
+    }
+
+    public function test_vista_web_limita_por_unidad_y_abre_el_acceso_global_solicitado(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['unidad_id' => 5, 'tipo_operativo' => 'conduce_legalidad']);
+
+        $this->assertTrue($this->puedeVerEnWeb($this->usuario(5), $operativo));
+        $this->assertFalse($this->puedeVerEnWeb($this->usuario(2), $operativo));
+        $this->assertTrue($this->puedeVerEnWeb($this->usuario(3), $operativo));
+        $this->assertTrue($this->puedeVerEnWeb($this->usuario(2, true), $operativo));
+    }
+
+    private function puedeVerEnWeb($usuario, ConduceLegalidadOperativo $operativo): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadWebController::class, 'puedeVerEnWeb');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadWebController(), $usuario, $operativo);
+    }
+
+    private function usuario(int $unidadId, bool $superadmin = false): object
+    {
+        return new class ($unidadId, $superadmin) {
+            public int $unidad_id;
+            private bool $superadmin;
+
+            public function __construct(int $unidadId, bool $superadmin)
+            {
+                $this->unidad_id = $unidadId;
+                $this->superadmin = $superadmin;
+            }
+
+            public function hasRole(string $role): bool
+            {
+                return $role === 'Superadmin' && $this->superadmin;
+            }
+        };
     }
 }

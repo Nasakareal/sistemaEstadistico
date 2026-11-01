@@ -6,16 +6,55 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
         <div>
             <h1 class="mb-1">Conduce con Legalidad</h1>
-            <div class="text-muted">Operativos visibles con el mismo alcance de la aplicación móvil.</div>
-        </div>
-        <div class="d-flex" style="gap:8px;">
-            <span class="badge badge-primary p-2">{{ (int) ($resumen['operativos'] ?? 0) }} operativos</span>
-            <span class="badge badge-info p-2">{{ (int) ($resumen['registros'] ?? 0) }} registros</span>
+            <div class="text-muted">Resumen de los operativos visibles para tu unidad.</div>
         </div>
     </div>
 @stop
 
 @section('content')
+    <div class="row conduce-kpis">
+        <div class="col-xl-3 col-sm-6 mb-3">
+            <div class="info-box h-100 conduce-kpi conduce-kpi--operativos">
+                <span class="info-box-icon"><i class="fa-solid fa-road-barrier"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Operativos</span>
+                    <span class="info-box-number">{{ number_format((int) ($resumen['operativos'] ?? 0)) }}</span>
+                    <small>Con los filtros actuales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6 mb-3">
+            <div class="info-box h-100 conduce-kpi conduce-kpi--registros">
+                <span class="info-box-icon"><i class="fa-solid fa-clipboard-check"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Alimentaciones</span>
+                    <span class="info-box-number">{{ number_format((int) ($resumen['registros'] ?? 0)) }}</span>
+                    <small>Registros capturados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6 mb-3">
+            <div class="info-box h-100 conduce-kpi conduce-kpi--personas">
+                <span class="info-box-icon"><i class="fa-solid fa-users"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Personas</span>
+                    <span class="info-box-number">{{ number_format((int) ($resumen['personas'] ?? 0)) }}</span>
+                    <small>Personas registradas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6 mb-3">
+            <div class="info-box h-100 conduce-kpi conduce-kpi--vehiculos">
+                <span class="info-box-icon"><i class="fa-solid fa-motorcycle"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Vehículos</span>
+                    <span class="info-box-number">{{ number_format((int) ($resumen['vehiculos'] ?? 0)) }}</span>
+                    <small>Vehículos registrados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card card-outline card-primary mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('conduce_legalidad.index') }}">
@@ -87,6 +126,15 @@
 
 @section('css')
 <style>
+    .conduce-kpi { border-radius: 14px; overflow: hidden; background: rgba(15, 23, 42, .72); border: 1px solid rgba(148, 163, 184, .18); box-shadow: 0 12px 28px rgba(2, 6, 23, .18); }
+    .conduce-kpi .info-box-icon { width: 72px; color: #fff; font-size: 1.55rem; }
+    .conduce-kpi .info-box-text { color: rgba(226, 232, 240, .72); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .76rem; }
+    .conduce-kpi .info-box-number { color: #f8fafc; font-size: 1.75rem; line-height: 1.15; }
+    .conduce-kpi small { color: rgba(203, 213, 225, .68); }
+    .conduce-kpi--operativos .info-box-icon { background: linear-gradient(145deg, #2563eb, #1d4ed8); }
+    .conduce-kpi--registros .info-box-icon { background: linear-gradient(145deg, #0891b2, #0e7490); }
+    .conduce-kpi--personas .info-box-icon { background: linear-gradient(145deg, #7c3aed, #6d28d9); }
+    .conduce-kpi--vehiculos .info-box-icon { background: linear-gradient(145deg, #059669, #047857); }
     .operativo-card { border-radius: 12px; overflow: hidden; }
     .operativo-card .folio { font-size: 1.1rem; font-weight: 800; }
     .operativo-card p { color: rgba(234,240,255,.78); }

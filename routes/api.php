@@ -354,7 +354,9 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/gruas-siniestros', [ApiConduceLegalidadController::class, 'gruasSiniestros'])->name('api.conduce_legalidad.gruas_siniestros');
         Route::get('/buscar', [ApiConduceLegalidadController::class, 'buscar'])->name('api.conduce_legalidad.buscar');
         Route::get('/operativos', [ApiConduceLegalidadController::class, 'index'])->name('api.conduce_legalidad.operativos.index');
+        Route::get('/operativos-eliminados', [ApiConduceLegalidadController::class, 'eliminados'])->name('api.conduce_legalidad.operativos.deleted');
         Route::post('/operativos', [ApiConduceLegalidadController::class, 'storeOperativo'])->name('api.conduce_legalidad.operativos.store');
+        Route::post('/operativos/{operativoId}/restaurar', [ApiConduceLegalidadController::class, 'restoreOperativo'])->whereNumber('operativoId')->name('api.conduce_legalidad.operativos.restore');
         Route::get('/operativos/{operativo}/gruas', [ApiConduceLegalidadController::class, 'gruasOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.gruas');
         Route::get('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'show'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.show');
         Route::get('/operativos/{operativo}/native-share', [ApiConduceLegalidadController::class, 'nativeShareOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.native_share');

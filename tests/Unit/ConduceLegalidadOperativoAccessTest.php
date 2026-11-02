@@ -14,9 +14,14 @@ use Tests\TestCase;
 
 class ConduceLegalidadOperativoAccessTest extends TestCase
 {
-    public function test_delegaciones_delegate_can_create_operatives(): void
+    public function test_authorized_delegaciones_roles_can_create_operatives(): void
     {
-        $this->assertTrue($this->canCreate($this->user('Delegado')));
+        foreach (['Administrador', 'Subdirector', 'Delegado'] as $role) {
+            $this->assertTrue(
+                $this->canCreate($this->user($role, 2, 15)),
+                $role
+            );
+        }
     }
 
     public function test_delegaciones_police_cannot_create_operatives(): void
@@ -117,15 +122,19 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertArrayHasKey('hora_inicio', $administratorRules);
     }
 
-    public function test_only_superadmin_receives_scope_validation_rules(): void
+    public function test_superadmin_and_delegaciones_managers_receive_scope_rules(): void
     {
         $delegateRules = $this->scheduleRules($this->user('Delegado'));
-        $administratorRules = $this->scheduleRules($this->user('Administrador'));
+        $administratorRules = $this->scheduleRules($this->user('Administrador', 2, null));
+        $subdirectorRules = $this->scheduleRules($this->user('Subdirector', 2, null));
         $superadminRules = $this->scheduleRules($this->user('Superadmin'));
 
         $this->assertArrayNotHasKey('unidad_id', $delegateRules);
         $this->assertArrayNotHasKey('delegacion_id', $delegateRules);
-        $this->assertArrayNotHasKey('unidad_id', $administratorRules);
+        $this->assertArrayHasKey('unidad_id', $administratorRules);
+        $this->assertArrayHasKey('delegacion_id', $administratorRules);
+        $this->assertArrayHasKey('unidad_id', $subdirectorRules);
+        $this->assertArrayHasKey('delegacion_id', $subdirectorRules);
         $this->assertArrayHasKey('unidad_id', $superadminRules);
         $this->assertArrayHasKey('delegacion_id', $superadminRules);
     }
@@ -194,13 +203,24 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         ]);
         $other->setRelation('creador', null);
 
-        foreach (['Delegado', 'Policia', 'Administrativo', 'Subdirector'] as $role) {
+        foreach (['Administrador', 'Subdirector', 'Delegado', 'Policia', 'Administrativo'] as $role) {
             $user = $this->user($role, 2, 15);
 
             $this->assertTrue($this->canView($user, $own), $role);
             $this->assertTrue($this->canFeed($user, $own), $role);
             $this->assertTrue($this->canView($user, $other), $role);
             $this->assertTrue($this->canFeed($user, $other), $role);
+        }
+    }
+
+    public function test_delegaciones_administrator_and_subdirector_manage_visible_captures(): void
+    {
+        foreach (['Administrador', 'Subdirector'] as $role) {
+            $user = $this->user($role, 2, 15, 10);
+            $otherCapture = new ConduceLegalidadCaptura(['created_by' => 11]);
+
+            $this->assertTrue($this->canManage($user), $role);
+            $this->assertTrue($this->canEditCaptura($user, $otherCapture), $role);
         }
     }
 
@@ -398,6 +418,19 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
 
         $this->assertSame(2, $scope['unidad_id']);
         $this->assertSame(23, $scope['delegacion_id']);
+    }
+
+    public function test_delegaciones_manager_without_assignment_can_choose_a_delegation(): void
+    {
+        foreach (['Administrador', 'Subdirector'] as $role) {
+            $scope = $this->resolveScope(
+                $this->user($role, 2, null),
+                ['unidad_id' => 5, 'delegacion_id' => 30]
+            );
+
+            $this->assertSame(2, $scope['unidad_id'], $role);
+            $this->assertSame(30, $scope['delegacion_id'], $role);
+        }
     }
 
     public function test_delegation_is_cleared_when_superadmin_assigns_another_unit(): void

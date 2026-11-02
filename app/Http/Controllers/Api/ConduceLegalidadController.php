@@ -104,6 +104,10 @@ class ConduceLegalidadController extends Controller
                 'unidades' => $canAssignScope
                     ? Unidad::query()
                         ->where('activa', true)
+                        ->when(
+                            !$user->hasRole('Superadmin'),
+                            fn ($query) => $query->whereKey(self::UNIDAD_DELEGACIONES)
+                        )
                         ->orderBy('nombre')
                         ->get(['id', 'nombre'])
                     : [],
@@ -4703,7 +4707,11 @@ class ConduceLegalidadController extends Controller
             return true;
         }
 
-        if ($this->isDelegacionesUser($user) && $user->hasRole('Delegado')) {
+        if ($this->isDelegacionesUser($user) && $user->hasAnyRole([
+            'Administrador',
+            'Subdirector',
+            'Delegado',
+        ])) {
             return true;
         }
 
@@ -4732,13 +4740,19 @@ class ConduceLegalidadController extends Controller
         }
 
         if ($this->canAssignOperativoScope($user)) {
-            $rules['unidad_id'] = [
-                $operativo ? 'sometimes' : 'required',
-                'integer',
-                Rule::exists('unidades', 'id')->where(
-                    fn ($query) => $query->where('activa', true)
-                ),
-            ];
+            $rules['unidad_id'] = $user->hasRole('Superadmin')
+                ? [
+                    $operativo ? 'sometimes' : 'required',
+                    'integer',
+                    Rule::exists('unidades', 'id')->where(
+                        fn ($query) => $query->where('activa', true)
+                    ),
+                ]
+                : [
+                    $operativo ? 'sometimes' : 'required',
+                    'integer',
+                    Rule::in([self::UNIDAD_DELEGACIONES]),
+                ];
             $rules['delegacion_id'] = [
                 'nullable',
                 'integer',
@@ -4763,8 +4777,11 @@ class ConduceLegalidadController extends Controller
 
     private function canAssignOperativoScope($user): bool
     {
-        return $user
-            && $user->hasRole('Superadmin');
+        return $user && (
+            $user->hasRole('Superadmin')
+            || ($this->isDelegacionesUser($user)
+                && $user->hasAnyRole(['Administrador', 'Subdirector']))
+        );
     }
 
     private function resolveOperativoSchedule($user, array $validated, $now): array
@@ -4824,7 +4841,9 @@ class ConduceLegalidadController extends Controller
             ];
         }
 
-        $unidadId = (int) ($validated['unidad_id'] ?? 0);
+        $unidadId = $user->hasRole('Superadmin')
+            ? (int) ($validated['unidad_id'] ?? 0)
+            : self::UNIDAD_DELEGACIONES;
 
         return [
             'unidad_id' => $unidadId ?: null,

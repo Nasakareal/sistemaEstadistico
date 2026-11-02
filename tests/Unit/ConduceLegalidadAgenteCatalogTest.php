@@ -32,7 +32,7 @@ class ConduceLegalidadAgenteCatalogTest extends TestCase
         });
     }
 
-    public function test_catalogo_incluye_solo_personal_activo_de_vialidades_con_placa(): void
+    public function test_catalogo_incluye_personal_activo_de_cualquier_unidad_con_placa(): void
     {
         DB::table('personals')->insert([
             [
@@ -52,24 +52,34 @@ class ConduceLegalidadAgenteCatalogTest extends TestCase
                 'estatus' => 'ACTIVO',
             ],
             [
-                'unidad_id' => 1,
+                'unidad_id' => 2,
                 'nombre' => 'Agente',
-                'ap_paterno' => 'Siniestros',
+                'ap_paterno' => 'Delegaciones',
                 'ap_materno' => null,
                 'numero_placa' => '10001',
                 'estatus' => 'ACTIVO',
+            ],
+            [
+                'unidad_id' => 1,
+                'nombre' => 'Agente',
+                'ap_paterno' => 'Inactivo',
+                'ap_materno' => null,
+                'numero_placa' => '10002',
+                'estatus' => 'INACTIVO',
             ],
         ]);
 
         $method = new ReflectionMethod(
             ConduceLegalidadController::class,
-            'agentesVialidadesPayload'
+            'agentesActivosPayload'
         );
         $method->setAccessible(true);
         $catalogo = $method->invoke(new ConduceLegalidadController());
 
-        $this->assertCount(1, $catalogo);
-        $this->assertSame('Julio Octavio Pérez Hernández', $catalogo[0]['nombre_completo']);
-        $this->assertSame('09130', $catalogo[0]['numero_placa']);
+        $this->assertCount(2, $catalogo);
+        $this->assertSame('Agente Delegaciones', $catalogo[0]['nombre_completo']);
+        $this->assertSame('10001', $catalogo[0]['numero_placa']);
+        $this->assertSame('Julio Octavio Pérez Hernández', $catalogo[1]['nombre_completo']);
+        $this->assertSame('09130', $catalogo[1]['numero_placa']);
     }
 }

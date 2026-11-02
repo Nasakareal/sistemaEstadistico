@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\CaleaEncuestaController;
 use App\Http\Controllers\Api\AccountSettingsController;
 use App\Http\Controllers\Api\PatrullaServicioController;
 use App\Http\Controllers\Api\DeceptionApiController;
+use App\Http\Controllers\Api\ThermalPrinterController;
 
 if (config('honeypot_api.enabled') && config('honeypot_api.prefix')) {
     Route::prefix(config('honeypot_api.prefix'))->group(function () {
@@ -347,6 +348,13 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/historial/{curp}', [ApiLicenciaEmisionController::class, 'historial'])->name('api.licencias_emision.historial');
         Route::get('/qr/{token}', [ApiLicenciaEmisionController::class, 'buscarQr'])->name('api.licencias_emision.qr');
         Route::get('/{licencia}', [ApiLicenciaEmisionController::class, 'show'])->whereNumber('licencia')->name('api.licencias_emision.show');
+    });
+
+    Route::prefix('thermal-printers')->group(function () {
+        Route::get('/', [ThermalPrinterController::class, 'index'])->name('api.thermal_printers.index');
+        Route::post('/', [ThermalPrinterController::class, 'store'])->name('api.thermal_printers.store');
+        Route::put('/{thermalPrinter}', [ThermalPrinterController::class, 'update'])->name('api.thermal_printers.update');
+        Route::delete('/{thermalPrinter}', [ThermalPrinterController::class, 'destroy'])->name('api.thermal_printers.destroy');
     });
 
     Route::prefix('conduce-legalidad')->group(function () {

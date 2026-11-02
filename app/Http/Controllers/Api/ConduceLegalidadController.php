@@ -100,7 +100,7 @@ class ConduceLegalidadController extends Controller
                 'fundamentos_actividad_corralon' => $this->fundamentosActividadCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
                 'formatos_impresion' => $this->formatosImpresionPayload(),
-                'agentes' => $this->agentesVialidadesPayload(),
+                'agentes' => $this->agentesActivosPayload(),
                 'unidades' => $canAssignScope
                     ? Unidad::query()
                         ->where('activa', true)
@@ -121,10 +121,9 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
-    private function agentesVialidadesPayload()
+    private function agentesActivosPayload()
     {
         return Personal::query()
-                    ->where('unidad_id', self::UNIDAD_VIALIDADES_URBANAS)
                     ->where('estatus', 'ACTIVO')
                     ->whereNotNull('numero_placa')
                     ->where('numero_placa', '<>', '')

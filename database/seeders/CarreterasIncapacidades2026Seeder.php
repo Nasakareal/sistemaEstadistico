@@ -51,19 +51,17 @@ class CarreterasIncapacidades2026Seeder extends Seeder
                     ->where('personal_id', $fila['personal_id'])
                     ->where('incidencia_tipo_id', $tipoId)
                     ->whereDate('fecha_inicio', $fila['inicio'])
-                    ->whereDate('fecha_fin', $fila['fin'])
                     ->first();
 
                 $payload = [
                     'folio' => $fila['serie'] ?: $fila['oficio'],
                     'motivo' => $fila['motivo'],
                     'observaciones' => $this->observaciones($fila),
-                    'documento_id' => null,
                     'activo' => true,
                     'updated_at' => $ahora,
                 ];
 
-                if ($existente) {
+                if ($existente && $existente->fecha_fin === $fila['fin']) {
                     if (Str::startsWith((string) ($existente->observaciones ?? ''), self::MARCADOR)) {
                         DB::table('personal_incidencias')
                             ->where('id', $existente->id)
@@ -76,15 +74,44 @@ class CarreterasIncapacidades2026Seeder extends Seeder
                     continue;
                 }
 
+                if ($existente && is_null($existente->fecha_fin)) {
+                    $observacionPrevia = trim((string) ($existente->observaciones ?? ''));
+                    if ($observacionPrevia !== '' && !Str::startsWith($observacionPrevia, self::MARCADOR)) {
+                        $payload['observaciones'] .= '; OBSERVACION PREVIA: ' . $observacionPrevia;
+                    }
+
+                    $payload['fecha_fin'] = $fila['fin'];
+                    $payload['motivo'] = $fila['motivo'] ?: $existente->motivo;
+
+                    DB::table('personal_incidencias')
+                        ->where('id', $existente->id)
+                        ->update($payload);
+
+                    $actualizadas++;
+                    continue;
+                }
+
                 $traslape = DB::table('personal_incidencias')
-                    ->where('personal_id', $fila['personal_id'])
-                    ->where('activo', true)
-                    ->where('fecha_inicio', '<=', $fila['fin'])
+                    ->join(
+                        'incidencia_tipos',
+                        'incidencia_tipos.id',
+                        '=',
+                        'personal_incidencias.incidencia_tipo_id'
+                    )
+                    ->where('personal_incidencias.personal_id', $fila['personal_id'])
+                    ->where('personal_incidencias.activo', true)
+                    ->whereRaw("UPPER(TRIM(COALESCE(incidencia_tipos.categoria, ''))) <> 'DISCIPLINA'")
+                    ->whereRaw("UPPER(TRIM(COALESCE(incidencia_tipos.clave, ''))) NOT IN ('AMONESTACION', 'ARRESTO')")
+                    ->where('personal_incidencias.fecha_inicio', '<=', $fila['fin'])
                     ->where(function ($query) use ($fila) {
-                        $query->whereNull('fecha_fin')
-                            ->orWhere('fecha_fin', '>=', $fila['inicio']);
+                        $query->whereNull('personal_incidencias.fecha_fin')
+                            ->orWhere('personal_incidencias.fecha_fin', '>=', $fila['inicio']);
                     })
-                    ->first(['id', 'fecha_inicio', 'fecha_fin']);
+                    ->first([
+                        'personal_incidencias.id',
+                        'personal_incidencias.fecha_inicio',
+                        'personal_incidencias.fecha_fin',
+                    ]);
 
                 if ($traslape) {
                     throw new RuntimeException(sprintf(
@@ -104,6 +131,7 @@ class CarreterasIncapacidades2026Seeder extends Seeder
                     'fecha_fin' => $fila['fin'],
                     'hora_inicio' => null,
                     'hora_fin' => null,
+                    'documento_id' => null,
                     'created_at' => $ahora,
                 ]));
 

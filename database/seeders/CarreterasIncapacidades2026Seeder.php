@@ -13,6 +13,16 @@ class CarreterasIncapacidades2026Seeder extends Seeder
     private const UNIDAD_SLUG = 'carreteras';
     private const TIPO_CLAVE = 'INCAPACIDAD';
     private const MARCADOR = 'CARGA INCAPACIDADES CARRETERAS 2026';
+    private const CURP_OMITIBLES = [
+        'MEZA820809MMNDMD03',
+        'SAAG860212MMNLRL00',
+        'BAIA780827HVZRDR17',
+        'MEAL980705MMNDGZ04',
+        'SITM770221HMCLPN02',
+        'MARC970321MMNRNH06',
+        'VEPC880101HDFLRR06',
+        'MOMF710928MDFLNN07',
+    ];
 
     public function run(): void
     {
@@ -29,7 +39,7 @@ class CarreterasIncapacidades2026Seeder extends Seeder
             }
 
             $tipoId = $this->asegurarTipoIncapacidad($ahora);
-            [$resueltas, $coincidenciasPorNombre] = $this->resolverPersonal($filas, $unidadId);
+            [$resueltas, $coincidenciasPorNombre, $omitidas] = $this->resolverPersonal($filas, $unidadId);
             $this->validarFilas($resueltas);
 
             $insertadas = 0;
@@ -100,11 +110,21 @@ class CarreterasIncapacidades2026Seeder extends Seeder
                 $insertadas++;
             }
 
+            if ($omitidas !== []) {
+                $nombresOmitidos = array_values(array_unique(array_column($omitidas, 'nombre')));
+                $this->command?->warn(sprintf(
+                    '%d registros omitidos porque el personal no existe en Carreteras: %s.',
+                    count($omitidas),
+                    implode(', ', $nombresOmitidos)
+                ));
+            }
+
             $this->command?->info(sprintf(
-                'Incapacidades Carreteras 2026: %d insertadas, %d actualizadas, %d ya existentes; %d personas; %d coincidencias resueltas por nombre.',
+                'Incapacidades Carreteras 2026: %d insertadas, %d actualizadas, %d ya existentes, %d omitidas; %d personas; %d coincidencias resueltas por nombre.',
                 $insertadas,
                 $actualizadas,
                 $existentes,
+                count($omitidas),
                 count(array_unique(array_column($resueltas, 'personal_id'))),
                 $coincidenciasPorNombre
             ));
@@ -177,6 +197,7 @@ class CarreterasIncapacidades2026Seeder extends Seeder
 
         $errores = [];
         $resueltas = [];
+        $omitidas = [];
         $coincidenciasPorNombre = 0;
 
         foreach ($filas as $fila) {
@@ -190,6 +211,11 @@ class CarreterasIncapacidades2026Seeder extends Seeder
             }
 
             if (count($coincidencias) !== 1) {
+                if (in_array($curp, self::CURP_OMITIBLES, true)) {
+                    $omitidas[] = $fila;
+                    continue;
+                }
+
                 $errores[] = sprintf(
                     'fila %d: %s, CURP %s (%d coincidencias)',
                     $fila['row'],
@@ -216,15 +242,15 @@ class CarreterasIncapacidades2026Seeder extends Seeder
             );
         }
 
-        return [$resueltas, $coincidenciasPorNombre];
+        if ($resueltas === []) {
+            throw new RuntimeException('No se resolvió ninguna persona para cargar incapacidades.');
+        }
+
+        return [$resueltas, $coincidenciasPorNombre, $omitidas];
     }
 
     private function validarFilas(array $filas): void
     {
-        if (count($filas) !== 153) {
-            throw new RuntimeException('La carga debe contener exactamente 153 incapacidades.');
-        }
-
         $claves = [];
 
         foreach ($filas as $fila) {

@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GruaUsuario;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\LocationTrackingEligibilityService;
 use App\Services\LicenciaPuntosTurnoAccessService;
 use App\Support\HechoAccess;
 use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +23,54 @@ class AuthController extends Controller
     public function __construct()
     {
         $this->middleware('throttle:login')->only('login');
+        $this->middleware('throttle:register')->only('register');
+    }
+
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'min:3', 'max:120'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
+            'account_type' => ['nullable', 'in:ciudadano'],
+        ]);
+
+        $email = mb_strtolower(trim((string) $validated['email']));
+        $name = preg_replace('/\s+/', ' ', trim((string) $validated['name']));
+
+        $user = DB::transaction(function () use ($validated, $email, $name) {
+            // The public endpoint always assigns this isolated role. No role,
+            // unit or permission sent by a client is ever considered.
+            $citizenRole = Role::query()->firstOrCreate([
+                'name' => 'Ciudadano',
+                'guard_name' => 'web',
+            ], [
+                'unidad_id' => null,
+            ]);
+
+            $user = User::query()->create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make($validated['password']),
+                'estado' => 'ACTIVO',
+                'compartir_ubicacion' => false,
+                'receive_waze_alerts' => false,
+            ]);
+
+            $user->assignRole($citizenRole);
+
+            return $user;
+        });
+
+        return response()->json([
+            'message' => 'Cuenta creada correctamente.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => ['name' => 'Ciudadano'],
+            ],
+        ], 201);
     }
 
     public function login(Request $request)

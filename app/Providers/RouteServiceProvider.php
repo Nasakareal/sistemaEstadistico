@@ -80,5 +80,15 @@ class RouteServiceProvider extends ServiceProvider
                 Limit::perHour(30)->by('login-ip:' . hash('sha256', $ip)),
             ];
         });
+
+        RateLimiter::for('register', function (Request $request) {
+            $identity = Str::lower(trim((string) $request->input('email')));
+            $ip = (string) $request->ip();
+
+            return [
+                Limit::perMinutes(10, 3)->by('register-identity:' . hash('sha256', $identity . '|' . $ip)),
+                Limit::perHour(10)->by('register-ip:' . hash('sha256', $ip)),
+            ];
+        });
     }
 }

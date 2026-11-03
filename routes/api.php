@@ -85,6 +85,7 @@ Route::prefix('whatsapp-web-reader')->group(function () {
 });
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->name('api.register');
 
 Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
 

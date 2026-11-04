@@ -101,6 +101,86 @@ class CaleaEncuestaController extends Controller
         return response()->json(['message' => 'Encuesta creada y asignada.', 'data' => $this->resumen($survey->loadCount('preguntas'))], 201);
     }
 
+    public function show(Request $request, CaleaEncuesta $encuesta)
+    {
+        $actor = $this->admin($request);
+        abort_unless($this->global($actor) || (int) $encuesta->unidad_id === (int) $actor->unidad_id, 403, 'No puedes consultar encuestas de otra unidad.');
+        $encuesta->loadCount(['preguntas', 'intentos'])->load(['preguntas.opciones', 'asignaciones']);
+        return response()->json(['data' => $this->detalle($encuesta)]);
+    }
+
+    public function update(Request $request, CaleaEncuesta $encuesta)
+    {
+        $actor = $this->admin($request);
+        abort_unless($this->global($actor) || (int) $encuesta->unidad_id === (int) $actor->unidad_id, 403, 'No puedes editar encuestas de otra unidad.');
+        $data = $request->validate([
+            'titulo' => 'required|string|max:180', 'descripcion' => 'nullable|string|max:3000',
+            'duracion_minutos' => 'required|integer|min:1|max:180', 'calificacion_minima' => 'required|integer|min:0|max:100',
+            'activa' => 'sometimes|boolean', 'permite_externos' => 'sometimes|boolean',
+            'disponible_desde' => 'nullable|date', 'disponible_hasta' => 'nullable|date|after:disponible_desde',
+            'asignacion.tipo' => ['required', Rule::in(['todos', 'unidad', 'usuarios'])],
+            'asignacion.unidad_id' => 'nullable|integer|exists:unidades,id', 'asignacion.usuarios' => 'nullable|array|max:500',
+            'asignacion.usuarios.*' => 'integer|exists:users,id',
+            'preguntas' => 'required|array|min:1|max:100', 'preguntas.*.id' => 'nullable|integer',
+            'preguntas.*.texto' => 'required|string|max:2000',
+            'preguntas.*.tipo' => ['required', Rule::in(['opcion_unica', 'texto'])], 'preguntas.*.puntos' => 'nullable|integer|min:0|max:100',
+            'preguntas.*.opciones' => 'required_if:preguntas.*.tipo,opcion_unica|array',
+            'preguntas.*.opciones.*.id' => 'nullable|integer',
+            'preguntas.*.opciones.*.texto' => 'required|string|max:1000', 'preguntas.*.opciones.*.es_correcta' => 'sometimes|boolean',
+        ]);
+
+        $this->validarAsignacion($actor, $data['asignacion']);
+        foreach ($data['preguntas'] as $index => $pregunta) {
+            if ($pregunta['tipo'] === 'opcion_unica') {
+                $options = $pregunta['opciones'] ?? [];
+                abort_unless(count($options) >= 2, 422, 'La pregunta '.($index + 1).' necesita al menos dos opciones.');
+                abort_unless(collect($options)->where('es_correcta', true)->count() === 1, 422, 'La pregunta '.($index + 1).' debe tener exactamente una respuesta correcta.');
+            }
+        }
+
+        DB::transaction(function () use ($data, $actor, $encuesta) {
+            $encuesta->update([
+                'titulo' => trim($data['titulo']), 'descripcion' => $data['descripcion'] ?? null,
+                'duracion_minutos' => $data['duracion_minutos'], 'calificacion_minima' => $data['calificacion_minima'],
+                'activa' => $data['activa'] ?? true, 'permite_externos' => $data['permite_externos'] ?? false,
+                'codigo_publico' => !empty($data['permite_externos']) ? ($encuesta->codigo_publico ?: strtoupper(Str::random(10))) : $encuesta->codigo_publico,
+                'unidad_id' => $this->global($actor) ? ($data['asignacion']['unidad_id'] ?? $actor->unidad_id) : $actor->unidad_id,
+                'disponible_desde' => $data['disponible_desde'] ?? null, 'disponible_hasta' => $data['disponible_hasta'] ?? null,
+            ]);
+
+            $encuesta->asignaciones()->delete();
+            $this->crearAsignaciones($encuesta, $actor, $data['asignacion']);
+
+            $hasAttempts = $encuesta->intentos()->exists();
+            if ($hasAttempts) {
+                $existingQuestions = $encuesta->preguntas()->with('opciones')->get()->keyBy('id');
+                $receivedIds = collect($data['preguntas'])->pluck('id')->filter()->map(fn ($id) => (int) $id)->sort()->values();
+                abort_unless($receivedIds->all() === $existingQuestions->keys()->map(fn ($id) => (int) $id)->sort()->values()->all(), 422, 'Ya existen respuestas; no puedes agregar ni eliminar preguntas.');
+                foreach ($data['preguntas'] as $i => $row) {
+                    $question = $existingQuestions->get((int) $row['id']);
+                    abort_unless($question && $question->tipo === $row['tipo'], 422, 'Ya existen respuestas; no puedes cambiar el tipo de pregunta.');
+                    $question->update(['texto' => trim($row['texto']), 'orden' => $i + 1, 'puntos' => $row['puntos'] ?? 1]);
+                    $existingOptions = $question->opciones->keyBy('id');
+                    $receivedOptions = collect($row['opciones'] ?? [])->pluck('id')->filter()->map(fn ($id) => (int) $id)->sort()->values();
+                    abort_unless($receivedOptions->all() === $existingOptions->keys()->map(fn ($id) => (int) $id)->sort()->values()->all(), 422, 'Ya existen respuestas; no puedes agregar ni eliminar opciones.');
+                    foreach (($row['opciones'] ?? []) as $j => $optionRow) {
+                        $option = $existingOptions->get((int) $optionRow['id']);
+                        abort_unless($option && (bool) $option->es_correcta === (bool) ($optionRow['es_correcta'] ?? false), 422, 'Ya existen respuestas; no puedes cambiar la respuesta correcta.');
+                        $option->update(['texto' => trim($optionRow['texto']), 'orden' => $j + 1]);
+                    }
+                }
+            } else {
+                $encuesta->preguntas()->delete();
+                foreach ($data['preguntas'] as $i => $row) {
+                    $question = CaleaEncuestaPregunta::create(['encuesta_id' => $encuesta->id, 'texto' => trim($row['texto']), 'tipo' => $row['tipo'], 'orden' => $i + 1, 'puntos' => $row['puntos'] ?? 1, 'obligatoria' => true]);
+                    foreach (($row['opciones'] ?? []) as $j => $option) CaleaEncuestaOpcion::create(['pregunta_id' => $question->id, 'texto' => trim($option['texto']), 'orden' => $j + 1, 'es_correcta' => $option['es_correcta'] ?? false]);
+                }
+            }
+        });
+
+        return response()->json(['message' => 'Encuesta actualizada.', 'data' => $this->resumen($encuesta->fresh()->loadCount(['preguntas', 'intentos']))]);
+    }
+
     public function iniciar(Request $request, CaleaEncuesta $encuesta)
     {
         $user = $request->user();
@@ -181,19 +261,29 @@ class CaleaEncuestaController extends Controller
         $rows = CaleaEncuestaIntento::query()
             ->where('encuesta_id', $encuesta->id)
             ->leftJoin('users', 'users.id', '=', 'calea_encuesta_intentos.user_id')
-            ->select('calea_encuesta_intentos.*', 'users.name as usuario_nombre')
+            ->select('calea_encuesta_intentos.*', 'users.name as usuario_nombre', 'users.email as usuario_email')
+            ->with(['respuestas.pregunta:id,texto,tipo', 'respuestas.opcion:id,texto'])
             ->orderByDesc('calea_encuesta_intentos.id')->get()
             ->map(fn ($row) => [
                 'id' => $row->id,
                 'user_id' => $row->user_id,
                 'participante' => $row->usuario_nombre ?: $row->participante_nombre ?: 'Participante externo',
                 'identificador' => $row->participante_identificador,
+                'email' => $row->usuario_email ?: $row->participante_email,
+                'telefono' => $row->participante_telefono,
                 'estado' => $row->estado,
                 'numero_intento' => $row->numero_intento,
                 'iniciado_at' => optional($row->iniciado_at)->toIso8601String(),
                 'finalizado_at' => optional($row->finalizado_at)->toIso8601String(),
                 'calificacion' => $row->calificacion,
                 'aprobado' => $row->aprobado,
+                'respuestas' => $row->respuestas->sortBy(fn ($respuesta) => optional($respuesta->pregunta)->id)->values()->map(fn ($respuesta) => [
+                    'pregunta_id' => $respuesta->pregunta_id,
+                    'pregunta' => optional($respuesta->pregunta)->texto ?: 'Pregunta eliminada',
+                    'tipo' => optional($respuesta->pregunta)->tipo,
+                    'respuesta' => optional($respuesta->opcion)->texto ?: $respuesta->respuesta_texto,
+                    'correcta' => $respuesta->correcta,
+                ]),
             ]);
         return response()->json(['data' => $rows]);
     }
@@ -236,6 +326,31 @@ class CaleaEncuestaController extends Controller
     }
 
     private function resumen($e): array { return ['id' => $e->id, 'titulo' => $e->titulo, 'descripcion' => $e->descripcion, 'duracion_minutos' => $e->duracion_minutos, 'calificacion_minima' => $e->calificacion_minima, 'activa' => $e->activa, 'permite_externos' => $e->permite_externos, 'codigo_publico' => $e->codigo_publico, 'unidad_id' => $e->unidad_id, 'disponible_desde' => optional($e->disponible_desde)->toIso8601String(), 'disponible_hasta' => optional($e->disponible_hasta)->toIso8601String(), 'preguntas_count' => $e->preguntas_count ?? null, 'intentos_count' => $e->intentos_count ?? null]; }
+    private function detalle(CaleaEncuesta $e): array
+    {
+        $row = $this->resumen($e);
+        $assignments = $e->asignaciones;
+        $all = $assignments->contains(fn ($assignment) => (bool) $assignment->todos);
+        $users = $assignments->whereNotNull('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->values();
+        $unit = optional($assignments->firstWhere('unidad_id', '!=', null))->unidad_id;
+        $row['asignacion'] = [
+            'tipo' => $all ? 'todos' : ($users->isNotEmpty() ? 'usuarios' : 'unidad'),
+            'unidad_id' => $unit ? (int) $unit : $e->unidad_id,
+            'usuarios' => $users,
+        ];
+        $row['preguntas'] = $e->preguntas->map(fn ($question) => [
+            'id' => $question->id,
+            'texto' => $question->texto,
+            'tipo' => $question->tipo,
+            'puntos' => $question->puntos,
+            'opciones' => $question->opciones->map(fn ($option) => [
+                'id' => $option->id,
+                'texto' => $option->texto,
+                'es_correcta' => $option->es_correcta,
+            ])->values(),
+        ])->values();
+        return $row;
+    }
     private function vigente(CaleaEncuesta $e): void { abort_unless($e->activa, 409, 'La encuesta no está activa.'); abort_if($e->disponible_desde && $e->disponible_desde->isFuture(), 409, 'La encuesta aún no está disponible.'); abort_if($e->disponible_hasta && $e->disponible_hasta->isPast(), 409, 'La encuesta ya expiró.'); }
     private function asignada(CaleaEncuesta $e, User $u): bool { return $e->asignaciones()->where(fn ($q) => $q->where('todos', true)->orWhere('user_id', $u->id)->when($u->unidad_id, fn ($x) => $x->orWhere('unidad_id', $u->unidad_id)))->exists(); }
     private function intentoAutorizado(Request $r, string $uuid): CaleaEncuestaIntento { $a = CaleaEncuestaIntento::where('uuid', $uuid)->firstOrFail(); abort_if($a->user_id && (!$r->user() || $r->user()->id !== $a->user_id), 403); return $a; }

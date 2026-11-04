@@ -72,6 +72,14 @@ class SecurityEvent extends Model
         );
     }
 
+    public function scopeMappableThreats($query)
+    {
+        return $query->where(function ($query) {
+            $query->where('event_code', 'like', 'honeypot\_%')
+                ->orWhere('event_code', 'suspicious_path_probe');
+        });
+    }
+
     public function intentLabel(): string
     {
         if (strpos((string) $this->event_code, 'honeypot_') === 0) {

@@ -2,13 +2,17 @@
 
 namespace Tests\Unit;
 
+use App\Models\SecurityEvent;
 use App\Services\IpGeolocationService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class IpGeolocationServiceTest extends TestCase
 {
+    use DatabaseTransactions;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -55,5 +59,45 @@ class IpGeolocationServiceTest extends TestCase
 
         $this->assertSame('non_public', $location['status']);
         Http::assertNothingSent();
+    }
+
+    public function test_scheduled_command_geolocates_suspicious_path_probes(): void
+    {
+        Http::fake([
+            'https://ipinfo.io/*' => Http::response([
+                'city' => 'Morelia',
+                'region' => 'Michoacán',
+                'country' => 'MX',
+                'loc' => '19.7060,-101.1950',
+                'org' => 'AS64500 Red de prueba',
+            ]),
+        ]);
+
+        $event = SecurityEvent::create([
+            'occurred_at' => now(),
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+            'bucket_at' => now()->startOfMinute(),
+            'occurrences' => 1,
+            'severity' => 'high',
+            'category' => 'reconnaissance',
+            'event_code' => 'suspicious_path_probe',
+            'description' => 'Sonda pendiente de geolocalización',
+            'ip_address' => '8.8.4.4',
+            'method' => 'GET',
+            'path' => '/.env',
+            'status_code' => 404,
+            'metadata' => [],
+            'fingerprint' => hash('sha256', 'geolocate-suspicious-probe-test'),
+        ]);
+
+        $this->artisan('security:geolocate-honeypot --limit=1')
+            ->expectsOutput('Se geolocalizaron 1 eventos de actividad maliciosa.')
+            ->assertExitCode(0);
+
+        $event->refresh();
+
+        $this->assertSame('Morelia', $event->metadata['source_geo']['city']);
+        $this->assertSame(19.706, $event->metadata['source_geo']['latitude']);
     }
 }

@@ -120,8 +120,8 @@ class SecurityEventController extends Controller
             ->pluck('event_code');
 
         $reviewThreshold = (int) config('security_logging.review_ip_threshold', 20);
-        $honeypotMapPoints = SecurityEvent::query()
-            ->where('event_code', 'like', 'honeypot\_%')
+        $attackMapPoints = SecurityEvent::query()
+            ->mappableThreats()
             ->where('last_seen_at', '>=', Carbon::now()->subDay())
             ->orderByDesc('last_seen_at')
             ->limit(1000)
@@ -156,7 +156,7 @@ class SecurityEventController extends Controller
             'eventCodes',
             'filters',
             'reviewThreshold',
-            'honeypotMapPoints'
+            'attackMapPoints'
         ));
     }
 

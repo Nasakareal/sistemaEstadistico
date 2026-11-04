@@ -157,12 +157,12 @@
 
     <div class="card card-outline card-info">
         <div class="card-header d-flex align-items-center">
-            <h3 class="card-title"><i class="fas fa-globe-americas mr-1"></i>Mapa aproximado del honeypot — últimas 24 horas</h3>
-            <span class="badge badge-info ml-auto">{{ number_format(count($honeypotMapPoints)) }} ubicaciones</span>
+            <h3 class="card-title"><i class="fas fa-globe-americas mr-1"></i>Mapa aproximado de actividad maliciosa — últimas 24 horas</h3>
+            <span class="badge badge-info ml-auto">{{ number_format(count($attackMapPoints)) }} ubicaciones</span>
         </div>
         <div class="card-body p-0 position-relative">
             <div id="honeypotAttackMap" class="honeypot-attack-map"></div>
-            @if(empty($honeypotMapPoints))
+            @if(empty($attackMapPoints))
                 <div class="honeypot-map-empty">
                     <i class="fas fa-map-marked-alt mr-1"></i>
                     Aún no hay eventos geolocalizados. El proceso programado agrega la ubicación después de registrar el ataque.
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const node = document.getElementById('honeypotAttackMap');
     if (!node || typeof L === 'undefined') return;
 
-    const points = {!! json_encode($honeypotMapPoints, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
+    const points = {!! json_encode($attackMapPoints, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
     const map = L.map(node, { worldCopyJump: true, minZoom: 2 }).setView([20, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,

@@ -53,8 +53,47 @@ class SecurityEventDashboardTest extends TestCase
             ->assertSee('Eventos de Seguridad')
             ->assertSee('192.0.2.80')
             ->assertSee('login_failed')
-            ->assertSee('Mapa aproximado del honeypot')
+            ->assertSee('Mapa aproximado de actividad maliciosa')
             ->assertSee('Intención probable');
+    }
+
+    public function test_suspicious_path_probe_with_location_is_drawn_on_attack_map(): void
+    {
+        $user = $this->userWithSettingsPermission();
+        $role = Role::firstOrCreate(['name' => 'Superadmin', 'guard_name' => 'web']);
+        $user->assignRole($role);
+
+        SecurityEvent::create([
+            'occurred_at' => now(),
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+            'bucket_at' => now()->startOfMinute(),
+            'occurrences' => 4,
+            'severity' => 'high',
+            'category' => 'reconnaissance',
+            'event_code' => 'suspicious_path_probe',
+            'description' => 'Sonda geolocalizada',
+            'ip_address' => '8.8.8.8',
+            'method' => 'GET',
+            'path' => '/.env',
+            'status_code' => 404,
+            'metadata' => [
+                'source_geo' => [
+                    'latitude' => 19.4326,
+                    'longitude' => -99.1332,
+                    'country' => 'México',
+                    'city' => 'Ciudad de México',
+                ],
+            ],
+            'fingerprint' => hash('sha256', 'mapped-suspicious-probe-test'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/settings/security-events')
+            ->assertOk()
+            ->assertSeeText('1 ubicaciones')
+            ->assertSee('19.4326', false)
+            ->assertSee('suspicious_path_probe');
     }
 
     public function test_dashboard_hides_known_operational_noise_without_deleting_it(): void

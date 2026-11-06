@@ -23,7 +23,8 @@ class MichoacanAlVolantePublicTest extends TestCase
             ->assertSee('Simular examen')
             ->assertSee('Detecta el peligro')
             ->assertSee('¿Quién pasa primero?')
-            ->assertSee('Un segundo antes');
+            ->assertSee('Un segundo antes')
+            ->assertSee('Ruta segura');
     }
 
     public function test_question_bank_contains_valid_training_questions(): void

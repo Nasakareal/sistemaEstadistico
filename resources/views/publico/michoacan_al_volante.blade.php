@@ -85,13 +85,16 @@
                 </div>
                 <div class="game-grid">
                     <button class="game-card hazard" type="button" data-open-game="hazard">
-                        <span class="game-art">⚠️</span><span class="game-number">01</span><strong>Detecta el peligro</strong><small>Reflejos y observación</small><b>Jugar ahora</b>
+                        <span class="game-art">⚠️</span><span class="game-number">01</span><strong>Detecta el peligro</strong><small>8 escenas · 2 etapas de reflejos y observación</small><b>Iniciar recorrido</b>
                     </button>
                     <button class="game-card priority" type="button" data-open-game="priority">
                         <span class="game-art">🚦</span><span class="game-number">02</span><strong>¿Quién pasa primero?</strong><small>Rompecabezas de cruces</small><b>Resolver cruces</b>
                     </button>
                     <button class="game-card decision" type="button" data-open-game="decision">
                         <span class="game-art">↩️</span><span class="game-number">03</span><strong>Un segundo antes</strong><small>Cambia el desenlace</small><b>Tomar decisiones</b>
+                    </button>
+                    <button class="game-card journey" type="button" data-open-game="journey">
+                        <span class="game-art">🗺️</span><span class="game-number">04</span><strong>Ruta segura</strong><small>10, 20 o 30 riesgos · recorrido aleatorio</small><b>Iniciar recorrido</b>
                     </button>
                 </div>
             </section>

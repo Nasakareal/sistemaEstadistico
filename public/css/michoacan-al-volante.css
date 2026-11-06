@@ -169,7 +169,7 @@ h1, h2, h3, p { margin-top: 0; }
 .progress-track { height: 9px; margin-bottom: 25px; overflow: hidden; border-radius: 99px; background: #e6eef2; }
 .progress-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), #26bda8); transition: width .25s ease; }
 .question-grid { display: grid; grid-template-columns: minmax(230px, .8fr) 1.25fr; gap: 30px; align-items: start; }
-.question-image { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 20px; background: #eaf3f7; }
+.question-image { width: 100%; aspect-ratio: 4/3; object-fit: contain; border-radius: 20px; background: #eaf3f7; }
 .category-chip { display: inline-block; margin-bottom: 13px; padding: 7px 11px; border-radius: 99px; background: #eaf5f7; color: var(--blue); font-size: 12px; font-weight: 900; }
 .question-copy h2 { margin-bottom: 22px; color: var(--navy); font-size: clamp(22px, 3vw, 31px); line-height: 1.25; }
 .answers { display: grid; gap: 10px; }
@@ -361,7 +361,7 @@ h1, h2, h3, p { margin-top: 0; }
 .mav-route-lengths span { font-weight:900; }
 .mav-route-lengths small { margin-top:5px; color:var(--muted); font-size:10px; }
 
-.mav-route-status { display:grid; grid-template-columns:auto minmax(220px,1fr) auto; align-items:center; gap:18px; margin-bottom:15px; padding:13px 17px; border-radius:17px; color:white; background:var(--navy); }
+.mav-route-status { display:grid; grid-template-columns:auto minmax(220px,1fr) auto auto; align-items:center; gap:14px; margin-bottom:15px; padding:13px 17px; border-radius:17px; color:white; background:var(--navy); }
 .mav-route-status > div:first-child, .mav-route-status > div:last-child { display:grid; }
 .mav-route-status span { color:#a9c0cf; font-size:9px; font-weight:900; letter-spacing:.12em; }
 .mav-route-status strong { margin-top:2px; font-size:13px; }
@@ -370,9 +370,13 @@ h1, h2, h3, p { margin-top: 0; }
 .mav-route-meter::before { content:''; grid-column:1; grid-row:1; height:8px; border-radius:99px; background:rgba(255,255,255,.2); }
 .mav-route-meter i { z-index:2; grid-column:1; grid-row:1; height:8px; border-radius:99px; background:#40d29e; transition:width .3s ease; }
 .mav-route-meter b { padding-right:7px; font-size:10px; white-space:nowrap; }
+.mav-route-sound { display:grid; place-items:center; width:39px; height:39px; border:1px solid rgba(255,255,255,.23); border-radius:11px; color:white; background:rgba(255,255,255,.1); cursor:pointer; font-size:18px; }
+.mav-route-sound:hover { background:rgba(255,255,255,.2); transform:translateY(-1px); }
 .mav-route-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr); gap:22px; align-items:stretch; }
 .mav-route-map { position:relative; overflow:hidden; min-height:590px; border:12px solid var(--navy); border-radius:27px; background:#bfe5ce; box-shadow:0 18px 40px rgba(16,45,71,.18); }
 .mav-route-scene-bg { position:absolute; z-index:0; inset:0; width:100%; height:100%; object-fit:cover; }
+.mav-route-map.phase-driving .mav-route-scene-bg { animation:mav-scene-arrive 1.9s cubic-bezier(.2,.72,.25,1) both; }
+@keyframes mav-scene-arrive { from { scale:1.22; filter:blur(2px); } to { scale:1; filter:blur(0); } }
 .mav-route-road { position:absolute; z-index:2; inset:-5% 21%; overflow:hidden; background:#3d5667; box-shadow:inset 7px 0 #f2de9f,inset -7px 0 #f2de9f; }
 .mav-route-line { position:absolute; top:0; bottom:0; width:6px; translate:-50% 0; background:repeating-linear-gradient(to bottom,#fff0ae 0 32px,transparent 32px 72px); }
 .mav-route-line.line-a { left:33.33%; }
@@ -440,9 +444,24 @@ h1, h2, h3, p { margin-top: 0; }
 
 .mav-route-rails { position:absolute; z-index:5; top:23%; right:-30%; left:-30%; height:66px; background:repeating-linear-gradient(to right,#7a5b43 0 13px,transparent 13px 28px); border-top:7px solid #ccd5d8; border-bottom:7px solid #ccd5d8; }
 .mav-route-barrier { position:absolute; z-index:8; top:19%; left:8%; width:84%; height:13px; border-radius:7px; background:repeating-linear-gradient(to right,#fff 0 28px,#cf3f4d 28px 56px); transform-origin:left; }
-.mav-route-train { position:absolute; z-index:7; top:18%; right:-5%; font-size:70px; }
-.scene-railroad.phase-outcome.choice-1 .mav-route-train { animation:mav-train-pass .8s linear both; }
-@keyframes mav-train-pass { to { right:74%; } }
+.mav-route-train { position:absolute; z-index:7; top:18%; left:-96%; width:390px; height:130px; object-fit:contain; opacity:0; filter:drop-shadow(0 8px 5px rgba(0,0,0,.34)); }
+.scene-railroad.phase-driving .mav-route-barrier { animation:mav-barrier-lower 1.9s ease-out both; }
+.scene-railroad.phase-driving .mav-route-train { animation:mav-train-preview 1.9s ease-out both; }
+.scene-railroad.phase-outcome.choice-0 .mav-route-car { animation:mav-rail-stop .85s ease-out both; }
+.scene-railroad.phase-outcome.choice-0 .mav-route-train { animation:mav-train-pass 1.65s linear both; }
+.scene-railroad.phase-outcome.choice-1 .mav-route-car { animation:mav-rail-enter 1s ease-in both; }
+.scene-railroad.phase-outcome.choice-1 .mav-route-train { animation:mav-train-hit 1s linear both; }
+.scene-railroad.phase-outcome.choice-1 .mav-route-impact { top:28%; left:48%; animation:mav-impact 1s ease-in both; }
+.scene-railroad.phase-outcome.choice-2 .mav-route-car { animation:mav-rail-trapped 1s ease-out both; }
+.scene-railroad.phase-outcome.choice-2 .mav-route-train { animation:mav-train-near 1.15s ease-out both; }
+@keyframes mav-barrier-lower { from { transform:rotate(-76deg); } to { transform:rotate(0); } }
+@keyframes mav-train-preview { 0%,45% { left:-96%; opacity:0; } 100% { left:-72%; opacity:.8; } }
+@keyframes mav-train-pass { 0% { left:-100%; opacity:1; } 100% { left:105%; opacity:1; } }
+@keyframes mav-train-hit { 0% { left:-100%; opacity:1; } 82%,100% { left:-3%; opacity:1; } }
+@keyframes mav-train-near { 0% { left:-100%; opacity:1; } 100% { left:-36%; opacity:1; } }
+@keyframes mav-rail-stop { to { transform:translateY(-145px); } }
+@keyframes mav-rail-enter { to { transform:translateY(-275px) rotate(3deg); } }
+@keyframes mav-rail-trapped { to { transform:translateY(-245px); } }
 
 .mav-route-special { top:18%; left:50%; translate:-50% 0; }
 .prop-emergency { width:100px; height:148px; }
@@ -465,6 +484,17 @@ h1, h2, h3, p { margin-top: 0; }
 .mav-route-merge { position:absolute; z-index:6; top:17%; right:17%; color:white; font-size:65px; }
 .merge-car { bottom:29%; left:auto; right:-4%; opacity:1; transform:rotate(-12deg); }
 .aggressive-car { bottom:-2%; left:19%; opacity:1; }
+.phone-rival { bottom:32%; left:18%; opacity:1; }
+.weather-rival { top:17%; bottom:auto; left:50%; opacity:.72; }
+.night-oncoming { top:13%; left:30%; opacity:1; }
+.mav-route-crash-tree { position:absolute; z-index:8; top:25%; right:-28%; font-size:74px; filter:drop-shadow(0 8px 4px rgba(0,0,0,.28)); }
+.mav-route-seatbelt { position:absolute; z-index:8; top:20%; left:50%; width:66px; height:70px; translate:-50% 0; color:#d39a31; opacity:0; font-size:70px; font-weight:900; transform:rotate(-12deg); }
+
+/* El recorrido de llegada conserva la escena: el auto entra al encuadre y el riesgo se acerca. */
+.mav-route-map.phase-driving.scene-intersection .mav-route-car,
+.mav-route-map.phase-driving.scene-roundabout .mav-route-car,
+.mav-route-map.phase-driving.scene-curve .mav-route-car { animation:mav-special-approach 1.9s cubic-bezier(.25,.7,.3,1) both; }
+@keyframes mav-special-approach { from { bottom:-27%; scale:.78; } to { bottom:7%; scale:1; } }
 
 /* Consecuencias visibles: frenar, evadir o chocar según la opción. */
 .scene-breakdown.phase-outcome.choice-0 .mav-route-car { animation:mav-pass-obstacle 1.15s ease-in-out both; }
@@ -498,10 +528,10 @@ h1, h2, h3, p { margin-top: 0; }
 .scene-roundabout.phase-outcome.choice-1 .mav-route-impact { top:56%; left:56%; animation:mav-impact .9s ease-in both; }
 .scene-roundabout.phase-outcome.choice-2 .mav-route-car { animation:mav-roundabout-stop-inside 1s ease-out both; }
 @keyframes mav-roundabout-yield { to { transform:translateY(-55px); } }
-@keyframes mav-roundabout-pass { 45% { right:34%; top:31%; transform:rotate(-100deg); } 100% { right:45%; top:46%; transform:rotate(-175deg); } }
-@keyframes mav-roundabout-enter { to { transform:translate(70px,-210px) rotate(22deg); } }
-@keyframes mav-roundabout-conflict { to { right:36%; top:44%; transform:rotate(-95deg); } }
-@keyframes mav-roundabout-stop-inside { to { transform:translate(10px,-225px) rotate(12deg); } }
+@keyframes mav-roundabout-pass { 0% { top:37%; right:17%; transform:rotate(-42deg); } 45% { top:28%; right:35%; transform:rotate(-108deg); } 100% { top:44%; right:51%; transform:rotate(-185deg); } }
+@keyframes mav-roundabout-enter { 0%,30% { transform:translateY(-55px); } 100% { transform:translate(74px,-158px) rotate(24deg); } }
+@keyframes mav-roundabout-conflict { 0% { top:37%; right:17%; transform:rotate(-42deg); } 100% { top:50%; right:27%; transform:rotate(-74deg); } }
+@keyframes mav-roundabout-stop-inside { 0%,25% { transform:translateY(-55px); } 100% { transform:translate(42px,-185px) rotate(20deg); } }
 
 .scene-truck.phase-outcome.choice-0 .mav-route-car { animation:mav-truck-distance .9s ease-out both; }
 .scene-truck.phase-outcome.choice-0 .prop-truck { animation:mav-truck-away .9s ease-out both; }
@@ -525,6 +555,171 @@ h1, h2, h3, p { margin-top: 0; }
 @keyframes mav-cut-curve { to { transform:translate(-118px,-185px) rotate(-22deg); } }
 @keyframes mav-curve-oncoming { 0% { opacity:0; top:-22%; } 25% { opacity:1; } 100% { opacity:1; top:43%; left:43%; transform:rotate(180deg); } }
 .scene-curve.phase-outcome .mav-route-signal { opacity:0; animation:mav-show-result .28s 1.05s ease forwards; }
+
+/* Peatones y riesgos que aparecen desde una zona oculta. */
+.scene-crosswalk.phase-outcome.choice-0 .mav-route-car,
+.scene-school.phase-outcome.choice-0 .mav-route-car,
+.scene-hidden-person.phase-outcome.choice-0 .mav-route-car,
+.scene-ball.phase-outcome.choice-0 .mav-route-car { animation:mav-pedestrian-stop .9s ease-out both; }
+.scene-crosswalk.phase-outcome.choice-0 .mav-route-person,
+.scene-school.phase-outcome.choice-0 .mav-route-person,
+.scene-hidden-person.phase-outcome.choice-0 .mav-route-person { animation:mav-person-finish 1.2s .25s ease-in-out both; }
+.scene-crosswalk.phase-outcome.result-medium .mav-route-car,
+.scene-school.phase-outcome.result-medium .mav-route-car,
+.scene-hidden-person.phase-outcome.result-medium .mav-route-car,
+.scene-ball.phase-outcome.result-medium .mav-route-car { animation:mav-late-brake 1s ease-out both; }
+.scene-crosswalk.phase-outcome.result-danger .mav-route-car,
+.scene-school.phase-outcome.result-danger .mav-route-car,
+.scene-hidden-person.phase-outcome.result-danger .mav-route-car,
+.scene-ball.phase-outcome.result-danger .mav-route-car { animation:mav-pedestrian-conflict 1s ease-in both; }
+.scene-crosswalk.phase-outcome.result-danger .mav-route-impact,
+.scene-school.phase-outcome.result-danger .mav-route-impact,
+.scene-hidden-person.phase-outcome.result-danger .mav-route-impact,
+.scene-ball.phase-outcome.result-danger .mav-route-impact { top:29%; left:48%; animation:mav-impact 1s ease-in both; }
+@keyframes mav-pedestrian-stop { to { transform:translateY(-105px); } }
+@keyframes mav-person-finish { to { left:77%; } }
+@keyframes mav-late-brake { 70% { transform:translateY(-205px); } 100% { transform:translateY(-170px); } }
+@keyframes mav-pedestrian-conflict { to { transform:translateY(-265px); } }
+
+/* Pérdida de adherencia o de control: el auto abandona el carril; no es solo una vibración. */
+.scene-tire .mav-route-road, .scene-fatigue .mav-route-road, .scene-hill .mav-route-road { overflow:visible; }
+.scene-tire.phase-outcome.choice-0 .mav-route-car { animation:mav-controlled-shoulder 1.3s ease-out both; }
+.scene-tire.phase-outcome.choice-1 .mav-route-car { animation:mav-spin-tree 1.25s cubic-bezier(.4,0,.8,1) both; }
+.scene-tire.phase-outcome.choice-1 .mav-route-impact { top:31%; left:116%; animation:mav-impact 1.25s ease-in both; }
+.scene-tire.phase-outcome.choice-2 .mav-route-car { animation:mav-swerve-shoulder 1.15s ease-in-out both; }
+.scene-fatigue.phase-outcome.result-danger .mav-route-car,
+.scene-hill.phase-outcome.result-danger .mav-route-car { animation:mav-spin-tree 1.25s cubic-bezier(.4,0,.8,1) both; }
+.scene-fatigue.phase-outcome.result-danger .mav-route-impact,
+.scene-hill.phase-outcome.result-danger .mav-route-impact { top:31%; left:116%; animation:mav-impact 1.25s ease-in both; }
+.scene-fatigue.phase-outcome.result-safe .mav-route-car,
+.scene-hill.phase-outcome.result-safe .mav-route-car { animation:mav-controlled-shoulder 1.2s ease-out both; }
+.scene-fatigue.phase-outcome.result-medium .mav-route-car,
+.scene-hill.phase-outcome.result-medium .mav-route-car { animation:mav-wander-lane 1.15s ease-in-out both; }
+@keyframes mav-controlled-shoulder { 45% { transform:translate(28px,-80px) rotate(4deg); } 100% { transform:translate(118px,-145px) rotate(7deg); } }
+@keyframes mav-spin-tree { 35% { transform:translate(42px,-95px) rotate(13deg); } 72% { transform:translate(145px,-190px) rotate(62deg); } 100% { transform:translate(205px,-230px) rotate(104deg); } }
+@keyframes mav-swerve-shoulder { 30% { transform:translate(84px,-72px) rotate(16deg); } 68% { transform:translate(148px,-140px) rotate(29deg); } 100% { transform:translate(104px,-175px) rotate(-7deg); } }
+@keyframes mav-wander-lane { 35% { transform:translate(-48px,-85px) rotate(-8deg); } 72% { transform:translate(54px,-155px) rotate(11deg); } 100% { transform:translate(24px,-190px) rotate(3deg); } }
+
+/* Clima y visibilidad: el desenlace usa el vehículo que realmente estaba oculto. */
+.scene-rain.phase-outcome.choice-0 .mav-route-car,
+.scene-fog.phase-outcome.choice-0 .mav-route-car { animation:mav-weather-distance 1.1s ease-out both; }
+.scene-rain.phase-outcome.choice-0 .weather-rival,
+.scene-fog.phase-outcome.choice-0 .weather-rival { animation:mav-weather-away 1.1s ease-out both; }
+.scene-rain.phase-outcome.choice-1 .mav-route-car,
+.scene-fog.phase-outcome.choice-2 .mav-route-car { animation:mav-weather-tailgate 1s ease-in both; }
+.scene-rain.phase-outcome.choice-2 .mav-route-car,
+.scene-fog.phase-outcome.choice-1 .mav-route-car { animation:mav-weather-collision 1.1s ease-in both; }
+.scene-rain.phase-outcome.choice-2 .mav-route-impact,
+.scene-fog.phase-outcome.choice-1 .mav-route-impact { top:34%; left:49%; animation:mav-impact 1.1s ease-in both; }
+.scene-night.phase-outcome.choice-0 .mav-route-car { animation:mav-steady-drive 1.1s ease-out both; }
+.scene-night.phase-outcome.choice-0 .night-oncoming { animation:mav-night-pass 1.2s ease-in both; }
+.scene-night.phase-outcome.choice-1 .mav-route-car { animation:mav-night-conflict 1.1s ease-in both; }
+.scene-night.phase-outcome.choice-1 .night-oncoming { animation:mav-night-swerve 1.1s ease-in both; }
+.scene-night.phase-outcome.choice-1 .mav-route-impact { top:48%; left:48%; animation:mav-impact 1.1s ease-in both; }
+.scene-night.phase-outcome.choice-2 .mav-route-car { animation:mav-wander-lane 1.15s ease-in-out both; }
+@keyframes mav-weather-distance { to { transform:translateY(28px); } }
+@keyframes mav-weather-away { to { top:5%; scale:.75; opacity:.55; } }
+@keyframes mav-weather-tailgate { to { transform:translateY(-190px); } }
+@keyframes mav-weather-collision { to { transform:translateY(-285px) rotate(5deg); } }
+@keyframes mav-night-pass { to { top:75%; opacity:1; } }
+@keyframes mav-night-conflict { to { transform:translate(-58px,-205px) rotate(-11deg); } }
+@keyframes mav-night-swerve { to { top:49%; left:43%; transform:rotate(168deg); } }
+.scene-hill.phase-outcome.choice-0 .mav-route-car { animation:mav-steady-drive 1.1s ease-out both; }
+
+/* Cinturón: se muestra colocado, tardío o la inercia del pasajero sin protección. */
+.scene-seatbelt.phase-outcome.choice-0 .mav-route-seatbelt { animation:mav-belt-fasten .75s ease-out both; }
+.scene-seatbelt.phase-outcome.choice-1 .mav-route-car { animation:mav-seatbelt-creep 1s ease-out both; }
+.scene-seatbelt.phase-outcome.choice-1 .mav-route-seatbelt { animation:mav-belt-late 1s ease-out both; }
+.scene-seatbelt.phase-outcome.choice-2 .mav-route-car { animation:mav-brake-check 1s ease-out both; }
+.scene-seatbelt.phase-outcome.choice-2 .seatbelt-event { animation:mav-passenger-lurch 1s ease-in both; }
+.scene-seatbelt.phase-outcome.choice-2 .passenger-impact { top:24%; left:50%; animation:mav-impact 1s ease-in both; }
+@keyframes mav-belt-fasten { from { opacity:0; transform:rotate(-12deg) scale(.55); } to { opacity:1; transform:rotate(-12deg) scale(1); } }
+@keyframes mav-seatbelt-creep { to { transform:translateY(-80px); } }
+@keyframes mav-belt-late { 0%,60% { opacity:0; } 100% { opacity:.65; } }
+@keyframes mav-passenger-lurch { 65% { transform:translate(-50%,-20px) rotate(-7deg); } 100% { transform:translate(-50%,50px) rotate(18deg); } }
+
+/* Vehículos vulnerables y obstáculos: cada mala decisión alcanza físicamente el conflicto. */
+.scene-emergency.phase-outcome.choice-0 .mav-route-car { animation:mav-yield-right 1.1s ease-out both; }
+.scene-emergency.phase-outcome.choice-0 .prop-emergency { animation:mav-emergency-pass 1.15s ease-in both; }
+.scene-emergency.phase-outcome.choice-1 .mav-route-car { animation:mav-stop-short .8s ease-out both; }
+.scene-emergency.phase-outcome.choice-2 .mav-route-car { animation:mav-rear-conflict 1s ease-in both; }
+.scene-emergency.phase-outcome.choice-2 .mav-route-impact { top:42%; left:50%; animation:mav-impact 1s ease-in both; }
+.scene-cyclist.phase-outcome.choice-0 .mav-route-car { animation:mav-pass-wide 1.15s ease-in-out both; }
+.scene-cyclist.phase-outcome.choice-1 .mav-route-car { animation:mav-pass-close 1s ease-in-out both; }
+.scene-cyclist.phase-outcome.choice-2 .mav-route-car,
+.scene-motorcycle.phase-outcome.choice-1 .mav-route-car { animation:mav-side-hit 1s ease-in both; }
+.scene-cyclist.phase-outcome.choice-2 .mav-route-impact,
+.scene-motorcycle.phase-outcome.choice-1 .mav-route-impact { top:35%; left:65%; animation:mav-impact 1s ease-in both; }
+.scene-motorcycle.phase-outcome.choice-0 .mav-route-car { animation:mav-stop-short .9s ease-out both; }
+.scene-motorcycle.phase-outcome.choice-2 .mav-route-car { animation:mav-pass-close 1s ease-in-out both; }
+@keyframes mav-yield-right { to { transform:translate(92px,-100px) rotate(4deg); } }
+@keyframes mav-emergency-pass { to { top:73%; } }
+@keyframes mav-rear-conflict { to { transform:translateY(-210px); } }
+@keyframes mav-pass-wide { 50% { transform:translate(-78px,-120px); } 100% { transform:translate(-78px,-260px); } }
+@keyframes mav-pass-close { 55% { transform:translate(35px,-145px) rotate(4deg); } 100% { transform:translate(12px,-250px); } }
+@keyframes mav-side-hit { to { transform:translate(54px,-245px) rotate(9deg); } }
+
+.scene-bus.phase-outcome.choice-0 .mav-route-car,
+.scene-animal.phase-outcome.choice-0 .mav-route-car,
+.scene-works.phase-outcome.choice-0 .mav-route-car { animation:mav-pedestrian-stop .9s ease-out both; }
+.scene-bus.phase-outcome.result-danger .mav-route-car,
+.scene-animal.phase-outcome.result-danger .mav-route-car,
+.scene-works.phase-outcome.result-danger .mav-route-car { animation:mav-obstacle-hit 1s ease-in both; }
+.scene-bus.phase-outcome.result-danger .mav-route-impact,
+.scene-animal.phase-outcome.result-danger .mav-route-impact,
+.scene-works.phase-outcome.result-danger .mav-route-impact { top:28%; left:50%; animation:mav-impact 1s ease-in both; }
+.scene-bus.phase-outcome.result-medium .mav-route-car,
+.scene-animal.phase-outcome.result-medium .mav-route-car,
+.scene-works.phase-outcome.result-medium .mav-route-car { animation:mav-late-brake 1s ease-out both; }
+@keyframes mav-obstacle-hit { to { transform:translateY(-270px); } }
+
+/* Riesgos laterales y de incorporación. */
+.scene-puddle.phase-outcome.choice-0 .mav-route-car { animation:mav-puddle-safe 1.1s ease-out both; }
+.scene-puddle.phase-outcome.choice-1 .mav-route-car { animation:mav-puddle-swerve 1.1s ease-in-out both; }
+.scene-puddle.phase-outcome.choice-1 .mav-route-impact { top:43%; left:17%; animation:mav-impact 1.1s ease-in both; }
+.scene-puddle.phase-outcome.choice-2 .mav-route-car { animation:mav-aquaplane 1.15s ease-in both; }
+.scene-door.phase-outcome.choice-0 .mav-route-car { animation:mav-door-clear 1.1s ease-in-out both; }
+.scene-door.phase-outcome.choice-1 .mav-route-car { animation:mav-door-hit 1s ease-in both; }
+.scene-door.phase-outcome.choice-1 .mav-route-impact { top:30%; left:82%; animation:mav-impact 1s ease-in both; }
+.scene-door.phase-outcome.choice-2 .mav-route-car { animation:mav-pass-close 1s ease-in-out both; }
+.scene-merge.phase-outcome.choice-0 .merge-car { animation:mav-merge-safe 1.1s ease-out both; }
+.scene-merge.phase-outcome.choice-1 .mav-route-car { animation:mav-merge-block 1s ease-in both; }
+.scene-merge.phase-outcome.choice-1 .merge-car { animation:mav-merge-hit 1s ease-in both; }
+.scene-merge.phase-outcome.choice-1 .mav-route-impact { top:55%; left:67%; animation:mav-impact 1s ease-in both; }
+.scene-merge.phase-outcome.choice-2 .mav-route-car { animation:mav-merge-parallel 1s ease-in-out both; }
+.scene-aggressive.phase-outcome.choice-0 .aggressive-car { animation:mav-aggressor-pass 1.1s ease-in-out both; }
+.scene-aggressive.phase-outcome.choice-1 .mav-route-car { animation:mav-brake-check 1s ease-out both; }
+.scene-aggressive.phase-outcome.choice-1 .aggressive-car { animation:mav-rear-hit 1s ease-in both; }
+.scene-aggressive.phase-outcome.choice-1 .mav-route-impact { top:77%; left:49%; animation:mav-impact 1s ease-in both; }
+.scene-aggressive.phase-outcome.choice-2 .mav-route-car { animation:mav-race-away 1s ease-in both; }
+@keyframes mav-puddle-safe { 50% { transform:translateY(-90px); } 100% { transform:translateY(-210px); } }
+@keyframes mav-puddle-swerve { 45% { transform:translate(-105px,-110px) rotate(-14deg); } 100% { transform:translate(-125px,-205px) rotate(-8deg); } }
+@keyframes mav-aquaplane { 40% { transform:translateY(-135px) rotate(3deg); } 100% { transform:translate(72px,-245px) rotate(35deg); } }
+@keyframes mav-door-clear { 45% { transform:translate(-75px,-110px); } 100% { transform:translate(-70px,-245px); } }
+@keyframes mav-door-hit { to { transform:translate(56px,-255px) rotate(8deg); } }
+@keyframes mav-merge-safe { to { right:42%; bottom:52%; transform:rotate(0); } }
+@keyframes mav-merge-block { to { transform:translate(34px,-180px); } }
+@keyframes mav-merge-hit { to { right:27%; bottom:39%; transform:rotate(-5deg); } }
+@keyframes mav-merge-parallel { to { transform:translate(40px,-190px); } }
+@keyframes mav-aggressor-pass { 45% { left:3%; bottom:25%; } 100% { left:8%; bottom:72%; } }
+@keyframes mav-brake-check { 55%,100% { transform:translateY(42px); } }
+@keyframes mav-rear-hit { to { bottom:8%; left:43%; } }
+@keyframes mav-race-away { to { transform:translateY(-255px); } }
+
+/* Distracción: mirar el teléfono desplaza el auto hasta el vehículo contiguo. */
+.scene-phone.phase-outcome.choice-0 .mav-route-car { animation:mav-steady-drive 1s ease-out both; }
+.scene-phone.phase-outcome.choice-1 .mav-route-car { animation:mav-phone-drift 1.1s ease-in both; }
+.scene-phone.phase-outcome.choice-1 .mav-route-impact { top:45%; left:26%; animation:mav-impact 1.1s ease-in both; }
+.scene-phone.phase-outcome.choice-2 .mav-route-car { animation:mav-wander-lane 1.15s ease-in-out both; }
+@keyframes mav-steady-drive { to { transform:translateY(-190px); } }
+@keyframes mav-phone-drift { to { transform:translate(-72px,-180px) rotate(-8deg); } }
+
+.scene-railroad.phase-outcome .mav-route-signal,
+.scene-tire.phase-outcome .mav-route-signal,
+.scene-crosswalk.phase-outcome .mav-route-signal,
+.scene-school.phase-outcome .mav-route-signal,
+.scene-hidden-person.phase-outcome .mav-route-signal,
+.scene-ball.phase-outcome .mav-route-signal { opacity:0; animation:mav-show-result .28s 1.15s ease forwards; }
 .mav-route-car { position:absolute; z-index:6; bottom:7%; left:50%; width:96px; height:142px; translate:-50% 0; object-fit:contain; filter:drop-shadow(0 10px 6px rgba(0,0,0,.35)); transition:transform .6s ease,left .6s ease; }
 .mav-route-map.phase-driving .mav-route-car { animation:mav-car-drive .65s ease-in-out infinite; }
 @keyframes mav-car-drive { 50% { transform:translateY(-4px); } }
@@ -547,6 +742,8 @@ h1, h2, h3, p { margin-top: 0; }
 .mav-route-map.theme-night { filter:saturate(.72) brightness(.78); }
 .mav-route-map.theme-rain::before, .mav-route-map.theme-fog::before { content:''; position:absolute; z-index:8; inset:0; pointer-events:none; }
 .mav-route-map.theme-rain::before { background:linear-gradient(rgba(83,137,160,.2),rgba(34,75,96,.34)); }
+.mav-route-map.theme-rain .mav-route-road::after { content:''; position:absolute; z-index:5; inset:0; pointer-events:none; opacity:.62; background-image:radial-gradient(ellipse at center,rgba(220,244,253,.9) 0 24%,transparent 28%); background-size:27px 39px; transform:skewX(-9deg); animation:mav-route-rain .48s linear infinite; }
+@keyframes mav-route-rain { from { background-position:0 -39px; } to { background-position:-10px 39px; } }
 .mav-route-map.theme-fog::before { background:linear-gradient(rgba(238,247,248,.52),rgba(238,247,248,.72)); }
 .mav-route-map.theme-works .mav-route-side { background:#dfcfa8; }
 .mav-route-map.theme-rural .mav-route-side, .mav-route-map.theme-highway .mav-route-side { background:#a6d49c; }
@@ -611,6 +808,22 @@ noscript { display: block; padding: 20px; text-align: center; background: #fff0f
 }
 
 @media (max-width: 620px) {
+    body[data-mav-view="academy"] .site-header nav,
+    body[data-mav-view="game"] .site-header nav { display:none; }
+    body[data-mav-view="academy"] .site-header,
+    body[data-mav-view="game"] .site-header { padding:6px 12px; border-bottom-width:1px; }
+    body[data-mav-view="academy"] .ssp-logo,
+    body[data-mav-view="game"] .ssp-logo { width:86px; height:38px; }
+    body[data-mav-view="academy"] .identity-divider,
+    body[data-mav-view="game"] .identity-divider { height:32px; }
+    body[data-mav-view="academy"] .guardia-logo,
+    body[data-mav-view="game"] .guardia-logo { width:38px; height:38px; }
+    body[data-mav-view="academy"] .brand small,
+    body[data-mav-view="game"] .brand small { display:none; }
+    body[data-mav-view="academy"] .brand strong,
+    body[data-mav-view="game"] .brand strong { font-size:13px; }
+    body[data-mav-view="academy"] .institutional-footer,
+    body[data-mav-view="game"] .institutional-footer { display:none; }
     .government-bar { display: block; padding: 7px 16px; text-align: center; }
     .government-bar div { justify-content: center; }
     .government-bar strong { display: none; }
@@ -625,41 +838,121 @@ noscript { display: block; padding: 20px; text-align: center; background: #fff0f
     .hero-copy h1 { font-size: 44px; }
     .section-heading { display: block; }
     .section-heading p { margin-top: 13px; }
-    .workspace { padding: 28px 14px 55px; }
-    .workspace-bar { grid-template-columns: 1fr auto; }
-    .workspace-bar > div:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
-    .back-button { grid-row: 2; }
-    .timer, .score-pill { grid-row: 2; }
-    .setup-card, .question-shell, .result-card, .game-shell { padding: 20px 15px; border-radius: 20px; }
+    .workspace { min-height:calc(100svh - 52px); padding:12px 10px 30px; }
+    .workspace-bar { position:sticky; z-index:40; top:0; grid-template-columns:auto 1fr auto; gap:8px; margin:0 -2px 10px; padding:7px 5px; border-bottom:1px solid var(--line); background:rgba(244,248,250,.94); backdrop-filter:blur(9px); }
+    .workspace-bar > div:nth-child(2) { grid-column:2; grid-row:1; min-width:0; }
+    .workspace-bar .eyebrow { display:none; }
+    .workspace-bar h1 { overflow:hidden; margin:0; font-size:18px; text-align:left; text-overflow:ellipsis; white-space:nowrap; }
+    .back-button { grid-row:1; padding:9px 10px; font-size:0; }
+    .back-button::after { content:'←'; font-size:20px; }
+    .timer, .score-pill { grid-row:1; min-width:0; padding:8px 10px; font-size:12px; white-space:nowrap; }
+    .setup-card, .question-shell, .result-card, .game-shell { padding:14px 11px; border-radius:18px; }
+    .progress-row { margin-bottom:6px; font-size:12px; }
+    .progress-track { height:6px; margin-bottom:11px; }
+    .question-grid { gap:12px; }
+    .question-image { height:min(29svh,235px); min-height:170px; aspect-ratio:auto; object-fit:contain; border-radius:14px; }
+    .category-chip { margin-bottom:7px; padding:5px 9px; font-size:10px; }
+    .question-copy h2 { margin:0 0 10px; font-size:19px; line-height:1.2; }
+    .answers { gap:7px; }
+    .answer-button { grid-template-columns:31px 1fr; gap:8px; min-height:47px; padding:8px 10px; border-radius:12px; font-size:13px; line-height:1.25; }
+    .answer-letter { width:28px; height:28px; border-radius:8px; }
+    .feedback { margin-top:9px; padding:10px 12px; font-size:13px; }
     .topic-grid { grid-template-columns: 1fr; }
-    .scene-image, .scene-image img { min-height: 260px; }
-    .question-actions { flex-direction: column-reverse; }
-    .question-actions .button { width: 100%; }
+    .scene-image, .scene-image img { min-height:0; }
+    .scene-image { aspect-ratio:4/3; }
+    .scene-image img { object-fit:contain; }
+    .question-actions { position:sticky; z-index:25; bottom:6px; flex-direction:row; margin-top:10px; padding:7px; border:1px solid rgba(209,226,233,.9); border-radius:14px; background:rgba(255,255,255,.94); box-shadow:0 8px 24px rgba(16,45,71,.15); backdrop-filter:blur(8px); }
+    .question-actions .button { width:auto; min-height:44px; flex:1; padding:10px 12px; }
     .institutional-footer { display: grid; grid-template-columns: 1fr; text-align: center; }
     .footer-identity { justify-content: center; }
     .footer-motto { grid-column: auto; text-align: center; }
-    .mav-tutorial-inner { padding: 25px 19px; border-radius: 22px; }
+    .mav-tutorial { padding:10px; }
+    .mav-tutorial-inner { max-height:calc(100svh - 20px); overflow:auto; padding:20px 16px; border-radius:20px; }
     .mav-tutorial-icon { width: 68px; height: 68px; font-size: 34px; }
-    .mav-hazard-scene { border-radius: 17px; }
+    .mav-level-head { font-size:11px; }
+    .mav-level-progress { margin:7px 0 11px; }
+    .mav-game-heading { margin-bottom:10px; }
+    .mav-game-heading h2 { margin-bottom:3px; font-size:21px; }
+    .mav-game-heading p { font-size:12px; line-height:1.3; }
+    .mav-hazard-scene { max-height:62svh; border-radius:17px; }
+    .mav-bottom-panel { margin-top:9px; padding:10px 12px; font-size:13px; }
+    .mav-result-copy strong { font-size:16px; }
+    .mav-result-copy p { margin:5px auto 9px; font-size:12px; }
     .mav-priority-layout, .mav-decision-layout { gap: 16px; }
-    .mav-order-panel, .mav-decision-panel { padding: 16px 13px; }
-    .mav-order-item { grid-template-columns: 27px 30px minmax(0,1fr) auto; gap: 6px; padding: 9px 7px; }
+    .mav-map { padding:7px; border-radius:18px; }
+    .mav-map-inner { border-radius:12px; }
+    .mav-map-note { margin-top:6px; font-size:10px; }
+    .mav-order-panel, .mav-decision-panel { padding:12px 10px; border-radius:16px; }
+    .mav-order-panel > p, .mav-decision-panel > p { margin-bottom:9px; font-size:12px; }
+    .mav-order-list { gap:6px; margin:9px 0; }
+    .mav-order-item { grid-template-columns:27px 30px minmax(0,1fr) auto; gap:6px; padding:7px 6px; }
+    .mav-order-item small { display:none; }
     .mav-order-tools em { display: none; }
+    .mav-decision-scene { border-radius:17px; }
+    .mav-decision-panel h2 { font-size:21px; }
+    .mav-choice-list { gap:7px; margin:9px 0; }
+    .mav-choice-list button { grid-template-columns:32px 1fr; min-height:46px; padding:8px; font-size:13px; }
+    .mav-choice-list b { width:29px; height:29px; }
+    .mav-consequence { margin:9px 0; padding:12px; }
+    .mav-consequence i { width:36px; height:36px; margin-bottom:6px; }
+    .mav-consequence p { font-size:12px; }
     .mav-result-stats { grid-template-columns: 1fr; }
-    .mav-route-setup { padding:16px; gap:20px; }
-    .mav-route-setup-art { min-height:300px; }
+    .mav-route-setup { padding:12px; gap:14px; }
+    .mav-route-setup-art { min-height:210px; }
+    .mav-route-setup-copy h2 { font-size:30px; }
+    .mav-route-setup-copy > p { font-size:14px; line-height:1.4; }
+    .mav-route-features { margin:12px 0 16px; }
     .mav-route-lengths { grid-template-columns:1fr; }
     .mav-route-lengths button { display:grid; grid-template-columns:50px 1fr; align-items:center; text-align:left; }
     .mav-route-lengths b { grid-row:1 / 3; }.mav-route-lengths small { margin:0; }
-    .mav-route-status { grid-template-columns:1fr; gap:7px; }
+    .mav-route-status { grid-template-columns:1fr auto; gap:7px; }
+    .mav-route-status .mav-route-meter { grid-column:1 / -1; grid-row:2; }
+    .mav-route-sound { grid-column:2; grid-row:1; }
     .mav-route-status > div:last-child { display:none; }
-    .mav-route-map { min-height:470px; border-width:8px; }
+    .mav-route-layout { gap:0; }
+    .mav-route-map { height:min(52svh,430px); min-height:360px; border-width:7px; border-radius:20px; }
     .mav-route-road { inset:-5% 18%; }
     .mav-route-side { width:18%; }
     .mav-route-side i, .mav-route-side b { height:85px; border-width:5px; }
     .mav-route-event span { width:62px; height:62px; font-size:31px; }
     .mav-route-car { width:76px; height:112px; }
-    .mav-route-panel { padding:20px 15px; }
+    .mav-route-panel { position:relative; z-index:15; margin:-18px 5px 0; padding:16px 12px; border-radius:18px; }
+    .mav-route-panel h2 { margin:5px 0 7px; font-size:23px; }
+    .mav-route-panel > p, .mav-route-driving-copy p { font-size:13px; line-height:1.4; }
+    .mav-route-panel h3 { margin:9px 0 7px; font-size:15px; }
+    .mav-route-choices { gap:6px; }
+    .mav-route-choices button { grid-template-columns:31px 1fr; min-height:46px; gap:7px; padding:8px; font-size:13px; }
+    .mav-route-choices b { width:28px; height:28px; }
+    .mav-route-outcome { padding:12px; }
+    .mav-route-outcome > i { float:left; width:40px; height:40px; margin:0 10px 5px 0; font-size:23px; }
+    .mav-route-outcome h2 { font-size:21px; }
+    .mav-route-outcome p { clear:both; font-size:12px; }
+}
+
+@media (max-width: 420px) {
+    .question-image { height:min(27svh,205px); min-height:150px; }
+    .mav-hazard-scene { max-height:58svh; }
+    .mav-route-map { height:min(49svh,390px); min-height:335px; }
+    .mav-scene-chip, .mav-map-tag, .mav-countdown, .mav-map-status, .mav-decision-status { top:8px; padding:5px 7px; font-size:9px; }
+    .mav-scene-chip, .mav-map-tag { left:8px; }
+    .mav-countdown, .mav-map-status, .mav-decision-status { right:8px; }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+    body[data-mav-view="academy"] .site-header,
+    body[data-mav-view="game"] .site-header { display:none; }
+    .workspace { min-height:100svh; padding:6px 10px 12px; }
+    .workspace-bar { padding:4px; margin-bottom:6px; }
+    .question-grid { grid-template-columns:minmax(230px,.72fr) 1.28fr; gap:12px; }
+    .question-image { position:sticky; top:54px; height:calc(100svh - 108px); min-height:0; }
+    .question-copy h2 { font-size:17px; }
+    .answer-button { min-height:40px; padding:6px 9px; }
+    .mav-priority-layout, .mav-decision-layout, .mav-route-layout { grid-template-columns:minmax(0,1.08fr) minmax(290px,.92fr); gap:10px; }
+    .mav-route-map { height:calc(100svh - 83px); min-height:0; }
+    .mav-route-panel { max-height:calc(100svh - 83px); overflow:auto; margin:0; }
+    .mav-map, .mav-decision-scene { position:sticky; top:54px; }
+    .mav-hazard-wrap { width:auto; }
+    .mav-hazard-scene { width:auto; max-width:100%; height:calc(100svh - 118px); margin:auto; aspect-ratio:4/3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

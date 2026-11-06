@@ -57,6 +57,7 @@
     function showView(name) {
         Object.values(views).forEach((view) => view.classList.remove('is-active'));
         views[name].classList.add('is-active');
+        document.body.dataset.mavView = name;
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -152,7 +153,7 @@
         };
         academyTitle.textContent = mode === 'exam' ? 'Simulacro de examen' : mode === 'practice' ? 'Práctica rápida' : (category || 'Aprender');
         if (mode === 'exam') startTimer();
-        renderQuestion();
+        renderQuestion(true);
     }
 
     function startTimer() {
@@ -172,7 +173,7 @@
         timerElement.classList.toggle('is-low', seconds < 120);
     }
 
-    function renderQuestion() {
+    function renderQuestion(resetScroll) {
         const state = academyState;
         const question = state.questions[state.index];
         const selected = state.answers[question.id];
@@ -204,6 +205,7 @@
                     <button class="button button-primary" type="button" data-next-question ${selected === undefined ? 'disabled' : ''}>${state.index + 1 === state.questions.length ? 'Ver resultado' : 'Siguiente'}</button>
                 </div>
             </div>`;
+        if (resetScroll) requestAnimationFrame(() => views.academy.scrollIntoView({ block: 'start', behavior: 'auto' }));
     }
 
     function answerQuestion(answer) {
@@ -212,7 +214,7 @@
         if (state.locked) return;
         state.answers[question.id] = answer;
         if (state.mode !== 'exam') state.locked = true;
-        renderQuestion();
+        renderQuestion(false);
     }
 
     function nextQuestion() {
@@ -222,7 +224,7 @@
         if (state.index + 1 >= state.questions.length) return finishAcademy(false);
         state.index += 1;
         state.locked = false;
-        renderQuestion();
+        renderQuestion(true);
     }
 
     function finishAcademy(timeExpired) {
@@ -391,7 +393,7 @@
         const answer = event.target.closest('[data-answer]');
         if (answer) { answerQuestion(Number(answer.dataset.answer)); return; }
         if (event.target.closest('[data-next-question]')) { nextQuestion(); return; }
-        if (event.target.closest('[data-prev-question]') && academyState.index > 0) { academyState.index -= 1; academyState.locked = false; renderQuestion(); return; }
+        if (event.target.closest('[data-prev-question]') && academyState.index > 0) { academyState.index -= 1; academyState.locked = false; renderQuestion(true); return; }
         const restartAcademy = event.target.closest('[data-restart-academy]');
         if (restartAcademy) { startAcademy(restartAcademy.dataset.restartAcademy); return; }
         const game = event.target.closest('[data-open-game]');

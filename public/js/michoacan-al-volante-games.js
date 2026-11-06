@@ -6,6 +6,8 @@
     let state = null;
     let animationFrame = 0;
     let feedbackTimer = 0;
+    let audioContext = null;
+    let audioNodes = [];
 
     const hazards = [
         { title: 'El balón perdido', hint: 'Observa junto a los vehículos estacionados a la derecha.', explanation: 'La pelota es la primera señal. Reduce la velocidad y prepárate: detrás puede aparecer una niña o un niño.', image: 'fondo_escuela_corregido.png', type: 'child', revealAt: .26, idealAt: .43, dangerAt: .78 },
@@ -94,11 +96,42 @@
         return scenes[title]||'generic';
     }
     function h(value) { return String(value).replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function scrollGameTop(){const view=document.querySelector('[data-view="game"]');if(view)requestAnimationFrame(()=>view.scrollIntoView({block:'start',behavior:'auto'}));}
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
     function smooth(value) { return value * value * (3 - 2 * value); }
     function motion(progress, start, end) { return smooth(clamp((progress - start) / (end - start), 0, 1)); }
     function seededShuffle(items, seed) { const out = items.slice(); let n = seed; for (let i = out.length - 1; i; i--) { n = (n * 9301 + 49297) % 233280; const j = Math.floor((n / 233280) * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; } return out; }
-    function stopAnimation() { cancelAnimationFrame(animationFrame); clearTimeout(feedbackTimer); animationFrame = 0; }
+    function getAudioContext(){
+        if(!audioContext){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return null;audioContext=new Audio();}
+        if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
+        return audioContext;
+    }
+    function keepAudio(node){audioNodes.push(node);node.onended=()=>{audioNodes=audioNodes.filter(item=>item!==node);try{node.disconnect();}catch(_){}};}
+    function stopSounds(){audioNodes.forEach(node=>{try{node.stop();}catch(_){ }try{node.disconnect();}catch(_){ }});audioNodes=[];}
+    function soundTone(freq,start,duration,gain=.04,type='sine',endFreq=null){
+        const ctx=getAudioContext();if(!ctx)return;const now=ctx.currentTime,osc=ctx.createOscillator(),volume=ctx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,now+start);if(endFreq)osc.frequency.exponentialRampToValueAtTime(endFreq,now+start+duration);volume.gain.setValueAtTime(.0001,now+start);volume.gain.exponentialRampToValueAtTime(gain,now+start+.025);volume.gain.exponentialRampToValueAtTime(.0001,now+start+duration);osc.connect(volume).connect(ctx.destination);osc.start(now+start);osc.stop(now+start+duration+.03);keepAudio(osc);
+    }
+    function soundNoise(start,duration,gain=.025,frequency=900){
+        const ctx=getAudioContext();if(!ctx)return;const now=ctx.currentTime,length=Math.max(1,Math.floor(ctx.sampleRate*duration)),buffer=ctx.createBuffer(1,length,ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),volume=ctx.createGain();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=frequency;volume.gain.setValueAtTime(.0001,now+start);volume.gain.exponentialRampToValueAtTime(gain,now+start+.02);volume.gain.exponentialRampToValueAtTime(.0001,now+start+duration);source.connect(filter).connect(volume).connect(ctx.destination);source.start(now+start);source.stop(now+start+duration+.03);keepAudio(source);
+    }
+    function journeyDriveSound(risk){
+        soundTone(58,0,1.82,.022,'sawtooth',76);soundTone(116,0,1.82,.009,'triangle',144);soundNoise(.02,1.78,.007,210);
+        if(risk.theme==='rain')soundNoise(0,1.82,.018,2600);
+    }
+    function journeyPromptSound(risk){
+        if(risk.scene==='railroad'){soundTone(740,0,.13,.045,'square');soundTone(740,.27,.13,.045,'square');soundNoise(0,.75,.012,170);return;}
+        if(risk.scene==='emergency'){soundTone(620,0,.22,.035,'sine',880);soundTone(880,.24,.22,.035,'sine',620);return;}
+        if(risk.scene==='aggressive'){soundTone(330,0,.12,.04,'square');soundTone(330,.17,.2,.04,'square');return;}
+        if(risk.scene==='school'||risk.scene==='crosswalk'||risk.scene==='ball'){soundTone(660,0,.12,.035,'sine');soundTone(880,.16,.15,.035,'sine');return;}
+        soundTone(520,0,.1,.025,'sine');
+    }
+    function journeyOutcomeSound(risk,safety){
+        if(risk.scene==='railroad')soundNoise(0,1.35,.035,190);
+        if(safety===2){soundTone(520,0,.14,.035,'sine');soundTone(660,.15,.16,.04,'sine');soundTone(820,.32,.2,.04,'sine');return;}
+        if(safety===1){soundNoise(0,.42,.028,1500);soundTone(310,.32,.3,.038,'triangle',210);return;}
+        soundNoise(0,.38,.045,1900);soundTone(145,.3,.22,.07,'sawtooth',72);soundNoise(.48,.42,.07,430);
+    }
+    function stopAnimation() { cancelAnimationFrame(animationFrame); clearTimeout(feedbackTimer); stopSounds(); animationFrame = 0; }
     function score(value) { app.score.textContent = `${value} pts`; }
     function asset(folder, file) { return `${app.assetsUrl}/${folder}/${file}`; }
 
@@ -271,7 +304,7 @@
     }
 
     function timeoutHazard(){ if(state.resolved)return; state.mistakes++;state.streak=0;state.resolved=true;state.hit=false;state.feedback='¡El peligro te sorprendió!';renderHazard(); }
-    function nextHazard(){ if(state.level+1===hazards.length){showResult('detecta_peligro','Detecta el peligro',state.score,state.hits,state.mistakes,state.hits===hazards.length&&state.mistakes===0?3:state.hits>=Math.ceil(hazards.length*.75)?2:1,'peligros detectados');return;} state.level++;state.stageBreak=state.level===4;state.resolved=false;state.hit=false;state.feedback='';state.progress=0;renderHazard(); }
+    function nextHazard(){ if(state.level+1===hazards.length){showResult('detecta_peligro','Detecta el peligro',state.score,state.hits,state.mistakes,state.hits===hazards.length&&state.mistakes===0?3:state.hits>=Math.ceil(hazards.length*.75)?2:1,'peligros detectados');return;} state.level++;state.stageBreak=state.level===4;state.resolved=false;state.hit=false;state.feedback='';state.progress=0;renderHazard();scrollGameTop(); }
 
     // ¿Quién pasa primero? -------------------------------------------------
     function initPriority(){ app.title.textContent='¿Quién pasa primero?'; state={game:'priority',level:0,score:0,mistakes:0,solved:0,checked:false,correct:false,tutorial:true,progress:0}; loadPuzzle();score(0);renderPriority(); }
@@ -290,7 +323,7 @@
     function priorityFeedback(puzzle){if(!state.checked)return'';return `<div class="mav-order-feedback ${state.correct?'good':'bad'}"><strong>${state.correct?'✓ ¡Cruce resuelto!':'⚠ Todavía hay un conflicto'}</strong><p>${h(state.correct?puzzle.rule:'Revisa quién ya está circulando, quién espera y quién debe ceder. Cambia el orden e inténtalo otra vez.')}</p></div>`;}
     function bindPriority(){const start=app.content.querySelector('[data-mav-priority-start]');if(start)start.onclick=()=>{state.tutorial=false;renderPriority();};app.content.querySelectorAll('[data-mav-move]').forEach(btn=>btn.onclick=()=>{const[i,d]=btn.dataset.mavMove.split(':').map(Number);movePriority(i,i+d);});const action=app.content.querySelector('[data-mav-priority-action]');if(action)action.onclick=priorityAction;let dragged=null;app.content.querySelectorAll('[data-order-index]').forEach(row=>{row.ondragstart=()=>{dragged=Number(row.dataset.orderIndex);row.classList.add('dragging');};row.ondragend=()=>row.classList.remove('dragging');row.ondragover=e=>e.preventDefault();row.ondrop=e=>{e.preventDefault();const target=Number(row.dataset.orderIndex);if(dragged!==null&&dragged!==target)movePriority(dragged,target);};});}
     function movePriority(from,to){if(state.checked||to<0||to>=state.order.length)return;const[item]=state.order.splice(from,1);state.order.splice(to,0,item);renderPriority();}
-    function priorityAction(){if(!state.checked){checkPriority();return;}if(!state.correct){state.checked=false;state.correct=false;state.progress=0;renderPriority();return;}if(state.level+1===puzzles.length){showResult('quien_pasa','¿Quién pasa primero?',state.score,state.solved,state.mistakes,state.solved===4&&state.mistakes===0?3:state.solved>=3?2:1,'cruces resueltos');return;}state.level++;state.checked=false;state.correct=false;state.progress=0;loadPuzzle();renderPriority();}
+    function priorityAction(){if(!state.checked){checkPriority();return;}if(!state.correct){state.checked=false;state.correct=false;state.progress=0;renderPriority();return;}if(state.level+1===puzzles.length){showResult('quien_pasa','¿Quién pasa primero?',state.score,state.solved,state.mistakes,state.solved===4&&state.mistakes===0?3:state.solved>=3?2:1,'cruces resueltos');return;}state.level++;state.checked=false;state.correct=false;state.progress=0;loadPuzzle();renderPriority();scrollGameTop();}
     function checkPriority(){const puzzle=puzzles[state.level];state.correct=state.order.every((user,i)=>user.id===puzzle.solution[i]);state.checked=true;if(state.correct){state.solved++;state.score+=300+Math.max(0,120-state.mistakes*15);}else state.mistakes++;score(state.score);renderPriority();}
     function actorMarkup(user,pose,active,pulse){return `<div class="mav-map-actor ${active?'active':''}" style="left:${pose[0]/10}%;top:${pose[1]/8.8}%;width:${user.width/10}%;height:${user.height/8.8}%;--pulse:${pulse};--tag:${user.color}"><img src="${asset('quien_pasa',user.sprite)}" style="transform:rotate(${pose[2]}rad)" alt="${h(user.label)}"><b>${user.tag}</b></div>`;}
     function drawPriorityActors(){const puzzle=puzzles[state.level],box=app.content.querySelector('[data-mav-actors]');if(!box)return;box.innerHTML=puzzle.users.map(user=>{const index=state.order.findIndex(x=>x.id===user.id),local=state.checked&&state.correct?clamp(state.progress*state.order.length-index,0,1):0,active=state.checked&&state.correct&&local>0&&local<1,pulse=state.checked&&!state.correct?Math.abs(Math.sin(state.progress*Math.PI*5))*.5+.3:0;return actorMarkup(user,poseAt(user,local),active,pulse);}).join('');const status=app.content.querySelector('[data-mav-map-status]');if(status&&state.checked){status.textContent=state.correct?'✓ ORDEN CORRECTO':'⚠ REVISA EL ORDEN';status.className=`mav-map-status ${state.correct?'good':'bad'}`;}}
@@ -308,7 +341,7 @@
     function decisionPanel(scene,choice){if(!choice)return `<h3>¿Qué haces un segundo antes?</h3><div class="mav-choice-list">${state.choiceOrder.map((original,i)=>`<button type="button" data-mav-choice="${original}"><b>${String.fromCharCode(65+i)}</b>${h(scene.choices[original][0])}</button>`).join('')}</div>${state.reviewing?'<small>Modo práctica: puedes probar otra decisión, sin sumar puntos otra vez.</small>':''}`;const safety=choice[1],title=safety===2?'¡Elegiste prevenir!':safety===1?'Te faltó margen de reacción':'La maniobra generó peligro';return `<div class="mav-consequence safety-${safety}"><i>${safety===2?'✓':safety===1?'⚠':'!'}</i><strong>${title}</strong><p>${h(choice[2])}</p></div><button type="button" class="mav-secondary" data-mav-rewind>↻ Retroceder y probar otra acción</button><button type="button" class="mav-action" data-mav-decision-next>${state.level+1===decisions.length?'Ver resultado':'Continuar recorrido'}</button>`;}
     function bindDecision(){const start=app.content.querySelector('[data-mav-decision-start]');if(start)start.onclick=()=>{state.tutorial=false;renderDecision();};app.content.querySelectorAll('[data-mav-choice]').forEach(btn=>btn.onclick=()=>chooseDecision(Number(btn.dataset.mavChoice)));const rewind=app.content.querySelector('[data-mav-rewind]');if(rewind)rewind.onclick=()=>{state.choice=null;state.reviewing=true;state.loop=true;renderDecision();};const next=app.content.querySelector('[data-mav-decision-next]');if(next)next.onclick=nextDecision;}
     function chooseDecision(index){if(state.choice!==null)return;const choice=decisions[state.level].choices[index];state.choice=index;state.loop=false;if(!state.alreadyScored){state.alreadyScored=true;if(choice[1]===2){state.safe++;state.score+=420;}else if(choice[1]===1){state.mistakes++;state.score+=180;}else state.mistakes++;}score(state.score);renderDecision();}
-    function nextDecision(){if(state.level+1===decisions.length){showResult('segundo_antes','Un segundo antes',state.score,state.safe,state.mistakes,state.safe===4&&state.mistakes===0?3:state.safe>=3?2:1,'decisiones preventivas');return;}state.level++;state.choice=null;state.reviewing=false;state.alreadyScored=false;state.loop=true;makeChoiceOrder();renderDecision();}
+    function nextDecision(){if(state.level+1===decisions.length){showResult('segundo_antes','Un segundo antes',state.score,state.safe,state.mistakes,state.safe===4&&state.mistakes===0?3:state.safe>=3?2:1,'decisiones preventivas');return;}state.level++;state.choice=null;state.reviewing=false;state.alreadyScored=false;state.loop=true;makeChoiceOrder();renderDecision();scrollGameTop();}
     function spriteMarkup(name,x,y,w,hh,angle){return `<img class="mav-decision-sprite" src="${asset('un_segundo_antes',name)}" style="left:${x/9.6}%;top:${y/7.2}%;width:${w/9.6}%;height:${hh/7.2}%;transform:rotate(${angle||0}rad)" alt="">`;}
     function decisionObjects(scene,p,safety){
         const selected=safety!==null,t=smooth(p),advance=selected?t:0,preview=selected?0:p,risky=selected&&safety===0,medium=selected&&safety===1;
@@ -341,7 +374,7 @@
     // Ruta segura ---------------------------------------------------------
     function initJourney(){
         app.title.textContent='Ruta segura';
-        state={game:'journey',score:0,total:0,index:0,correct:0,mistakes:0,phase:'setup',choice:null};
+        state={game:'journey',score:0,total:0,index:0,correct:0,mistakes:0,phase:'setup',choice:null,soundOn:true};
         score(0);renderJourneySetup();
     }
 
@@ -375,7 +408,7 @@
         stopAnimation();
         const risk=state.deck[state.index],selected=state.choice===null?null:risk.choices[state.choice],safety=selected?selected[1]:null,progress=Math.round((state.index/state.total)*100);
         app.content.innerHTML=`<div class="mav-route-game">
-            <div class="mav-route-status"><div><span>PARTIDA</span><strong>Centro urbano</strong></div><div class="mav-route-meter"><i style="width:${progress}%"></i><b>${progress}% del recorrido</b></div><div><span>DESTINO</span><strong>Zona segura</strong></div></div>
+            <div class="mav-route-status"><div><span>PARTIDA</span><strong>Centro urbano</strong></div><div class="mav-route-meter"><i style="width:${progress}%"></i><b>${progress}% del recorrido</b></div><button type="button" class="mav-route-sound" data-mav-route-sound aria-label="${state.soundOn?'Silenciar':'Activar'} efectos de sonido" title="${state.soundOn?'Silenciar':'Activar'} efectos de sonido">${state.soundOn?'🔊':'🔇'}</button><div><span>DESTINO</span><strong>Zona segura</strong></div></div>
             <div class="mav-route-layout">
                 <div class="mav-route-map theme-${risk.theme} scene-${risk.scene} phase-${state.phase} choice-${state.choice===null?'none':state.choice} ${safety===2?'result-safe':safety===1?'result-medium':safety===0?'result-danger':''}">
                     ${journeyMapBackground(risk)}
@@ -391,6 +424,7 @@
             </div>
         </div>`;
         bindJourney();
+        if(state.soundOn){if(state.phase==='driving')journeyDriveSound(risk);else if(state.phase==='question')journeyPromptSound(risk);else if(state.phase==='outcome')journeyOutcomeSound(risk,safety);}
         if(state.phase==='driving') feedbackTimer=setTimeout(()=>{state.phase='question';renderJourney();},1900);
     }
 
@@ -407,22 +441,28 @@
         const label=`<b class="mav-route-event-label">${h(risk.title)}</b>`;
         if(risk.scene==='breakdown')return `<div class="mav-route-prop prop-breakdown"><img src="${asset('quien_pasa','auto_amarillo.png')}" alt="Vehículo averiado"><span>⚠</span>${label}</div><img class="mav-route-rival" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo en el carril contiguo"><div class="mav-route-impact">✦</div>`;
         if(risk.scene==='intersection')return `<div class="mav-cross-street"></div><div class="mav-traffic-light">${risk.title.includes('rojo')?'🔴':risk.title.includes('amarillo')?'🟡':'⚠'}</div><img class="mav-route-cross-car" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Vehículo que cruza">${label}<div class="mav-route-impact">✦</div>`;
-        if(risk.scene==='crosswalk'||risk.scene==='school'||risk.scene==='hidden-person')return `<div class="mav-route-crosswalk"></div><div class="mav-route-person">${risk.scene==='school'?'🧒':'🚶'}</div>${label}`;
-        if(risk.scene==='ball')return `<div class="mav-route-ball">⚽</div><div class="mav-route-person hidden-child">🧒</div>${label}`;
+        if(risk.scene==='crosswalk'||risk.scene==='school'||risk.scene==='hidden-person')return `<div class="mav-route-crosswalk"></div><div class="mav-route-person">${risk.scene==='school'?'🧒':'🚶'}</div>${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='ball')return `<div class="mav-route-ball">⚽</div><div class="mav-route-person hidden-child">🧒</div>${label}<div class="mav-route-impact">✦</div>`;
         if(risk.scene==='roundabout')return `<img class="mav-route-cross-car" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Vehículo dentro de la glorieta">${label}<div class="mav-route-impact">✦</div>`;
-        if(risk.scene==='railroad')return `<div class="mav-route-rails"><i></i><b></b></div><div class="mav-route-barrier"></div><div class="mav-route-train">🚆</div>${label}`;
-        if(risk.scene==='emergency')return `<img class="mav-route-special prop-emergency" src="${asset('quien_pasa','ambulancia.png')}" alt="Ambulancia">${label}`;
-        if(risk.scene==='cyclist')return `<img class="mav-route-special prop-cycle" src="${asset('quien_pasa','bici.png')}" alt="Bicicleta">${label}`;
-        if(risk.scene==='motorcycle')return `<img class="mav-route-special prop-motorcycle" src="${asset('quien_pasa','moto.png')}" alt="Motocicleta">${label}`;
+        if(risk.scene==='railroad')return `<div class="mav-route-rails"><i></i><b></b></div><div class="mav-route-barrier"></div><img class="mav-route-train" src="${asset('ruta_segura','tren_cenital.png')}" alt="Tren cruzando la carretera">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='emergency')return `<img class="mav-route-special prop-emergency" src="${asset('quien_pasa','ambulancia.png')}" alt="Ambulancia">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='cyclist')return `<img class="mav-route-special prop-cycle" src="${asset('quien_pasa','bici.png')}" alt="Bicicleta">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='motorcycle')return `<img class="mav-route-special prop-motorcycle" src="${asset('quien_pasa','moto.png')}" alt="Motocicleta">${label}<div class="mav-route-impact">✦</div>`;
         if(risk.scene==='truck')return `<img class="mav-route-heavy prop-truck" src="${asset('ruta_segura','camion_cenital.png')}" alt="Camión de carga delante">${label}<img class="mav-route-oncoming" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo en sentido contrario"><div class="mav-route-impact">✦</div>`;
-        if(risk.scene==='bus')return `<img class="mav-route-heavy prop-bus" src="${asset('un_segundo_antes','autobus.png')}" alt="Autobús detenido">${label}`;
-        if(risk.scene==='works')return `<div class="mav-route-cones">▲ ▲ ▲</div>${label}`;
-        if(risk.scene==='animal')return `<div class="mav-route-animal">🐕</div>${label}`;
-        if(risk.scene==='puddle')return `<div class="mav-route-puddle">≈</div>${label}`;
-        if(risk.scene==='door')return `<img class="mav-route-parked" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Automóvil estacionado"><div class="mav-route-door">◢</div>${label}`;
-        if(risk.scene==='merge')return `<div class="mav-route-merge">⇥</div><img class="mav-route-rival merge-car" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo incorporándose">${label}`;
-        if(risk.scene==='aggressive')return `<img class="mav-route-rival aggressive-car" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo que sigue de cerca">${label}`;
+        if(risk.scene==='bus')return `<img class="mav-route-heavy prop-bus" src="${asset('un_segundo_antes','autobus.png')}" alt="Autobús detenido">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='works')return `<div class="mav-route-cones">▲ ▲ ▲</div>${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='animal')return `<div class="mav-route-animal">🐕</div>${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='puddle')return `<div class="mav-route-puddle">≈</div>${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='door')return `<img class="mav-route-parked" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Automóvil estacionado"><div class="mav-route-door">◢</div>${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='merge')return `<div class="mav-route-merge">⇥</div><img class="mav-route-rival merge-car" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo incorporándose">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='aggressive')return `<img class="mav-route-rival aggressive-car" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo que sigue de cerca">${label}<div class="mav-route-impact">✦</div>`;
         if(risk.scene==='curve')return `<div class="mav-route-curve-sign">↪</div><img class="mav-route-oncoming curve-oncoming" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo en sentido contrario">${label}<div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='rain')return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div><img class="mav-route-rival weather-rival" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Vehículo adelante bajo la lluvia"><div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='fog')return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div><img class="mav-route-rival weather-rival" src="${asset('quien_pasa','auto_amarillo.png')}" alt="Vehículo apenas visible dentro de la niebla"><div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='night')return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div><img class="mav-route-oncoming night-oncoming" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo en sentido contrario"><div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='seatbelt')return `<div class="mav-route-event seatbelt-event"><span>🧍</span>${label}</div><div class="mav-route-seatbelt">╲</div><div class="mav-route-impact passenger-impact">✦</div>`;
+        if(['tire','fatigue','hill'].includes(risk.scene))return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div><div class="mav-route-crash-tree">🌳</div><div class="mav-route-impact">✦</div>`;
+        if(risk.scene==='phone')return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div><img class="mav-route-rival phone-rival" src="${asset('quien_pasa','auto_rojo.png')}" alt="Vehículo en el carril contiguo"><div class="mav-route-impact">✦</div>`;
         return `<div class="mav-route-event"><span>${risk.icon}</span>${label}</div>`;
     }
 
@@ -436,6 +476,7 @@
     function bindJourney(){
         app.content.querySelectorAll('[data-mav-route-choice]').forEach(btn=>btn.onclick=()=>chooseJourney(Number(btn.dataset.mavRouteChoice)));
         const next=app.content.querySelector('[data-mav-route-next]');if(next)next.onclick=nextJourney;
+        const sound=app.content.querySelector('[data-mav-route-sound]');if(sound)sound.onclick=()=>{state.soundOn=!state.soundOn;stopSounds();sound.textContent=state.soundOn?'🔊':'🔇';sound.setAttribute('aria-label',`${state.soundOn?'Silenciar':'Activar'} efectos de sonido`);sound.title=`${state.soundOn?'Silenciar':'Activar'} efectos de sonido`;if(state.soundOn){const risk=state.deck[state.index],selected=state.choice===null?null:risk.choices[state.choice],safety=selected?selected[1]:null;if(state.phase==='driving')journeyDriveSound(risk);else if(state.phase==='question')journeyPromptSound(risk);else journeyOutcomeSound(risk,safety);}};
     }
 
     function chooseJourney(index){
@@ -447,7 +488,7 @@
 
     function nextJourney(){
         if(state.index+1===state.total){const ratio=state.correct/state.total;showResult('ruta_segura','Ruta segura',state.score,state.correct,state.mistakes,ratio===1&&state.mistakes===0?3:ratio>=.75?2:1,'decisiones preventivas');return;}
-        state.index++;state.choice=null;state.phase='driving';renderJourney();
+        state.index++;state.choice=null;state.phase='driving';renderJourney();scrollGameTop();
     }
 
     function showResult(id,title,total,correct,mistakes,stars,label){stopAnimation();app.saveProgress(`game_${id}`,total);app.content.innerHTML=`<div class="mav-game-result"><div class="mav-stars">${[1,2,3].map(n=>`<span class="${n<=stars?'on':''}">★</span>`).join('')}</div><span>MISIÓN COMPLETADA</span><h2>${h(title)}</h2><strong>${total} puntos</strong><div class="mav-result-stats"><div><b>${correct}</b><small>${h(label)}</small></div><div><b>${mistakes}</b><small>errores</small></div><div><b>${stars}/3</b><small>estrellas</small></div></div><button type="button" class="mav-action" data-mav-replay>Jugar otra vez</button><button type="button" class="mav-secondary" data-home>Volver a los juegos</button></div>`;app.content.querySelector('[data-mav-replay]').onclick=()=>open({...app,type:state.game});}

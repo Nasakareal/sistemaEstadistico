@@ -544,6 +544,7 @@
             </p>
 
             <div class="hero-actions">
+              <a class="btn btn-primary" href="{{ route('michoacan_al_volante') }}">Simular examen de manejo</a>
               <a class="btn btn-primary" href="{{ route('login') }}">Entrar al sistema</a>
               <a class="btn" href="{{ url('/apoyo') }}">Ver servicios</a>
               <a class="btn" href="https://www.tiktok.com/@sseguridadmich" target="_blank" rel="noopener">TikTok oficial</a>
@@ -609,6 +610,13 @@
       </div>
 
       <div class="cards">
+        <div class="card">
+          <div class="icon">🚦</div>
+          <h4>Michoacán al Volante</h4>
+          <p>Prepárate con academia vial, simulador de examen y juegos interactivos. Acceso libre y sin registro.</p>
+          <a href="{{ route('michoacan_al_volante') }}">Practicar ahora →</a>
+        </div>
+
         <div class="card">
           <div class="icon">🛟</div>
           <h4>Servicios</h4>

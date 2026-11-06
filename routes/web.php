@@ -116,6 +116,9 @@ use App\Http\Controllers\EntregaRecepcionPatrullaController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
+Route::view('/michoacan-al-volante', 'publico.michoacan_al_volante')
+    ->name('michoacan_al_volante');
+
 Route::post('/security/interface-integrity', [SecurityEventController::class, 'storeInterfaceIntegrity'])
     ->middleware(['auth', 'throttle:12,1'])
     ->name('security.interface_integrity.store');

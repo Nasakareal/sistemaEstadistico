@@ -99,6 +99,10 @@ class GruaController extends Controller
             'unidades.*' => 'integer|exists:unidades,id',
             'delegaciones' => 'nullable|array',
             'delegaciones.*' => 'integer|exists:delegaciones,id',
+            'ubicaciones_unidades' => 'nullable|array',
+            'ubicaciones_unidades.*' => 'nullable|string|max:2000',
+            'ubicaciones_delegaciones' => 'nullable|array',
+            'ubicaciones_delegaciones.*' => 'nullable|string|max:2000',
         ]);
 
         $unidades = collect($request->input('unidades', []))
@@ -136,7 +140,18 @@ class GruaController extends Controller
             ])->withInput();
         }
 
-        $existia = DB::transaction(function () use ($request, $unidades, $delegaciones) {
+        $ubicacionesUnidades = $this->ubicacionesPorAsignacion(
+            $unidades,
+            $request->input('ubicaciones_unidades', []),
+            $request->input('ubicacion_corralon')
+        );
+        $ubicacionesDelegaciones = $this->ubicacionesPorAsignacion(
+            $delegaciones,
+            $request->input('ubicaciones_delegaciones', []),
+            $request->input('ubicacion_corralon')
+        );
+
+        $existia = DB::transaction(function () use ($request, $unidades, $delegaciones, $ubicacionesUnidades, $ubicacionesDelegaciones) {
             $data = $this->normalizarDatosGrua($request);
 
             $grua = $this->buscarGruaPorNombreNormalizado($data['nombre']);
@@ -148,8 +163,8 @@ class GruaController extends Controller
                 $grua = Grua::create($data);
             }
 
-            $grua->unidades()->syncWithoutDetaching($unidades);
-            $grua->delegaciones()->syncWithoutDetaching($delegaciones);
+            $grua->unidades()->syncWithoutDetaching($ubicacionesUnidades);
+            $grua->delegaciones()->syncWithoutDetaching($ubicacionesDelegaciones);
 
             return $existia;
         });
@@ -210,6 +225,10 @@ class GruaController extends Controller
             'unidades.*' => 'integer|exists:unidades,id',
             'delegaciones' => 'nullable|array',
             'delegaciones.*' => 'integer|exists:delegaciones,id',
+            'ubicaciones_unidades' => 'nullable|array',
+            'ubicaciones_unidades.*' => 'nullable|string|max:2000',
+            'ubicaciones_delegaciones' => 'nullable|array',
+            'ubicaciones_delegaciones.*' => 'nullable|string|max:2000',
         ]);
 
         $unidades = collect($request->input('unidades', []))
@@ -256,11 +275,22 @@ class GruaController extends Controller
             ])->withInput();
         }
 
-        DB::transaction(function () use ($grua, $data, $unidades, $delegaciones) {
+        $ubicacionesUnidades = $this->ubicacionesPorAsignacion(
+            $unidades,
+            $request->input('ubicaciones_unidades', []),
+            $request->input('ubicacion_corralon')
+        );
+        $ubicacionesDelegaciones = $this->ubicacionesPorAsignacion(
+            $delegaciones,
+            $request->input('ubicaciones_delegaciones', []),
+            $request->input('ubicacion_corralon')
+        );
+
+        DB::transaction(function () use ($grua, $data, $ubicacionesUnidades, $ubicacionesDelegaciones) {
             $grua->update($data);
 
-            $grua->unidades()->sync($unidades);
-            $grua->delegaciones()->sync($delegaciones);
+            $grua->unidades()->sync($ubicacionesUnidades);
+            $grua->delegaciones()->sync($ubicacionesDelegaciones);
         });
 
         return redirect()->route('gruas.index')
@@ -385,5 +415,17 @@ class GruaController extends Controller
         if (!empty($updates)) {
             $grua->update($updates);
         }
+    }
+
+    private function ubicacionesPorAsignacion(array $ids, $ubicaciones, $respaldo = null): array
+    {
+        $ubicaciones = is_array($ubicaciones) ? $ubicaciones : [];
+        $respaldo = $this->normalizarTextoGrua($respaldo);
+
+        return collect($ids)->mapWithKeys(function ($id) use ($ubicaciones, $respaldo) {
+            $ubicacion = $this->normalizarTextoGrua($ubicaciones[$id] ?? null) ?: $respaldo;
+
+            return [(int) $id => ['ubicacion_corralon' => $ubicacion]];
+        })->all();
     }
 }

@@ -28,6 +28,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -168,6 +169,8 @@ class ConduceLegalidadController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        $this->aplicarUbicacionCorralonAlCatalogo($gruas, self::UNIDAD_SINIESTROS, null);
+
         return response()->json([
             'data' => $gruas,
         ]);
@@ -187,6 +190,12 @@ class ConduceLegalidadController extends Controller
             ->with('delegaciones:id,clave,nombre,municipio')
             ->orderBy('gruas.nombre')
             ->get();
+
+        $this->aplicarUbicacionCorralonAlCatalogo(
+            $gruas,
+            (int) $operativo->unidad_id,
+            $operativo->delegacion_id ? (int) $operativo->delegacion_id : null
+        );
 
         $this->marcarGruasComoVialidadesUrbanas($gruas, $operativo);
 
@@ -2115,8 +2124,11 @@ class ConduceLegalidadController extends Controller
                 'grua' => $vehiculo->grua ?: optional($grua)->nombre,
                 'grua_id' => $vehiculo->grua_id,
                 'grua_nombre' => optional($grua)->nombre ?: $vehiculo->grua,
-                'grua_direccion' => optional($grua)->direccion ?: optional($corralon)->direccion,
-                'grua_ubicacion_corralon' => optional($grua)->ubicacion_corralon ?: optional($corralon)->ubicacion_corralon,
+                'grua_direccion' => $vehiculo->corralon_direccion
+                    ?: optional($grua)->direccion
+                    ?: optional($corralon)->direccion,
+                'grua_ubicacion_corralon' => $vehiculo->corralon_direccion
+                    ?: $this->ubicacionCorralonVehiculo($vehiculo, $corralon ?: $grua),
                 'corralon' => $vehiculo->corralon ?: optional($corralon)->nombre,
                 'monto_danos' => $vehiculo->monto_danos,
                 'partes_danadas' => $vehiculo->partes_danadas,
@@ -3400,7 +3412,7 @@ class ConduceLegalidadController extends Controller
                     ?: $corralonNombre;
             }
 
-            $captura->vehiculos()->create([
+            $vehiculoData = [
                 'marca' => $this->nullableString($row['marca'] ?? null),
                 'modelo' => $this->nullableString($row['modelo'] ?? null),
                 'tipo_general' => $this->nullableString($row['tipo_general'] ?? null),
@@ -3433,7 +3445,17 @@ class ConduceLegalidadController extends Controller
                 'motivo_retencion' => $motivoRetencion,
                 'persona_habilitada_resguardo' => $personaHabilitadaResguardo,
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
-            ]);
+            ];
+
+            if (Schema::hasColumn('conduce_legalidad_vehiculos', 'corralon_direccion')) {
+                $vehiculoData['corralon_direccion'] = $this->ubicacionCorralonPorId(
+                    (int) ($corralonId ?: ($row['grua_id'] ?? 0)),
+                    $captura->unidad_id ? (int) $captura->unidad_id : null,
+                    $captura->delegacion_id ? (int) $captura->delegacion_id : null
+                );
+            }
+
+            $captura->vehiculos()->create($vehiculoData);
         }
     }
 
@@ -3846,6 +3868,41 @@ class ConduceLegalidadController extends Controller
         });
     }
 
+    private function aplicarUbicacionCorralonAlCatalogo($gruas, int $unidadId, ?int $delegacionId): void
+    {
+        $gruas->each(function (Grua $grua) use ($unidadId, $delegacionId) {
+            $ubicacionGeneral = $grua->ubicacion_corralon;
+            $ubicacion = $grua->ubicacionCorralonPara($unidadId, $delegacionId);
+
+            $grua->setAttribute('ubicacion_corralon_general', $ubicacionGeneral);
+            $grua->setAttribute('ubicacion_corralon', $ubicacion);
+            $grua->setAttribute('corralon_direccion', $ubicacion);
+        });
+    }
+
+    private function ubicacionCorralonPorId(int $gruaId, ?int $unidadId, ?int $delegacionId): ?string
+    {
+        if ($gruaId <= 0) {
+            return null;
+        }
+
+        $grua = Grua::query()->with(['unidades', 'delegaciones'])->find($gruaId);
+
+        return $grua ? $grua->ubicacionCorralonPara($unidadId, $delegacionId) : null;
+    }
+
+    private function ubicacionCorralonVehiculo(ConduceLegalidadVehiculo $vehiculo, ?Grua $corralon): ?string
+    {
+        if (!$corralon) {
+            return null;
+        }
+
+        return $corralon->ubicacionCorralonPara(
+            $vehiculo->servicio_unidad_id ? (int) $vehiculo->servicio_unidad_id : null,
+            $vehiculo->servicio_delegacion_id ? (int) $vehiculo->servicio_delegacion_id : null
+        );
+    }
+
     private function marcarGruasComoVialidadesUrbanas($gruas, ConduceLegalidadOperativo $operativo): void
     {
         if ((int) $operativo->unidad_id !== self::UNIDAD_VIALIDADES_URBANAS) {
@@ -4136,7 +4193,7 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['operativo', 'creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'vehiculos.corralonRelacion', 'personas.infraccion', 'fotos']);
+        $captura->loadMissing(['operativo', 'creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'vehiculos.gruaRelacion', 'vehiculos.corralonRelacion', 'personas.infraccion', 'fotos']);
 
         return [
             'id' => $captura->id,
@@ -4219,7 +4276,7 @@ class ConduceLegalidadController extends Controller
 
     private function vehiculoPayload(ConduceLegalidadVehiculo $vehiculo): array
     {
-        $corralon = $vehiculo->corralonRelacion;
+        $corralon = $vehiculo->corralonRelacion ?: $vehiculo->gruaRelacion;
 
         return [
             'id' => $vehiculo->id,
@@ -4240,8 +4297,8 @@ class ConduceLegalidadController extends Controller
             'corralon_id' => $vehiculo->corralon_id,
             'grua' => $vehiculo->grua,
             'corralon' => $vehiculo->corralon ?: optional($corralon)->nombre,
-            'corralon_direccion' => optional($corralon)->ubicacion_corralon
-                ?: optional($corralon)->direccion,
+            'corralon_direccion' => $vehiculo->corralon_direccion
+                ?: $this->ubicacionCorralonVehiculo($vehiculo, $corralon),
             'corralon_telefono' => optional($corralon)->telefono,
             'servicio_unidad_id' => $vehiculo->servicio_unidad_id,
             'servicio_delegacion_id' => $vehiculo->servicio_delegacion_id,

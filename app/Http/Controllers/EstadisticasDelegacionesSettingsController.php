@@ -605,6 +605,7 @@ class EstadisticasDelegacionesSettingsController extends Controller
                         return str_contains($this->normalizarTexto(implode(' ', [
                             $grua->nombre ?? '',
                             $grua->direccion ?? '',
+                            optional($grua->pivot)->ubicacion_corralon ?? '',
                             $grua->ubicacion_corralon ?? '',
                             $grua->telefono ?? '',
                             $grua->email ?? '',
@@ -614,7 +615,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
                         'id' => (int) $grua->id,
                         'nombre' => $grua->nombre,
                         'direccion' => $grua->direccion,
-                        'ubicacion_corralon' => $grua->ubicacion_corralon,
+                        'ubicacion_corralon' => optional($grua->pivot)->ubicacion_corralon
+                            ?: $grua->ubicacion_corralon,
                         'telefono' => $grua->telefono,
                         'email' => $grua->email,
                     ])

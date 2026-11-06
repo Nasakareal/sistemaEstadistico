@@ -39,7 +39,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Ubicación del corralón</label>
+                                <label>Ubicación general (respaldo)</label>
                                 <p class="form-control-static">{{ $grua->ubicacion_corralon ?? 'No especificada' }}</p>
                             </div>
                         </div>
@@ -66,9 +66,11 @@
                                 <p class="form-control-static">
                                     @if($esSiniestros)
                                         <span class="badge badge-primary">SINIESTROS</span>
-                                    @elseif($esDelegaciones)
+                                    @endif
+                                    @if($esDelegaciones)
                                         <span class="badge badge-success">DELEGACIONES</span>
-                                    @else
+                                    @endif
+                                    @if(!$esSiniestros && !$esDelegaciones)
                                         <span class="badge badge-secondary">SIN ASIGNACIÓN</span>
                                     @endif
                                 </p>
@@ -76,20 +78,41 @@
                         </div>
                     </div>
 
+                    @if($esSiniestros)
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Corralón para Siniestros / Morelia</label>
+                                    <p class="form-control-static">
+                                        {{ optional(optional($grua->unidades->firstWhere('id', 1))->pivot)->ubicacion_corralon ?: ($grua->ubicacion_corralon ?: 'No especificada') }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     @if($esDelegaciones)
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>Delegaciones</label>
-                                    <div>
+                                    <label>Corralones por delegación</label>
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr><th>Delegación</th><th>Dirección del corralón</th></tr>
+                                            </thead>
+                                            <tbody>
                                         @foreach($grua->delegaciones as $delegacion)
-                                            <span class="badge badge-info mr-1 mb-1">
-                                                {{ $delegacion->nombre }}
-                                                @if($delegacion->clave)
-                                                    ({{ $delegacion->clave }})
-                                                @endif
-                                            </span>
+                                                <tr>
+                                                    <td>
+                                                        {{ $delegacion->nombre }}
+                                                        @if($delegacion->clave) ({{ $delegacion->clave }}) @endif
+                                                    </td>
+                                                    <td>{{ optional($delegacion->pivot)->ubicacion_corralon ?: ($grua->ubicacion_corralon ?: 'No especificada') }}</td>
+                                                </tr>
                                         @endforeach
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>

@@ -14,6 +14,8 @@
 
         $puedeVerSiniestros = $esSuperadmin || $unidadId === 1 || $unidadId === 3;
         $puedeVerDelegaciones = $esSuperadmin || $unidadId === 2 || $unidadId === 3;
+        $delegacionesSeleccionadas = collect(old('delegaciones', []))->map(fn($id) => (int) $id)->all();
+        $ubicacionesDelegaciones = old('ubicaciones_delegaciones', []);
     @endphp
 
     <div class="row">
@@ -55,9 +57,9 @@
 
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="ubicacion_corralon">Ubicación del corralón</label>
+                                    <label for="ubicacion_corralon">Ubicación general (respaldo)</label>
                                     <input type="text" name="ubicacion_corralon" id="ubicacion_corralon" class="form-control @error('ubicacion_corralon') is-invalid @enderror"
-                                           value="{{ old('ubicacion_corralon') }}" placeholder="Ingrese la ubicación del corralón">
+                                           value="{{ old('ubicacion_corralon') }}" placeholder="Se usa sólo si una asignación no tiene dirección propia">
                                     @error('ubicacion_corralon')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -110,6 +112,16 @@
                                                 {{ in_array(1, old('unidades', [])) ? 'checked' : '' }}>
                                             <label for="unidad_siniestros" class="custom-control-label">Siniestros</label>
                                         </div>
+                                        <div id="ubicacion_siniestros_container" class="mt-2" style="display: none;">
+                                            <label for="ubicacion_siniestros">Dirección del corralón para Siniestros / Morelia</label>
+                                            <input type="text" id="ubicacion_siniestros" name="ubicaciones_unidades[1]"
+                                                class="form-control @error('ubicaciones_unidades.1') is-invalid @enderror"
+                                                value="{{ old('ubicaciones_unidades.1') }}"
+                                                placeholder="Dirección que se imprimirá para servicios de Siniestros">
+                                            @error('ubicaciones_unidades.1')
+                                                <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                            @enderror
+                                        </div>
                                     </div>
                                 </div>
                             @endif
@@ -120,7 +132,7 @@
                                         <label for="delegaciones">Delegaciones</label>
                                         <select name="delegaciones[]" id="delegaciones" class="form-control select2 @error('delegaciones') is-invalid @enderror @error('delegaciones.*') is-invalid @enderror" multiple>
                                             @foreach($delegaciones as $delegacion)
-                                                <option value="{{ $delegacion->id }}" {{ in_array($delegacion->id, old('delegaciones', [])) ? 'selected' : '' }}>
+                                                <option value="{{ $delegacion->id }}" {{ in_array((int) $delegacion->id, $delegacionesSeleccionadas, true) ? 'selected' : '' }}>
                                                     {{ $delegacion->nombre }}{{ !empty($delegacion->clave) ? ' ('.$delegacion->clave.')' : '' }}
                                                 </option>
                                             @endforeach
@@ -136,6 +148,23 @@
                                                 <strong>{{ $message }}</strong>
                                             </span>
                                         @enderror
+                                    </div>
+                                    <div id="ubicaciones_delegaciones">
+                                        @foreach($delegaciones as $delegacion)
+                                            @php $seleccionada = in_array((int) $delegacion->id, $delegacionesSeleccionadas, true); @endphp
+                                            <div class="form-group ubicacion-delegacion" data-delegacion-id="{{ $delegacion->id }}" style="display: {{ $seleccionada ? 'block' : 'none' }};">
+                                                <label for="ubicacion_delegacion_{{ $delegacion->id }}">Dirección del corralón para {{ $delegacion->nombre }}</label>
+                                                <input type="text" id="ubicacion_delegacion_{{ $delegacion->id }}"
+                                                    name="ubicaciones_delegaciones[{{ $delegacion->id }}]"
+                                                    class="form-control @error('ubicaciones_delegaciones.'.$delegacion->id) is-invalid @enderror"
+                                                    value="{{ $ubicacionesDelegaciones[$delegacion->id] ?? '' }}"
+                                                    placeholder="Dirección que se imprimirá para esta delegación"
+                                                    {{ $seleccionada ? '' : 'disabled' }}>
+                                                @error('ubicaciones_delegaciones.'.$delegacion->id)
+                                                    <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                                @enderror
+                                            </div>
+                                        @endforeach
                                     </div>
                                 </div>
                             @endif
@@ -185,6 +214,27 @@
                     allowClear: true,
                     width: '100%'
                 });
+
+                function actualizarUbicacionesDelegaciones() {
+                    const seleccionadas = ($('#delegaciones').val() || []).map(String);
+                    $('.ubicacion-delegacion').each(function () {
+                        const visible = seleccionadas.includes(String($(this).data('delegacion-id')));
+                        $(this).toggle(visible).find('input').prop('disabled', !visible);
+                    });
+                }
+
+                $('#delegaciones').on('change', actualizarUbicacionesDelegaciones);
+                actualizarUbicacionesDelegaciones();
+            @endif
+
+            @if($puedeVerSiniestros)
+                function actualizarUbicacionSiniestros() {
+                    const activo = $('#unidad_siniestros').is(':checked');
+                    $('#ubicacion_siniestros_container').toggle(activo);
+                    $('#ubicacion_siniestros').prop('disabled', !activo);
+                }
+                $('#unidad_siniestros').on('change', actualizarUbicacionSiniestros);
+                actualizarUbicacionSiniestros();
             @endif
         });
 

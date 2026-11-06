@@ -79,6 +79,7 @@ class Delegacion extends Model
     public function gruas()
     {
         return $this->belongsToMany(Grua::class, 'delegacion_grua', 'delegacion_id', 'grua_id')
+            ->withPivot('ubicacion_corralon')
             ->withTimestamps();
     }
 

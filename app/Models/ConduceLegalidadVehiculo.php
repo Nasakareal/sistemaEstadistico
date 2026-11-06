@@ -30,6 +30,7 @@ class ConduceLegalidadVehiculo extends Model
         'corralon_id',
         'grua',
         'corralon',
+        'corralon_direccion',
         'servicio_unidad_id',
         'servicio_delegacion_id',
         'servicio_created_by',

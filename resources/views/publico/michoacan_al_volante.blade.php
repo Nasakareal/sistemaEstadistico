@@ -15,10 +15,14 @@
     <a class="skip-link" href="#contenido">Saltar al contenido</a>
 
     <header class="site-header">
-        <a class="brand" href="{{ route('michoacan_al_volante') }}" data-home>
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span><strong>Michoacán al Volante</strong><small>Seguridad Vial Michoacán</small></span>
-        </a>
+        <div class="institutional-identity">
+            <img class="ssp-logo" src="{{ asset('img/SSP_horizontal.png') }}" alt="Secretaría de Seguridad Pública, Gobierno de Michoacán">
+            <span class="identity-divider" aria-hidden="true"></span>
+            <a class="brand" href="{{ route('michoacan_al_volante') }}" data-home>
+                <img class="guardia-logo" src="{{ asset('img/guardiacivil.png') }}" alt="Guardia Civil Michoacán">
+                <span><strong>Michoacán al Volante</strong><small>Plataforma pública de formación vial</small></span>
+            </a>
+        </div>
         <nav aria-label="Navegación principal">
             <button type="button" class="nav-button" data-home>Inicio</button>
             <button type="button" class="nav-button" data-open-academy="learn">Academia</button>
@@ -117,9 +121,14 @@
         </section>
     </main>
 
-    <footer>
-        <span>Secretaría de Seguridad Pública · Michoacán</span>
-        <span>Tu seguridad también se aprende.</span>
+    <footer class="institutional-footer">
+        <div class="footer-identity">
+            <img src="{{ asset('img/logo-blanco.png') }}" alt="Secretaría de Seguridad Pública, Gobierno de Michoacán">
+            <span></span>
+            <img class="footer-guardia" src="{{ asset('img/guardiacivil.png') }}" alt="Guardia Civil Michoacán">
+        </div>
+        <div class="footer-copy"><strong>Michoacán al Volante</strong><small>Herramienta pública y gratuita de educación vial.</small></div>
+        <div class="footer-motto"><strong>Tu seguridad también se aprende.</strong><small>Emergencias 911 · Denuncia anónima 089</small></div>
     </footer>
 
     <noscript>Activa JavaScript para utilizar el simulador y los juegos.</noscript>

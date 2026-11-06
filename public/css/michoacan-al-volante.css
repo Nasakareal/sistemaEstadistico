@@ -1,6 +1,9 @@
 :root {
     --navy: #102d47;
     --navy-2: #173f5f;
+    --institutional: #8b1748;
+    --institutional-dark: #641033;
+    --institutional-green: #0f6658;
     --blue: #147ba6;
     --sky: #dff5fb;
     --cream: #fffaf0;
@@ -28,6 +31,23 @@ button { color: inherit; }
 .skip-link { position: fixed; left: 12px; top: -60px; z-index: 100; padding: 10px 16px; background: white; border-radius: 10px; }
 .skip-link:focus { top: 12px; }
 
+.government-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    min-height: 34px;
+    padding: 7px max(24px, calc((100vw - 1240px) / 2));
+    color: white;
+    background: linear-gradient(90deg, var(--institutional-dark), var(--institutional));
+    border-bottom: 3px solid var(--institutional-green);
+    font-size: 11px;
+    letter-spacing: .04em;
+}
+.government-bar div { display: flex; align-items: center; gap: 10px; }
+.government-bar i { display: block; width: 1px; height: 14px; background: rgba(255,255,255,.42); }
+.government-bar strong { text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
+
 .site-header {
     position: sticky;
     top: 0;
@@ -36,16 +56,19 @@ button { color: inherit; }
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    min-height: 76px;
-    padding: 12px max(24px, calc((100vw - 1240px) / 2));
+    min-height: 90px;
+    padding: 9px max(24px, calc((100vw - 1240px) / 2));
     background: rgba(255, 255, 255, .94);
     border-bottom: 1px solid rgba(16, 45, 71, .09);
     backdrop-filter: blur(14px);
 }
+.institutional-identity { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.ssp-logo { width: 142px; height: 66px; object-fit: contain; }
+.identity-divider { width: 1px; height: 50px; background: #d6dde1; }
 .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--navy); text-decoration: none; }
-.brand-mark { display: grid; place-items: center; width: 44px; height: 44px; color: white; background: var(--navy); border-radius: 14px 14px 14px 5px; font-weight: 900; font-size: 22px; }
+.guardia-logo { width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(16,45,71,.16)); }
 .brand span:last-child { display: grid; line-height: 1.1; }
-.brand strong { font-size: 17px; font-weight: 900; }
+.brand strong { font-size: 18px; font-weight: 900; letter-spacing: -.01em; }
 .brand small { margin-top: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
 nav { display: flex; align-items: center; gap: 8px; }
 .nav-button { border: 0; background: transparent; color: var(--navy); text-decoration: none; padding: 10px 13px; border-radius: 12px; font-weight: 800; cursor: pointer; }
@@ -64,16 +87,19 @@ nav { display: flex; align-items: center; gap: 8px; }
     background: linear-gradient(120deg, #e8f8f9 0%, #dff5fb 55%, #bceaf1 100%);
 }
 .hero-copy { z-index: 2; align-self: center; max-width: 670px; padding: 72px 32px 76px max(32px, calc((100vw - 1240px) / 2)); }
+.official-badge { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 8px 15px 8px 8px; border: 1px solid rgba(16,45,71,.12); border-left: 4px solid var(--institutional); border-radius: 14px; color: var(--navy); background: rgba(255,255,255,.72); box-shadow: 0 8px 25px rgba(16,45,71,.08); font-size: 12px; font-weight: 900; line-height: 1.2; }
+.official-badge img { width: 39px; height: 39px; object-fit: contain; }
+.official-badge small { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .eyebrow { color: var(--blue); text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 900; }
 h1, h2, h3, p { margin-top: 0; }
 .hero-copy h1 { margin: 15px 0 20px; color: var(--navy); font-size: clamp(42px, 5.5vw, 72px); line-height: .98; letter-spacing: -.045em; font-weight: 900; }
-.hero-copy h1 em { color: var(--orange); font-style: normal; }
+.hero-copy h1 em { color: var(--institutional); font-style: normal; }
 .hero-copy > p { max-width: 610px; color: #48687d; font-size: 18px; line-height: 1.6; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 27px 0 15px; }
 .button { border: 0; border-radius: 15px; padding: 13px 19px; font-weight: 900; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
 .button:hover { transform: translateY(-2px); }
 .button:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid rgba(20, 123, 166, .35); outline-offset: 3px; }
-.button-primary { background: var(--navy); color: white; box-shadow: 0 12px 25px rgba(16, 45, 71, .2); }
+.button-primary { background: linear-gradient(135deg, var(--navy), #1a496d); color: white; box-shadow: 0 12px 25px rgba(16, 45, 71, .2); }
 .button-light { background: white; color: var(--navy); border: 1px solid #d1e2e9; }
 .button-large { padding: 16px 24px; }
 .hero-note { font-size: 13px !important; font-weight: 800; }
@@ -306,11 +332,22 @@ h1, h2, h3, p { margin-top: 0; }
 .mav-result-stats small { margin-top: 3px; color: var(--muted); }
 .mav-game-result > .mav-action, .mav-game-result > .mav-secondary { margin: 5px; }
 
-footer { display: flex; justify-content: space-between; gap: 20px; padding: 25px max(24px, calc((100vw - 1240px) / 2)); color: #7590a0; background: white; border-top: 1px solid var(--line); font-size: 13px; font-weight: 700; }
+.institutional-footer { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; padding: 28px max(24px, calc((100vw - 1240px) / 2)); color: white; background: linear-gradient(115deg, #0b2338, var(--navy)); border-top: 5px solid var(--institutional); }
+.footer-identity { display: flex; align-items: center; gap: 14px; }
+.footer-identity img:first-child { width: 150px; height: 55px; object-fit: contain; }
+.footer-identity span { width: 1px; height: 45px; background: rgba(255,255,255,.25); }
+.footer-identity .footer-guardia { width: 55px; height: 55px; object-fit: contain; }
+.footer-copy, .footer-motto { display: grid; gap: 4px; }
+.footer-copy strong { font-size: 16px; }
+.footer-copy small, .footer-motto small { color: #b8c9d5; font-size: 11px; }
+.footer-motto { text-align: right; }
+.footer-motto strong { font-size: 13px; }
 noscript { display: block; padding: 20px; text-align: center; background: #fff0f1; color: var(--red); }
 
 @media (max-width: 900px) {
-    .site-header { align-items: flex-start; }
+    .site-header { align-items: flex-start; flex-wrap: wrap; }
+    .institutional-identity { width: 100%; }
+    .site-header nav { margin-left: auto; }
     nav { overflow-x: auto; max-width: 60vw; }
     .hero-shell { grid-template-columns: 1fr; }
     .hero-copy { padding: 64px 24px 42px; }
@@ -323,10 +360,20 @@ noscript { display: block; padding: 20px; text-align: center; background: #fff0f
     .topic-grid { grid-template-columns: repeat(2, 1fr); }
     .mav-priority-layout, .mav-decision-layout { grid-template-columns: 1fr; }
     .mav-map, .mav-decision-scene { max-width: 650px; margin: 0 auto; }
+    .institutional-footer { grid-template-columns: 1fr 1fr; }
+    .footer-motto { grid-column: 1 / -1; text-align: left; }
 }
 
 @media (max-width: 620px) {
-    .site-header { position: static; display: block; padding: 12px 16px; }
+    .government-bar { display: block; padding: 7px 16px; text-align: center; }
+    .government-bar div { justify-content: center; }
+    .government-bar strong { display: none; }
+    .site-header { position: static; display: block; padding: 10px 16px; }
+    .ssp-logo { width: 108px; height: 52px; }
+    .identity-divider { height: 42px; }
+    .guardia-logo { width: 49px; height: 49px; }
+    .brand strong { font-size: 15px; }
+    .brand small { display: none; }
     nav { max-width: none; margin-top: 11px; padding-bottom: 2px; }
     .nav-button { white-space: nowrap; font-size: 13px; }
     .hero-copy h1 { font-size: 44px; }
@@ -342,8 +389,9 @@ noscript { display: block; padding: 20px; text-align: center; background: #fff0f
     .scene-image, .scene-image img { min-height: 260px; }
     .question-actions { flex-direction: column-reverse; }
     .question-actions .button { width: 100%; }
-    footer { display: block; text-align: center; }
-    footer span { display: block; margin: 4px; }
+    .institutional-footer { display: grid; grid-template-columns: 1fr; text-align: center; }
+    .footer-identity { justify-content: center; }
+    .footer-motto { grid-column: auto; text-align: center; }
     .mav-tutorial-inner { padding: 25px 19px; border-radius: 22px; }
     .mav-tutorial-icon { width: 68px; height: 68px; font-size: 34px; }
     .mav-hazard-scene { border-radius: 17px; }

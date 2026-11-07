@@ -129,9 +129,9 @@ class LiberacionController extends Controller
         }
 
         $fechaActual = Carbon::now()->format('Y-m-d');
-        $hecho = $this->hechoDelVehiculo($vehiculo);
-        $autorizaOptions = $this->autorizaOptions($hecho);
-        $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
+        $origen = $this->origenDelVehiculo($vehiculo);
+        $autorizaOptions = $this->autorizaOptions($origen);
+        $autorizaPlaceholder = $this->autorizaPlaceholder($origen, $autorizaOptions);
         $motivosLiberacion = self::MOTIVOS_LIBERACION;
 
         return view('liberaciones.create', compact('vehiculo', 'fechaActual', 'autorizaOptions', 'autorizaPlaceholder', 'motivosLiberacion'));
@@ -144,7 +144,8 @@ class LiberacionController extends Controller
         }
 
         $hecho = $this->hechoDelVehiculo($vehiculo);
-        $validated = $this->validarLiberacion($request, $hecho);
+        $origen = $hecho ?: $this->actividadDelVehiculo($vehiculo);
+        $validated = $this->validarLiberacion($request, $origen);
 
         $anio = Carbon::parse($validated['fecha_liberacion'])->year;
 
@@ -172,9 +173,9 @@ class LiberacionController extends Controller
     public function edit(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
-        $hecho = $liberacion->hecho ?: $this->hechoDelVehiculo($vehiculo);
-        $autorizaOptions = $this->autorizaOptions($hecho);
-        $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
+        $origen = $liberacion->hecho ?: $this->origenDelVehiculo($vehiculo);
+        $autorizaOptions = $this->autorizaOptions($origen);
+        $autorizaPlaceholder = $this->autorizaPlaceholder($origen, $autorizaOptions);
         $motivosLiberacion = self::MOTIVOS_LIBERACION;
 
         return view('liberaciones.edit', compact('vehiculo', 'liberacion', 'autorizaOptions', 'autorizaPlaceholder', 'motivosLiberacion'));
@@ -187,8 +188,8 @@ class LiberacionController extends Controller
         }
 
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
-        $hecho = $liberacion->hecho ?: $this->hechoDelVehiculo($vehiculo);
-        $validated = $this->validarLiberacion($request, $hecho);
+        $origen = $liberacion->hecho ?: $this->origenDelVehiculo($vehiculo);
+        $validated = $this->validarLiberacion($request, $origen);
 
         $liberacion->fecha_liberacion = $validated['fecha_liberacion'];
         $liberacion->personas_autorizadas = $validated['personas_autorizadas'];
@@ -252,9 +253,9 @@ class LiberacionController extends Controller
             ->with('error', $mensaje);
     }
 
-    private function validarLiberacion(Request $request, ?Hechos $hecho): array
+    private function validarLiberacion(Request $request, Hechos|Actividad|null $origen): array
     {
-        $autorizaOptions = $this->autorizaOptions($hecho);
+        $autorizaOptions = $this->autorizaOptions($origen);
         $request->merge([
             'motivo_liberacion_otro' => trim((string) $request->input('motivo_liberacion_otro', '')),
         ]);
@@ -266,7 +267,7 @@ class LiberacionController extends Controller
             'motivo_liberacion' => ['required', 'string', Rule::in(array_keys(self::MOTIVOS_LIBERACION))],
             'motivo_liberacion_otro' => 'required_if:motivo_liberacion,Otro|nullable|string|max:255',
         ], [
-            'autoriza.in' => $this->autorizaValidationMessage($hecho, $autorizaOptions),
+            'autoriza.in' => $this->autorizaValidationMessage($origen, $autorizaOptions),
             'motivo_liberacion.in' => 'Selecciona un motivo de liberación válido.',
             'motivo_liberacion_otro.required_if' => 'Escribe el motivo de liberación cuando selecciones Otro.',
         ]);
@@ -280,18 +281,18 @@ class LiberacionController extends Controller
         return $validated;
     }
 
-    private function autorizaOptions(?Hechos $hecho): array
+    private function autorizaOptions(Hechos|Actividad|null $origen): array
     {
-        if ($this->esHechoDelegaciones($hecho)) {
-            return $this->delegadosDeHecho($hecho);
+        if ($this->esOrigenDelegaciones($origen)) {
+            return $this->delegadosDelOrigen($origen);
         }
 
         return self::AUTORIZADORES_SINIESTROS;
     }
 
-    private function autorizaPlaceholder(?Hechos $hecho, array $autorizaOptions): string
+    private function autorizaPlaceholder(Hechos|Actividad|null $origen, array $autorizaOptions): string
     {
-        if ($this->esHechoDelegaciones($hecho)) {
+        if ($this->esOrigenDelegaciones($origen)) {
             return empty($autorizaOptions)
                 ? 'No se encontró delegado para esta delegación'
                 : 'Seleccione el delegado que autoriza';
@@ -300,37 +301,38 @@ class LiberacionController extends Controller
         return 'Seleccione un comandante';
     }
 
-    private function autorizaValidationMessage(?Hechos $hecho, array $autorizaOptions): string
+    private function autorizaValidationMessage(Hechos|Actividad|null $origen, array $autorizaOptions): string
     {
-        if ($this->esHechoDelegaciones($hecho) && empty($autorizaOptions)) {
-            return 'No se encontró un usuario activo con rol Delegado para la delegación que subió el hecho.';
+        if ($this->esOrigenDelegaciones($origen) && empty($autorizaOptions)) {
+            return 'No se encontró un usuario activo con rol Delegado para la delegación que registró la captura.';
         }
 
         return 'Selecciona una persona válida para autorizar la liberación.';
     }
 
-    private function esHechoDelegaciones(?Hechos $hecho): bool
+    private function esOrigenDelegaciones(Hechos|Actividad|null $origen): bool
     {
-        if (!$hecho) {
+        if (!$origen) {
             return false;
         }
 
-        $hecho->loadMissing('creator');
+        $creador = $this->creadorDelOrigen($origen);
 
-        $unidadId = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+        $unidadId = (int) ($origen->unidad_org_id ?: ($creador->unidad_id ?? 0));
 
         return $unidadId === self::UNIDAD_DELEGACIONES_ID;
     }
 
-    private function delegadosDeHecho(?Hechos $hecho): array
+    private function delegadosDelOrigen(Hechos|Actividad|null $origen): array
     {
-        if (!$hecho) {
+        if (!$origen) {
             return [];
         }
 
-        $hecho->loadMissing(['delegacion', 'creator']);
+        $origen->loadMissing('delegacion');
+        $creador = $this->creadorDelOrigen($origen);
 
-        $delegacionIds = $this->delegacionIdsParaDelegados($hecho);
+        $delegacionIds = $this->delegacionIdsParaDelegados($origen, $creador);
 
         if (empty($delegacionIds)) {
             return [];
@@ -363,20 +365,20 @@ class LiberacionController extends Controller
             ->all();
     }
 
-    private function delegacionIdsParaDelegados(Hechos $hecho): array
+    private function delegacionIdsParaDelegados(Hechos|Actividad $origen, ?User $creador): array
     {
         $ids = [];
 
-        if (!empty($hecho->delegacion_id)) {
-            $ids[] = (int) $hecho->delegacion_id;
+        if (!empty($origen->delegacion_id)) {
+            $ids[] = (int) $origen->delegacion_id;
         }
 
-        if ($hecho->delegacion && !empty($hecho->delegacion->delegacion_padre_id)) {
-            $ids[] = (int) $hecho->delegacion->delegacion_padre_id;
+        if ($origen->delegacion && !empty($origen->delegacion->delegacion_padre_id)) {
+            $ids[] = (int) $origen->delegacion->delegacion_padre_id;
         }
 
-        if (empty($ids) && $hecho->creator && !empty($hecho->creator->delegacion_id)) {
-            $ids[] = (int) $hecho->creator->delegacion_id;
+        if (empty($ids) && $creador && !empty($creador->delegacion_id)) {
+            $ids[] = (int) $creador->delegacion_id;
         }
 
         return array_values(array_unique(array_filter($ids)));
@@ -387,6 +389,24 @@ class LiberacionController extends Controller
         return $vehiculo->hechos()
             ->with(['delegacion', 'creator'])
             ->first();
+    }
+
+    private function origenDelVehiculo(Vehiculo $vehiculo): Hechos|Actividad|null
+    {
+        return $this->hechoDelVehiculo($vehiculo) ?: $this->actividadDelVehiculo($vehiculo);
+    }
+
+    private function creadorDelOrigen(Hechos|Actividad $origen): ?User
+    {
+        if ($origen instanceof Hechos) {
+            $origen->loadMissing('creator');
+
+            return $origen->creator;
+        }
+
+        $origen->loadMissing('creador');
+
+        return $origen->creador;
     }
 
     private function actividadDelVehiculo(Vehiculo $vehiculo): ?Actividad

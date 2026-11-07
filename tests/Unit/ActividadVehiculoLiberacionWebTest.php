@@ -3,7 +3,11 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\ConduceLegalidadWebController;
+use App\Http\Controllers\LiberacionController;
+use App\Models\Actividad;
 use App\Models\ConduceLegalidadOperativo;
+use App\Models\Delegacion;
+use App\Models\User;
 use App\Models\Vehiculo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use ReflectionMethod;
@@ -29,6 +33,26 @@ class ActividadVehiculoLiberacionWebTest extends TestCase
         $this->assertStringContainsString("route('liberacion.create'", $actividad);
         $this->assertStringContainsString('$fechaResguardo', $acuse);
         $this->assertStringContainsString('$hecho?->oficio_mp', $acuse);
+    }
+
+    public function test_liberacion_reconoce_actividad_de_conduce_como_origen_de_delegaciones(): void
+    {
+        $actividad = new Actividad([
+            'unidad_org_id' => 2,
+            'delegacion_id' => 36,
+        ]);
+        $actividad->setRelation('creador', new User(['unidad_id' => 2]));
+        $actividad->setRelation('delegacion', new Delegacion(['id' => 36]));
+
+        $controller = new LiberacionController();
+
+        $esDelegaciones = new ReflectionMethod($controller, 'esOrigenDelegaciones');
+        $esDelegaciones->setAccessible(true);
+        $this->assertTrue($esDelegaciones->invoke($controller, $actividad));
+
+        $ids = new ReflectionMethod($controller, 'delegacionIdsParaDelegados');
+        $ids->setAccessible(true);
+        $this->assertSame([36], $ids->invoke($controller, $actividad, $actividad->creador));
     }
 
     public function test_listado_web_no_limita_operativos_activos_al_mes_actual(): void

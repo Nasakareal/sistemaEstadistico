@@ -91,53 +91,12 @@ class WhatsAppWebReaderControllerTest extends TestCase
         );
     }
 
-    public function test_procesa_la_recomendacion_cuando_la_funcion_esta_activa(): void
-    {
-        config([
-            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
-            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000004@g.us',
-            'services.whatsapp.web_reader.allowed_author_ids' => '5214437938996@c.us',
-            'services.whatsapp.c5i_recommendation.enabled' => true,
-            'services.whatsapp.c5i_recommendation.group_ids' => '120363000000000004@g.us',
-            'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437938996@c.us',
-        ]);
-
-        $this->postJson('http://localhost/api/whatsapp-web-reader/messages', [
-            'group' => [
-                'id' => '120363000000000004@g.us',
-                'name' => 'Grupo con diagnóstico',
-            ],
-            'message' => [
-                'id' => 'MENSAJE_SIN_COORDENADAS',
-                'author_id' => '5214437938996@c.us',
-                'body' => 'R10 COMANDO',
-                'type' => 'chat',
-                'has_media' => false,
-                'timestamp' => 1784178004,
-            ],
-        ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
-            ->assertOk()
-            ->assertJsonPath('recommendation_status', 'ignored')
-            ->assertJsonPath('recommendation_reason', 'coordinates_not_found');
-
-        $this->assertDatabaseHas('whatsapp_web_messages', [
-            'whatsapp_message_id' => 'MENSAJE_SIN_COORDENADAS',
-            'recommendation_status' => 'ignored',
-        ]);
-        $this->assertNotNull(
-            \App\Models\WhatsAppWebMessage::query()
-                ->where('whatsapp_message_id', 'MENSAJE_SIN_COORDENADAS')
-                ->value('recommendation_processed_at')
-        );
-    }
-
     public function test_genera_id_estable_si_whatsapp_web_no_entrega_message_id(): void
     {
         config([
             'services.whatsapp.web_reader.secret' => 'reader-test-secret',
             'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000001@g.us',
             'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us,5214437938996@c.us',
-            'services.whatsapp.c5i_recommendation.enabled' => false,
         ]);
 
         $headers = ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'];
@@ -224,7 +183,6 @@ class WhatsAppWebReaderControllerTest extends TestCase
             'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000003@g.us',
             'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us',
             'services.whatsapp.web_reader.allow_operational_authors' => true,
-            'services.whatsapp.c5i_recommendation.enabled' => false,
             'services.whatsapp.c5i_response_time.enabled' => false,
         ]);
 
@@ -260,7 +218,6 @@ class WhatsAppWebReaderControllerTest extends TestCase
             'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000005@g.us',
             'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us',
             'services.whatsapp.web_reader.allow_operational_authors' => true,
-            'services.whatsapp.c5i_recommendation.enabled' => false,
             'services.whatsapp.c5i_response_time.audio_max_bytes' => 5242880,
         ]);
 

@@ -7,7 +7,6 @@ use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
 use App\Services\C5iResponseTimeService;
 use App\Services\C5iAudioTranscriptionService;
-use App\Services\C5iSiniestrosRecommendationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -62,8 +61,7 @@ class WhatsAppWebReaderController extends Controller
     public function storeMessage(
         Request $request,
         C5iResponseTimeService $responseTime,
-        C5iAudioTranscriptionService $audioTranscription,
-        C5iSiniestrosRecommendationService $recommendations
+        C5iAudioTranscriptionService $audioTranscription
     )
     {
         if (!$this->isAuthorized($request)) {
@@ -222,10 +220,6 @@ class WhatsAppWebReaderController extends Controller
             ])->save();
         }
 
-        $recommendationResult = $message->wasRecentlyCreated
-            ? $recommendations->process($message)
-            : ['status' => 'duplicate'];
-
         $responseTimeResult = ($message->wasRecentlyCreated || $audioProcessedNow)
             ? $responseTime->processMessage($message)
             : ['status' => 'duplicate'];
@@ -241,9 +235,6 @@ class WhatsAppWebReaderController extends Controller
         return response()->json([
             'ok' => true,
             'message_id' => $message->id,
-            'recommendation_status' => $message->recommendation_status,
-            'recommendation_reason' => $recommendationResult['reason']
-                ?? data_get($message->recommendation_meta, 'reason'),
             'response_time_status' => $responseTimeResult['status'] ?? null,
             'response_time_reason' => $responseTimeResult['reason'] ?? null,
             'transcription_status' => $message->transcription_status,

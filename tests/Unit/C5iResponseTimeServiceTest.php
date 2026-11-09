@@ -10,7 +10,6 @@ use App\Models\UserLocation;
 use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
 use App\Services\C5iResponseTimeService;
-use App\Services\C5iSiniestrosRecommendationService;
 use App\Services\WhatsAppCloudService;
 use App\Services\WhatsAppSendGuard;
 use Carbon\Carbon;
@@ -185,7 +184,13 @@ class C5iResponseTimeServiceTest extends TestCase
             $reportedAt->copy()->addMinutes(8)
         ));
 
-        $this->assertSame('sent', C5iServiceResponse::query()->firstOrFail()->notification_status);
+        $this->assertSame(
+            'sent',
+            C5iServiceResponse::query()
+                ->where('incident_message_id', $incident->id)
+                ->firstOrFail()
+                ->notification_status
+        );
     }
 
     public function test_audio_transcrito_con_unidad_y_86_completa_sin_gps_y_sin_depender_del_autor(): void
@@ -397,8 +402,6 @@ class C5iResponseTimeServiceTest extends TestCase
     ): C5iResponseTimeService {
         $cloud = $cloud ?: $this->createMock(WhatsAppCloudService::class);
         $guard = $guard ?: $this->createMock(WhatsAppSendGuard::class);
-        $recommendation = new C5iSiniestrosRecommendationService($cloud, $guard);
-
-        return new C5iResponseTimeService($recommendation, $cloud, $guard);
+        return new C5iResponseTimeService($cloud, $guard);
     }
 }

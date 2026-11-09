@@ -53,7 +53,7 @@ class UserOrganizationalSessionTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_changing_delegation_revokes_mobile_tokens(): void
+    public function test_changing_delegation_preserves_mobile_tokens(): void
     {
         $user = User::query()->create([
             'name' => 'Usuario de prueba',
@@ -68,6 +68,6 @@ class UserOrganizationalSessionTest extends TestCase
 
         $user->update(['delegacion_id' => 20]);
 
-        $this->assertSame(0, $user->tokens()->count());
+        $this->assertSame(1, $user->tokens()->count());
     }
 }

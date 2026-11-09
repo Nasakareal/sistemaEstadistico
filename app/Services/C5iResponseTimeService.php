@@ -19,16 +19,13 @@ class C5iResponseTimeService
 {
     private const CONTEXT = 'c5i-siniestros-tiempo-reaccion';
 
-    private C5iSiniestrosRecommendationService $recommendations;
     private WhatsAppCloudService $whatsApp;
     private WhatsAppSendGuard $sendGuard;
 
     public function __construct(
-        C5iSiniestrosRecommendationService $recommendations,
         WhatsAppCloudService $whatsApp,
         WhatsAppSendGuard $sendGuard
     ) {
-        $this->recommendations = $recommendations;
         $this->whatsApp = $whatsApp;
         $this->sendGuard = $sendGuard;
     }
@@ -144,6 +141,46 @@ class C5iResponseTimeService
         return $this->hasArrivalCue($this->normalizedText((string) $body));
     }
 
+    private function parseIncident(string $body): ?array
+    {
+        $number = '(-?\d{1,3}(?:[\.,]\d+)?)';
+        $pattern = '/\bLATITUD\s*:\s*' . $number . '\s*LONGITUD\s*:\s*' . $number . '\b/iu';
+
+        if (!preg_match($pattern, $body, $matches)) {
+            return null;
+        }
+
+        $lat = (float) str_replace(',', '.', $matches[1]);
+        $lng = (float) str_replace(',', '.', $matches[2]);
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return null;
+        }
+
+        $location = preg_replace($pattern, '', $body, 1) ?? $body;
+        $location = preg_replace('/\s+/u', ' ', trim($location)) ?? trim($location);
+
+        if (mb_strlen($location, 'UTF-8') > 500) {
+            $location = mb_substr($location, 0, 497, 'UTF-8') . '...';
+        }
+
+        return [
+            'lat' => $lat,
+            'lng' => $lng,
+            'location' => $location !== '' ? $location : 'Ubicación sin descripción',
+        ];
+    }
+
+    private function isExcludedIncident(string $body): bool
+    {
+        $header = mb_substr(trim($body), 0, 160, 'UTF-8');
+
+        return preg_match(
+            '/^\s*(?:[^\p{L}\p{N}]+\s*)?(?:UBICACI[ÓO]N\s*:\s*)?(L4)(?:\s+\1)?\s+LLEGA\b/iu',
+            $header
+        ) === 1;
+    }
+
     private function processMessageSafely(WhatsAppWebMessage $message): array
     {
         $message->loadMissing('group');
@@ -154,12 +191,12 @@ class C5iResponseTimeService
 
         $body = $this->operationalText($message);
 
-        if ($this->recommendations->isExcludedIncident($body)) {
+        if ($this->isExcludedIncident($body)) {
             return ['status' => 'ignored', 'reason' => 'arrival_code_not_relevant'];
         }
 
         $author = (string) $message->author_whatsapp_id;
-        $incident = $this->recommendations->parseIncident($body);
+        $incident = $this->parseIncident($body);
         $normalized = $this->normalizedText($body);
         $patrulla = $this->resolvePatrulla($body, $author);
         if ($this->hasArrivalCue($normalized) && !$this->hasUnitReportCue($normalized)) {

@@ -223,9 +223,10 @@ class UserController extends Controller
 
         return response()->json([
             'message' => $organizationalAssignmentChanged
-                ? 'Usuario actualizado correctamente. Debe iniciar sesión nuevamente para aplicar su nueva adscripción.'
+                ? 'Usuario actualizado correctamente. La aplicación móvil reconocerá automáticamente la nueva adscripción.'
                 : 'Usuario actualizado correctamente.',
-            'session_refresh_required' => $organizationalAssignmentChanged,
+            'session_refresh_required' => false,
+            'access_refresh_required' => $organizationalAssignmentChanged,
             'data' => $this->serializeUser($user),
         ]);
     }

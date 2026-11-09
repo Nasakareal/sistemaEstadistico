@@ -375,7 +375,7 @@ class UserController extends Controller
 
             $mensaje = 'Usuario actualizado correctamente.';
             if ($user->wasChanged(['unidad_id', 'delegacion_id', 'destacamento_id'])) {
-                $mensaje .= ' Su sesión móvil fue cerrada para que ingrese nuevamente con la adscripción actualizada.';
+                $mensaje .= ' La aplicación móvil reconocerá automáticamente la nueva adscripción.';
             }
 
             return redirect()->route('users.index')->with('success', $mensaje);

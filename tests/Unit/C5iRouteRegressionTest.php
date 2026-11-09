@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\{C5iServiceResponse, Patrulla, User, WhatsAppWebGroup, WhatsAppWebMessage};
-use App\Services\{C5iResponseTimeService, C5iRouteService, C5iSiniestrosRecommendationService, WhatsAppCloudService, WhatsAppSendGuard};
+use App\Services\{C5iResponseTimeService, C5iRouteService, WhatsAppCloudService, WhatsAppSendGuard};
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\{DB, Schema, Route};
@@ -69,7 +69,7 @@ class C5iRouteRegressionTest extends TestCase
         $cloud = $this->createMock(WhatsAppCloudService::class);
         $cloud->expects($this->never())->method('sendTemplate');
         $guard = $this->createMock(WhatsAppSendGuard::class);
-        return new C5iResponseTimeService(new C5iSiniestrosRecommendationService($cloud, $guard), $cloud, $guard);
+        return new C5iResponseTimeService($cloud, $guard);
     }
 
     private function message(string $body, string $at, string $author): WhatsAppWebMessage

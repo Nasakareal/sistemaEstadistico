@@ -4047,6 +4047,19 @@ class ConduceLegalidadController extends Controller
             ->filter(fn (array $fundamento) => $this->ambitoFundamentoAplicaConduceLegalidad(
                 $fundamento['ambito_vehiculo'] ?? null
             ))
+            ->map(function (array $fundamento) {
+                // Compatibilidad con versiones móviles anteriores: esas versiones
+                // sólo muestran fundamentos marcados como retención, aunque el
+                // depósito sea condicionado por falta de persona habilitada.
+                if (
+                    ($fundamento['deposito_si_sin_persona_habilitada'] ?? false)
+                    && !($fundamento['retencion_vehiculo'] ?? false)
+                ) {
+                    $fundamento['retencion_vehiculo'] = true;
+                }
+
+                return $fundamento;
+            })
             ->values();
     }
 

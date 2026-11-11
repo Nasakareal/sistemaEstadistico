@@ -37,9 +37,17 @@ class ComunicacionPushService
             $remitente = $comunicacion->remitente->nombre_completo
                 ?? $comunicacion->remitente->name ?? 'Seguridad Vial';
             $body = trim((string) $comunicacion->contenido);
-            $hasImages = $comunicacion->adjuntos()->exists();
+            $hasImages = $comunicacion->adjuntos()
+                ->where('tipo', 'imagen')
+                ->exists();
+            $hasAudio = $comunicacion->adjuntos()
+                ->where('tipo', 'audio')
+                ->exists();
+            $fallback = $hasAudio
+                ? 'Te envió un audio PTT'
+                : 'Te envió una imagen';
             $ok = app(PushService::class)->sendToTokens($tokens, $remitente,
-                Str::limit($body !== '' ? $body : 'Te envió una imagen', 180), [
+                Str::limit($body !== '' ? $body : $fallback, 180), [
                     'modulo' => 'comunicaciones',
                     'comunicacion_id' => (string) $comunicacion->id,
                     'remitente_user_id' => (string) $comunicacion->remitente_user_id,
@@ -48,6 +56,7 @@ class ComunicacionPushService
                     'asunto' => $comunicacion->asunto,
                     'contenido' => Str::limit($body, 180),
                     'tiene_imagenes' => $hasImages ? '1' : '0',
+                    'tiene_audio' => $hasAudio ? '1' : '0',
                 ]);
             if (!$ok) {
                 Log::warning('Comunicacion push delivery failed', ['comunicacion_id' => $comunicacionId]);

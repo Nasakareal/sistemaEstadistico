@@ -137,6 +137,8 @@ class ComunicacionController extends Controller
             'requiere_enterado' => 'nullable|boolean',
             'imagenes' => 'nullable|array|max:10',
             'imagenes.*' => 'file|image|mimes:jpg,jpeg,png,webp|max:10240',
+            'audios' => 'nullable|array|max:1',
+            'audios.*' => 'file|mimes:m4a,mp4,aac,3gp|max:5120',
         ]);
 
         $contenido = trim(
@@ -154,6 +156,16 @@ class ComunicacionController extends Controller
         );
 
         $tieneImagenes = count($imagenes) > 0;
+
+        $audios = $request->file('audios', []);
+
+        if (!is_array($audios)) {
+            $audios = [$audios];
+        }
+
+        $audios = array_values(array_filter($audios));
+
+        $tieneAudio = count($audios) > 0;
 
         if (
             in_array(
@@ -194,9 +206,10 @@ class ComunicacionController extends Controller
             $validated['tipo'] === 'mensaje'
             && $contenido === ''
             && !$tieneImagenes
+            && !$tieneAudio
         ) {
             throw ValidationException::withMessages([
-                'contenido' => 'Debes escribir un mensaje o adjuntar al menos una imagen.',
+                'contenido' => 'Debes escribir un mensaje o adjuntar una imagen o audio.',
             ]);
         }
 
@@ -235,6 +248,7 @@ class ComunicacionController extends Controller
                     $request,
                     $contenido,
                     $imagenes,
+                    $audios,
                     &$archivosGuardados
                 ) {
                     $requiereEnterado = false;
@@ -297,6 +311,12 @@ class ComunicacionController extends Controller
                     $this->guardarImagenes(
                         $comunicacion,
                         $imagenes,
+                        $archivosGuardados
+                    );
+
+                    $this->guardarAudios(
+                        $comunicacion,
+                        $audios,
                         $archivosGuardados
                     );
 
@@ -1022,6 +1042,70 @@ class ComunicacionController extends Controller
                     $imagen->getSize(),
                 'ancho' => $ancho,
                 'alto' => $alto,
+                'orden' => $orden,
+            ]);
+        }
+    }
+
+    private function guardarAudios(
+        Comunicacion $comunicacion,
+        array $audios,
+        array &$archivosGuardados
+    ): void {
+        if (empty($audios)) {
+            return;
+        }
+
+        $disk = 'local';
+
+        foreach ($audios as $orden => $audio) {
+            if (!$audio || !$audio->isValid()) {
+                continue;
+            }
+
+            $extension = strtolower(
+                $audio->extension()
+                ?: $audio->getClientOriginalExtension()
+            );
+
+            $nombreArchivo =
+                Str::uuid()->toString()
+                . ($extension ? '.' . $extension : '.m4a');
+
+            $directorio =
+                'comunicaciones/'
+                . $comunicacion->id;
+
+            $ruta = $audio->storeAs(
+                $directorio,
+                $nombreArchivo,
+                $disk
+            );
+
+            if (!$ruta) {
+                throw new \RuntimeException(
+                    'No fue posible guardar el audio PTT.'
+                );
+            }
+
+            $archivosGuardados[] = [
+                'disk' => $disk,
+                'ruta' => $ruta,
+            ];
+
+            ComunicacionAdjunto::create([
+                'comunicacion_id' => $comunicacion->id,
+                'tipo' => 'audio',
+                'disk' => $disk,
+                'ruta' => $ruta,
+                'nombre_original' =>
+                    $audio->getClientOriginalName(),
+                'mime_type' =>
+                    $audio->getMimeType(),
+                'tamano_bytes' =>
+                    $audio->getSize(),
+                'ancho' => null,
+                'alto' => null,
                 'orden' => $orden,
             ]);
         }

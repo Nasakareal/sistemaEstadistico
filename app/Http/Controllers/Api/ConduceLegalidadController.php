@@ -43,6 +43,8 @@ class ConduceLegalidadController extends Controller
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo de Alcoholimetría';
     private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
+    private const RADIO_BLOQUEO_OPERATIVO_ACTIVO_METROS = 30.0;
+    private const OPERATIVO_LOCATION_LOCK = 'conduce_legalidad_operativo_location';
     private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
     private const ESTADOS_CIVILES = ['SOLTERO(A)', 'CASADO(A)', 'VIUDO(A)', 'DIVORCIADO(A)'];
@@ -458,30 +460,46 @@ class ConduceLegalidadController extends Controller
         );
         $this->assertFirmanteIphPresente($validated, $tipoOperativo);
 
-        $operativo = ConduceLegalidadOperativo::create([
-            'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
-            'nombre' => $this->nombreOperativo($tipoOperativo),
-            'tipo_operativo' => $tipoOperativo,
-            'fecha' => $schedule['fecha'],
-            'hora_inicio' => $schedule['hora_inicio'],
-            'municipio' => $this->nullableString($validated['municipio'] ?? null),
-            'lugar' => $this->nullableString($validated['lugar'] ?? null),
-            'numero' => $this->nullableString($validated['numero'] ?? null),
-            'colonia' => $this->nullableString($validated['colonia'] ?? null),
-            'codigo_postal' => $codigoPostal,
-            'lat' => $validated['lat'] ?? null,
-            'lng' => $validated['lng'] ?? null,
-            'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
-            'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
-            'firmante_iph_nombres' => $this->nullableString($validated['firmante_iph_nombres'] ?? null),
-            'firmante_iph_apellido_paterno' => $this->nullableString($validated['firmante_iph_apellido_paterno'] ?? null),
-            'firmante_iph_apellido_materno' => $this->nullableString($validated['firmante_iph_apellido_materno'] ?? null),
-            'estado' => $validated['estado'] ?? 'activo',
-            'unidad_id' => $scope['unidad_id'],
-            'delegacion_id' => $scope['delegacion_id'],
-            'created_by' => $user->id,
-            'updated_by' => $user->id,
-        ]);
+        $operativo = $this->withOperativoLocationLock(function () use (
+            $validated,
+            $schedule,
+            $scope,
+            $codigoPostal,
+            $tipoOperativo,
+            $user
+        ) {
+            if (($validated['estado'] ?? 'activo') === 'activo') {
+                $this->assertNoActiveOperativoNearby(
+                    (float) $validated['lat'],
+                    (float) $validated['lng']
+                );
+            }
+
+            return ConduceLegalidadOperativo::create([
+                'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
+                'nombre' => $this->nombreOperativo($tipoOperativo),
+                'tipo_operativo' => $tipoOperativo,
+                'fecha' => $schedule['fecha'],
+                'hora_inicio' => $schedule['hora_inicio'],
+                'municipio' => $this->nullableString($validated['municipio'] ?? null),
+                'lugar' => $this->nullableString($validated['lugar'] ?? null),
+                'numero' => $this->nullableString($validated['numero'] ?? null),
+                'colonia' => $this->nullableString($validated['colonia'] ?? null),
+                'codigo_postal' => $codigoPostal,
+                'lat' => $validated['lat'] ?? null,
+                'lng' => $validated['lng'] ?? null,
+                'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
+                'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
+                'firmante_iph_nombres' => $this->nullableString($validated['firmante_iph_nombres'] ?? null),
+                'firmante_iph_apellido_paterno' => $this->nullableString($validated['firmante_iph_apellido_paterno'] ?? null),
+                'firmante_iph_apellido_materno' => $this->nullableString($validated['firmante_iph_apellido_materno'] ?? null),
+                'estado' => $validated['estado'] ?? 'activo',
+                'unidad_id' => $scope['unidad_id'],
+                'delegacion_id' => $scope['delegacion_id'],
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+            ]);
+        });
 
         $operativo->load('creador');
 
@@ -641,7 +659,18 @@ class ConduceLegalidadController extends Controller
             $operativo->hora_cierre = null;
         }
 
-        $operativo->save();
+        if ($operativo->estado === 'activo') {
+            $this->withOperativoLocationLock(function () use ($operativo) {
+                $this->assertNoActiveOperativoNearby(
+                    (float) $operativo->lat,
+                    (float) $operativo->lng,
+                    (int) $operativo->id
+                );
+                $operativo->save();
+            });
+        } else {
+            $operativo->save();
+        }
         $operativo->load(['creador', 'actualizador', 'cerrador']);
 
         return response()->json([
@@ -2910,6 +2939,105 @@ class ConduceLegalidadController extends Controller
             'firmante_iph_apellido_materno' => ['nullable', 'string', 'max:80'],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ];
+    }
+
+    private function withOperativoLocationLock(callable $callback)
+    {
+        $connection = DB::connection();
+        if ($connection->getDriverName() !== 'mysql') {
+            return DB::transaction($callback);
+        }
+
+        $result = $connection->selectOne(
+            'SELECT GET_LOCK(?, 10) AS acquired',
+            [self::OPERATIVO_LOCATION_LOCK]
+        );
+        if ((int) ($result->acquired ?? 0) !== 1) {
+            abort(503, 'No se pudo verificar la ubicación de forma segura. Intenta nuevamente.');
+        }
+
+        try {
+            return DB::transaction($callback);
+        } finally {
+            $connection->selectOne(
+                'SELECT RELEASE_LOCK(?) AS released',
+                [self::OPERATIVO_LOCATION_LOCK]
+            );
+        }
+    }
+
+    private function assertNoActiveOperativoNearby(
+        float $lat,
+        float $lng,
+        ?int $ignoreId = null
+    ): void {
+        $radius = self::RADIO_BLOQUEO_OPERATIVO_ACTIVO_METROS;
+        $latDelta = $radius / 111320.0;
+        $lngScale = 111320.0 * abs(cos(deg2rad($lat)));
+        $lngDelta = $radius / max($lngScale, 1.0);
+
+        $query = ConduceLegalidadOperativo::query()
+            ->where('estado', 'activo')
+            ->whereNotNull('lat')
+            ->whereNotNull('lng')
+            ->whereBetween('lat', [$lat - $latDelta, $lat + $latDelta])
+            ->whereBetween('lng', [$lng - $lngDelta, $lng + $lngDelta]);
+        if ($ignoreId !== null) {
+            $query->where('id', '<>', $ignoreId);
+        }
+
+        $closest = null;
+        $closestDistance = INF;
+        foreach ($query->get() as $candidate) {
+            $distance = $this->distanceMeters(
+                $lat,
+                $lng,
+                (float) $candidate->lat,
+                (float) $candidate->lng
+            );
+            if ($distance < $radius && $distance < $closestDistance) {
+                $closest = $candidate;
+                $closestDistance = $distance;
+            }
+        }
+
+        if (!$closest) {
+            return;
+        }
+
+        $location = implode(', ', array_filter([
+            $this->nullableString($closest->lugar),
+            $this->nullableString($closest->numero),
+            $this->nullableString($closest->colonia)
+                ? 'Col. ' . $this->nullableString($closest->colonia)
+                : null,
+            $this->nullableString($closest->municipio),
+        ]));
+        $distanceText = number_format($closestDistance, 1, '.', '');
+        $locationText = $location !== '' ? " ({$location})" : '';
+
+        throw ValidationException::withMessages([
+            'coordenadas_texto' => [
+                "Ya existe el operativo activo #{$closest->id} a {$distanceText} m{$locationText}. "
+                . 'Usa ese operativo o ciérralo antes de activar uno nuevo.',
+            ],
+        ]);
+    }
+
+    private function distanceMeters(
+        float $latA,
+        float $lngA,
+        float $latB,
+        float $lngB
+    ): float {
+        $earthRadius = 6371000.0;
+        $latDelta = deg2rad($latB - $latA);
+        $lngDelta = deg2rad($lngB - $lngA);
+        $a = sin($latDelta / 2) ** 2
+            + cos(deg2rad($latA)) * cos(deg2rad($latB))
+            * sin($lngDelta / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a)));
     }
 
     private function assertFirmanteIphPresente(array $validated, string $tipoOperativo): void

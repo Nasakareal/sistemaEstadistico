@@ -105,6 +105,7 @@ use App\Http\Controllers\BoquillaDotacionController;
 
 use App\Http\Controllers\ComunicacionController;
 use App\Http\Controllers\ConduceLegalidadWebController;
+use App\Http\Controllers\ConduceLegalidadVehiculosReporteController;
 
 use App\Http\Controllers\CaleaDirectivaController;
 use App\Http\Controllers\CaleaDirectivaVersionController;
@@ -419,6 +420,13 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/hechos',[EstadisticasGlobalesController::class,'hechos'])->name('estadisticas_globales.hechos');
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
     Route::get('/export/mensual',[EstadisticasGlobalesController::class,'exportMensual'])->name('estadisticas_globales.export.mensual');
+});
+
+Route::prefix('reportes/conduce-legalidad')->middleware('auth')->group(function () {
+    Route::get('/vehiculos', [ConduceLegalidadVehiculosReporteController::class, 'index'])
+        ->name('reportes.conduce_legalidad.vehiculos');
+    Route::get('/vehiculos/excel', [ConduceLegalidadVehiculosReporteController::class, 'export'])
+        ->name('reportes.conduce_legalidad.vehiculos.excel');
 });
 
 Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisticas actividades'])->group(function () {

@@ -97,6 +97,15 @@
                                 </td>
                             </tr>
 
+                            <tr>
+                                <td><strong>Vehículos de Conduce con Legalidad</strong></td>
+                                <td>
+                                    <a href="{{ route('reportes.conduce_legalidad.vehiculos') }}" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-motorcycle"></i> Consultar y descargar Excel
+                                    </a>
+                                </td>
+                            </tr>
+
                             {{-- NUEVA ESTADÍSTICA: DICTAMEN --}}
                             <tr>
                                 <td><strong>Dictamen (Buscador)</strong></td>

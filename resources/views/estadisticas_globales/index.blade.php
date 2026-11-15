@@ -26,6 +26,18 @@
         $puedeFiltrarOrigenHechos = auth()->user()->hasRole('Superadmin') || (int) auth()->user()->unidad_id === 3;
     @endphp
 
+    <div class="sv-panel mb-3 cl-report-entry">
+        <div class="cl-report-entry__icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="cl-report-entry__copy">
+            <span>Operativos de Conduce con Legalidad</span>
+            <strong>Consulta de vehículos y descarga en Excel</strong>
+            <small>Filtra por fecha, municipio, marca, placas, serie, inventario o motivo.</small>
+        </div>
+        <a href="{{ route('reportes.conduce_legalidad.vehiculos') }}" class="btn sv-btn cl-report-entry__button">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir reporte
+        </a>
+    </div>
+
     <div class="row">
         <div class="col-12">
             <div class="sv-panel">
@@ -337,6 +349,17 @@
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
 <link rel="stylesheet" href="{{ asset('css/estadisticas-excel-view.css') }}">
+<style>
+    .cl-report-entry { display:flex; align-items:center; gap:16px; padding:17px 19px; border:1px solid rgba(45,212,191,.24); background:linear-gradient(105deg,rgba(15,118,110,.18),rgba(15,23,42,.78) 55%,rgba(30,41,59,.78)); }
+    .cl-report-entry__icon { display:grid; place-items:center; flex:0 0 48px; height:48px; border-radius:13px; color:#fff; font-size:1.25rem; background:linear-gradient(145deg,#10b981,#047857); box-shadow:0 8px 18px rgba(5,150,105,.2); }
+    .cl-report-entry__copy { min-width:0; flex:1; }
+    .cl-report-entry__copy span,.cl-report-entry__copy strong,.cl-report-entry__copy small { display:block; }
+    .cl-report-entry__copy span { color:#5eead4; font-size:.69rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .cl-report-entry__copy strong { margin:2px 0; color:#f8fafc; font-size:1rem; }
+    .cl-report-entry__copy small { color:#94a3b8; }
+    .cl-report-entry__button { color:#fff; background:linear-gradient(135deg,#0f766e,#059669); white-space:nowrap; }
+    @media(max-width:767.98px){.cl-report-entry{align-items:flex-start;flex-wrap:wrap}.cl-report-entry__copy{flex-basis:calc(100% - 70px)}.cl-report-entry__button{width:100%}}
+</style>
 @stop
 
 @section('js')

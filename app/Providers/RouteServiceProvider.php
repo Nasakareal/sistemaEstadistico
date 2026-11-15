@@ -90,5 +90,18 @@ class RouteServiceProvider extends ServiceProvider
                 Limit::perHour(10)->by('register-ip:' . hash('sha256', $ip)),
             ];
         });
+
+        RateLimiter::for('sierse', function (Request $request) {
+            $client = (string) $request->attributes->get(
+                'sierse_client_id',
+                $request->header('X-SIERSE-Client', 'unknown')
+            );
+            $key = hash('sha256', $client . '|' . $request->ip());
+
+            return [
+                Limit::perMinute(120)->by('sierse-minute:' . $key),
+                Limit::perHour(3000)->by('sierse-hour:' . $key),
+            ];
+        });
     }
 }

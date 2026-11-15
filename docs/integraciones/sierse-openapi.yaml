@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: API privada SIERSE - Galvan
+  version: 1.0.0
+  description: >-
+    Integracion servidor a servidor. Requiere HTTPS, certificado mTLS,
+    IP autorizada y firma HMAC-SHA256 en cada solicitud.
+servers:
+  - url: https://HOST_POR_CONFIRMAR/api/integraciones/sierse/v1
+security:
+  - sierseClient: []
+    sierseKeyId: []
+    sierseTimestamp: []
+    sierseNonce: []
+    sierseSignature: []
+paths:
+  /estado:
+    get:
+      summary: Verifica autenticacion y capacidades
+      responses:
+        '200':
+          description: Enlace correcto
+        '401':
+          description: Firma invalida
+        '403':
+          description: IP o certificado no autorizado
+        '404':
+          description: Integracion deshabilitada
+  /buscar:
+    get:
+      summary: Busca exclusivamente vehiculos bajo custodia de Galvan
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [inventory, plate, vin, conduce_folio]
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: string
+            maxLength: 120
+      responses:
+        '200':
+          description: Uno o mas vehiculos encontrados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleSearchResponse'
+        '404':
+          description: No existe, no pertenece a Galvan o el intercambio esta deshabilitado
+  /vehiculos:
+    get:
+      summary: Lista paginada de vehiculos bajo custodia de Galvan
+      parameters:
+        - in: query
+          name: source
+          required: true
+          schema:
+            type: string
+            enum: [vehicle_registry, conduce_legalidad]
+        - in: query
+          name: page
+          schema: {type: integer, minimum: 1, default: 1}
+        - in: query
+          name: per_page
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - in: query
+          name: updated_since
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Lista paginada
+  /vehiculos/{source}/{vehicleId}:
+    get:
+      summary: Obtiene un expediente autorizado
+      parameters:
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/VehicleId'
+      responses:
+        '200':
+          description: Expediente del vehiculo
+        '404':
+          description: No encontrado o fuera del alcance de Galvan
+  /vehiculos/{source}/{vehicleId}/fotos/{type}:
+    get:
+      summary: Descarga una foto autenticada del vehiculo
+      parameters:
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/VehicleId'
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [vehicle, inventory, service]
+      responses:
+        '200':
+          description: Imagen binaria
+          content:
+            image/jpeg: {}
+            image/png: {}
+            image/webp: {}
+        '404':
+          description: Foto no disponible o vehiculo no autorizado
+  /vehiculos/{source}/{vehicleId}/eventos:
+    post:
+      summary: Recibe costos, estados, liberaciones o evidencias
+      parameters:
+        - $ref: '#/components/parameters/Source'
+        - $ref: '#/components/parameters/VehicleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboundEvent'
+      responses:
+        '202':
+          description: Evento recibido
+        '200':
+          description: Evento idempotente ya recibido con el mismo contenido
+        '409':
+          description: El identificador ya existe con contenido diferente
+        '413':
+          description: Cuerpo mayor a 256 KiB
+  /eventos/{externalEventId}:
+    get:
+      summary: Consulta el estado de un evento enviado por Galvan
+      parameters:
+        - in: path
+          name: externalEventId
+          required: true
+          schema: {type: string, maxLength: 120}
+      responses:
+        '200':
+          description: Estado del evento
+        '404':
+          description: Evento no encontrado para este cliente
+components:
+  securitySchemes:
+    sierseClient:
+      type: apiKey
+      in: header
+      name: X-SIERSE-Client
+    sierseTimestamp:
+      type: apiKey
+      in: header
+      name: X-SIERSE-Timestamp
+    sierseKeyId:
+      type: apiKey
+      in: header
+      name: X-SIERSE-Key-Id
+    sierseNonce:
+      type: apiKey
+      in: header
+      name: X-SIERSE-Nonce
+    sierseSignature:
+      type: apiKey
+      in: header
+      name: X-SIERSE-Signature
+  parameters:
+    Source:
+      in: path
+      name: source
+      required: true
+      schema:
+        type: string
+        enum: [vehicle_registry, conduce_legalidad]
+    VehicleId:
+      in: path
+      name: vehicleId
+      required: true
+      schema: {type: integer, minimum: 1}
+  schemas:
+    VehicleSearchResponse:
+      type: object
+      properties:
+        ok: {type: boolean}
+        query: {type: object}
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Vehicle'}
+    Vehicle:
+      type: object
+      description: Lista positiva; nunca incluye conductores, telefonos o domicilios.
+      properties:
+        source: {type: string}
+        id: {type: integer}
+        inventory_number: {type: string, nullable: true}
+        conduce_folio: {type: string, nullable: true}
+        make: {type: string, nullable: true}
+        line: {type: string, nullable: true}
+        model: {type: string, nullable: true}
+        type: {type: string, nullable: true}
+        color: {type: string, nullable: true}
+        plate: {type: string, nullable: true}
+        plate_state: {type: string, nullable: true}
+        vin: {type: string, nullable: true}
+        yard: {type: string, nullable: true}
+        available_photos:
+          type: array
+          items: {type: string}
+    InboundEvent:
+      type: object
+      required: [external_event_id, event_type, data]
+      properties:
+        external_event_id:
+          type: string
+          maxLength: 120
+          pattern: '^[A-Za-z0-9._:-]+$'
+        event_type:
+          type: string
+          enum: [service_update, cost_update, release_update, evidence_update, other]
+        schema_version: {type: string, default: '1.0'}
+        data:
+          type: object
+          additionalProperties: true

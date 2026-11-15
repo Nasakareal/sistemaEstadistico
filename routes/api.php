@@ -63,6 +63,7 @@ use App\Http\Controllers\Api\AccountSettingsController;
 use App\Http\Controllers\Api\PatrullaServicioController;
 use App\Http\Controllers\Api\DeceptionApiController;
 use App\Http\Controllers\Api\ThermalPrinterController;
+use App\Http\Controllers\Api\SierseIntegrationController;
 
 if (config('honeypot_api.enabled') && config('honeypot_api.prefix')) {
     Route::prefix(config('honeypot_api.prefix'))->group(function () {
@@ -73,6 +74,25 @@ if (config('honeypot_api.enabled') && config('honeypot_api.prefix')) {
             ->name('api.honeypot.resource');
     });
 }
+
+Route::prefix('integraciones/sierse/v1')
+    ->middleware(['sierse.signature', 'throttle:sierse'])
+    ->group(function () {
+        Route::get('/estado', [SierseIntegrationController::class, 'status'])
+            ->name('api.integraciones.sierse.status');
+        Route::get('/buscar', [SierseIntegrationController::class, 'search'])
+            ->name('api.integraciones.sierse.search');
+        Route::get('/vehiculos', [SierseIntegrationController::class, 'index'])
+            ->name('api.integraciones.sierse.vehicles.index');
+        Route::get('/vehiculos/{source}/{vehicleId}', [SierseIntegrationController::class, 'show'])
+            ->whereNumber('vehicleId')->name('api.integraciones.sierse.vehicles.show');
+        Route::get('/vehiculos/{source}/{vehicleId}/fotos/{type}', [SierseIntegrationController::class, 'photo'])
+            ->whereNumber('vehicleId')->name('api.integraciones.sierse.vehicles.photos.show');
+        Route::post('/vehiculos/{source}/{vehicleId}/eventos', [SierseIntegrationController::class, 'storeEvent'])
+            ->whereNumber('vehicleId')->name('api.integraciones.sierse.events.store');
+        Route::get('/eventos/{externalEventId}', [SierseIntegrationController::class, 'showEvent'])
+            ->where('externalEventId', '[A-Za-z0-9._:-]+')->name('api.integraciones.sierse.events.show');
+    });
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);

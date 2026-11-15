@@ -49,6 +49,7 @@ class Kernel extends HttpKernel
 
         'unidad'             => \App\Http\Middleware\VerificarUnidad::class,
         'grua.api.scope'     => \App\Http\Middleware\RestrictGruaApiAccess::class,
+        'sierse.signature'   => \App\Http\Middleware\VerifySierseSignature::class,
 
         'role'               => \Spatie\Permission\Middlewares\RoleMiddleware::class,
         'permission'         => \Spatie\Permission\Middlewares\PermissionMiddleware::class,

@@ -57,19 +57,55 @@ class ConduceLegalidadVehiculosReporteService
         $query = $this->baseQuery();
         $this->applyFilters($query, $request);
 
-        $municipios = (clone $query)
-            ->whereRaw(self::MUNICIPIO_SQL . " IS NOT NULL")
-            ->selectRaw(self::MUNICIPIO_SQL . ' as municipio')
-            ->distinct()
-            ->get()
-            ->count();
-
         return [
             'vehiculos' => (clone $query)->count('v.id'),
-            'operativos' => (clone $query)->distinct()->count('o.id'),
-            'municipios' => $municipios,
+            'operativos' => $this->contarOperativosReales($query),
+            'municipios' => $this->contarMunicipios($query),
             'retenidos' => (clone $query)->where('v.retencion_vehiculo', true)->count('v.id'),
         ];
+    }
+
+    private function contarMunicipios(Builder $query): int
+    {
+        return (clone $query)
+            ->selectRaw(self::MUNICIPIO_SQL . ' as municipio')
+            ->distinct()
+            ->pluck('municipio')
+            ->map(function ($municipio) {
+                $municipio = preg_replace('/\s+/u', ' ', trim((string) $municipio));
+
+                return mb_strtoupper($municipio, 'UTF-8');
+            })
+            ->filter()
+            ->unique()
+            ->count();
+    }
+
+    private function contarOperativosReales(Builder $query): int
+    {
+        return (clone $query)
+            ->select([
+                'o.id as operativo_id',
+                DB::raw(self::FECHA_SQL . ' as fecha_operativo_real'),
+                DB::raw(self::MUNICIPIO_SQL . ' as municipio_operativo_real'),
+            ])
+            ->distinct()
+            ->get()
+            ->map(function ($operativo) {
+                $fecha = substr(trim((string) $operativo->fecha_operativo_real), 0, 10);
+                $municipio = preg_replace('/\s+/u', ' ', trim((string) $operativo->municipio_operativo_real));
+                $municipio = mb_strtoupper($municipio, 'UTF-8');
+
+                // Un operativo real es la jornada realizada en un municipio y fecha.
+                // Si falta alguno de esos datos, no se fusiona accidentalmente con otro.
+                if ($fecha === '' || $municipio === '') {
+                    return 'operativo:' . $operativo->operativo_id;
+                }
+
+                return $fecha . '|' . $municipio;
+            })
+            ->unique()
+            ->count();
     }
 
     public function opciones(): array

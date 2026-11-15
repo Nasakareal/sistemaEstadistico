@@ -44,7 +44,7 @@
         <div class="col-xl-3 col-sm-6 mb-3">
             <div class="cl-kpi cl-kpi--blue">
                 <div class="cl-kpi__icon"><i class="fa-solid fa-road-barrier"></i></div>
-                <div><span>Operativos</span><strong>{{ number_format($resumen['operativos'] ?? 0) }}</strong><small>Operativos relacionados</small></div>
+                <div><span>Operativos</span><strong>{{ number_format($resumen['operativos'] ?? 0) }}</strong><small>Uno por fecha y municipio</small></div>
             </div>
         </div>
         <div class="col-xl-3 col-sm-6 mb-3">

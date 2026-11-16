@@ -8,6 +8,8 @@ use App\Models\Grua;
 use App\Models\SierseIntegrationEvent;
 use App\Models\Vehiculo;
 use App\Services\Fotos\HechoFotoStorage;
+use App\Services\SierseIntegrationEventProcessor;
+use App\Services\SierseIntegrationStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -166,11 +168,18 @@ class SierseIntegrationController extends Controller
         );
     }
 
-    public function storeEvent(Request $request, string $source, int $vehicleId)
+    public function storeEvent(
+        Request $request,
+        string $source,
+        int $vehicleId,
+        SierseIntegrationEventProcessor $processor
+    )
     {
         $this->ensureExchangeEnabled();
-        abort_if(strlen((string) $request->getContent()) > 262144, 413, 'Payload demasiado grande.');
-        $this->scopedVehicle($request, $source, $vehicleId);
+        abort_if(strlen((string) $request->getContent()) > 62914560, 413, 'Payload demasiado grande.');
+        abort_unless($source === 'vehicle_registry', 422, 'Los eventos solo se aplican al expediente vehicular principal.');
+        /** @var Vehiculo $vehicle */
+        $vehicle = $this->scopedVehicle($request, $source, $vehicleId);
         $validated = $request->validate([
             'external_event_id' => ['required', 'string', 'max:120', 'regex:/^[A-Za-z0-9._:-]+$/'],
             'event_type' => ['required', 'in:service_update,cost_update,release_update,evidence_update,other'],
@@ -191,18 +200,38 @@ class SierseIntegrationController extends Controller
                 ->header('Cache-Control', 'no-store, private');
         }
 
-        $event = SierseIntegrationEvent::create([
-            'client_id' => $clientId,
-            'external_event_id' => $validated['external_event_id'],
-            'vehicle_source' => $source,
-            'vehicle_id' => $vehicleId,
-            'event_type' => $validated['event_type'],
-            'schema_version' => $validated['schema_version'] ?? '1.0',
-            'payload_sha256' => $payloadHash,
-            'payload' => $validated['data'],
-            'status' => 'RECEIVED',
-            'received_at' => now(),
-        ]);
+        $event = DB::transaction(function () use (
+            $clientId,
+            $payloadHash,
+            $processor,
+            $source,
+            $validated,
+            $vehicle,
+            $vehicleId
+        ) {
+            $event = SierseIntegrationEvent::create([
+                'client_id' => $clientId,
+                'external_event_id' => $validated['external_event_id'],
+                'vehicle_source' => $source,
+                'vehicle_id' => $vehicleId,
+                'event_type' => $validated['event_type'],
+                'schema_version' => $validated['schema_version'] ?? '1.0',
+                'payload_sha256' => $payloadHash,
+                'payload' => $validated['data'],
+                'status' => 'RECEIVED',
+                'received_at' => now(),
+            ]);
+
+            $result = $processor->process($event, $vehicle, $validated['data']);
+            $event->update([
+                'payload' => $result['payload'],
+                'status' => $result['status'],
+                'processing_message' => $result['message'],
+                'processed_at' => $result['status'] === 'RECEIVED' ? null : now(),
+            ]);
+
+            return $event->refresh();
+        });
 
         return response()->json(['ok' => true, 'duplicate' => false, 'event' => $this->eventPayload($event)], 202)
             ->header('Cache-Control', 'no-store, private');
@@ -408,6 +437,7 @@ class SierseIntegrationController extends Controller
                 'sierse_folio' => $release->sierse_folio,
                 'released_at' => optional($release->fecha_entrega)->toIso8601String(),
             ] : null,
+            'sierse_integration' => app(SierseIntegrationStatusService::class)->forVehicle($vehicle),
             'available_photos' => array_values(array_filter([
                 $vehicle->fotos ? 'vehicle' : null,
                 $vehicle->foto_inventario_grua ? 'inventory' : null,

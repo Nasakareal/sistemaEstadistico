@@ -19,6 +19,10 @@ class LiberacionCorralon extends Model
         'identificacion_recibe',
         'telefono_recibe',
         'sierse_folio',
+        'sierse_reported_released',
+        'sierse_reported_at',
+        'sierse_event_id',
+        'sierse_requirements',
         'condicion_entrega',
         'foto_identificacion',
         'foto_entrega',
@@ -39,6 +43,9 @@ class LiberacionCorralon extends Model
         'conformidad_memoria' => 'boolean',
         'fecha_conformidad' => 'datetime',
         'fecha_entrega' => 'datetime',
+        'sierse_reported_released' => 'boolean',
+        'sierse_reported_at' => 'datetime',
+        'sierse_requirements' => 'array',
     ];
 
     public function vehiculo()
@@ -54,5 +61,10 @@ class LiberacionCorralon extends Model
     public function gruaUsuario()
     {
         return $this->belongsTo(GruaUsuario::class, 'grua_usuario_id');
+    }
+
+    public function sierseEvent()
+    {
+        return $this->belongsTo(SierseIntegrationEvent::class, 'sierse_event_id');
     }
 }

@@ -12,6 +12,7 @@ use App\Models\Servicio;
 use App\Models\Vehiculo;
 use App\Services\Fotos\ActividadFotoBlobStorage;
 use App\Services\Fotos\HechoFotoStorage;
+use App\Services\SierseIntegrationStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -732,6 +733,7 @@ class GruaCorralonController extends Controller
                 'observaciones' => $liberacion->observaciones,
                 'fecha_entrega' => $liberacion->fecha_entrega,
             ] : null,
+            'sierse_integracion' => app(SierseIntegrationStatusService::class)->forVehicle($vehiculo),
             'fotos' => [
                 'inventario' => $vehiculo->foto_inventario_grua
                     ? '/grua/corralon/' . $vehiculo->id . '/foto-inventario'

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Grua;
 use App\Models\LiberacionCorralon;
 use App\Models\Vehiculo;
+use App\Services\SierseIntegrationStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -70,12 +71,14 @@ class LiberacionCorralonController extends Controller
         $portal = $this->esPortalGrua();
         $gruaUsuario = Auth::guard('grua')->user();
         $liberacion = $vehiculo->liberacionCorralon;
+        $sierseIntegracion = app(SierseIntegrationStatusService::class)->forVehicle($vehiculo);
 
         return view('liberaciones_corralon.show', compact(
             'portal',
             'gruaUsuario',
             'vehiculo',
-            'liberacion'
+            'liberacion',
+            'sierseIntegracion'
         ));
     }
 

@@ -6,7 +6,7 @@ info:
     Integracion servidor a servidor. Requiere HTTPS, certificado mTLS,
     IP autorizada y firma HMAC-SHA256 en cada solicitud.
 servers:
-  - url: https://HOST_POR_CONFIRMAR/api/integraciones/sierse/v1
+  - url: https://seguridadvial-mich.com/api/integraciones/sierse/v1
 security:
   - sierseClient: []
     sierseKeyId: []
@@ -119,13 +119,15 @@ paths:
               $ref: '#/components/schemas/InboundEvent'
       responses:
         '202':
-          description: Evento recibido
+          description: Evento procesado; consultar event.status (APPLIED, REVIEW_REQUIRED o RECEIVED)
         '200':
           description: Evento idempotente ya recibido con el mismo contenido
         '409':
           description: El identificador ya existe con contenido diferente
         '413':
-          description: Cuerpo mayor a 256 KiB
+          description: Cuerpo mayor a 60 MiB
+        '422':
+          description: Estructura, datos o archivo no validos
   /eventos/{externalEventId}:
     get:
       summary: Consulta el estado de un evento enviado por Galvan
@@ -216,5 +218,77 @@ components:
           enum: [service_update, cost_update, release_update, evidence_update, other]
         schema_version: {type: string, default: '1.0'}
         data:
-          type: object
-          additionalProperties: true
+          oneOf:
+            - $ref: '#/components/schemas/ServiceUpdate'
+            - $ref: '#/components/schemas/CostUpdate'
+            - $ref: '#/components/schemas/ReleaseUpdate'
+            - $ref: '#/components/schemas/EvidenceUpdate'
+    ServiceUpdate:
+      type: object
+      properties:
+        sierse_folio: {type: string, maxLength: 120}
+        requested_at: {type: string, format: date-time}
+        arrived_at: {type: string, format: date-time}
+        started_at: {type: string, format: date-time}
+        finished_at: {type: string, format: date-time}
+        origin: {type: string, maxLength: 255}
+        destination: {type: string, maxLength: 255}
+        operator_name: {type: string, maxLength: 255}
+        tow_unit: {type: string, maxLength: 120}
+        kilometers: {type: number, minimum: 0}
+        performed_maneuvers: {type: boolean}
+        maneuvers_description: {type: string, maxLength: 2000}
+        notes: {type: string, maxLength: 2000}
+    CostUpdate:
+      type: object
+      required: [total_amount]
+      properties:
+        total_amount: {type: number, minimum: 0}
+        currency: {type: string, enum: [MXN], default: MXN}
+        payment_method: {type: string, maxLength: 40}
+        payment_status: {type: string, enum: [PENDING, PARTIAL, PAID, CANCELLED]}
+        invoice_reference: {type: string, maxLength: 120}
+        breakdown:
+          type: array
+          items:
+            type: object
+            required: [concept, amount]
+            properties:
+              concept: {type: string, maxLength: 120}
+              amount: {type: number, minimum: 0}
+        notes: {type: string, maxLength: 2000}
+    ReleaseUpdate:
+      type: object
+      required: [released]
+      properties:
+        released: {type: boolean}
+        released_at: {type: string, format: date-time}
+        sierse_folio: {type: string, maxLength: 120}
+        delivery_condition: {type: string, enum: [CONFORME_INVENTARIO, CON_OBSERVACIONES]}
+        notes: {type: string, maxLength: 2000}
+        documents: {$ref: '#/components/schemas/Documents'}
+    EvidenceUpdate:
+      type: object
+      required: [documents]
+      properties:
+        documents: {$ref: '#/components/schemas/Documents'}
+        notes: {type: string, maxLength: 2000}
+    Documents:
+      type: object
+      description: >-
+        Se permiten memory_description (15 MiB), payment_receipt (10 MiB),
+        release_document (10 MiB) y delivery_photo (5 MiB). El servidor valida
+        el MIME real; PDF, JPEG, PNG o WebP.
+      properties:
+        memory_description: {$ref: '#/components/schemas/Base64Document'}
+        payment_receipt: {$ref: '#/components/schemas/Base64Document'}
+        release_document: {$ref: '#/components/schemas/Base64Document'}
+        delivery_photo: {$ref: '#/components/schemas/Base64Document'}
+      additionalProperties: false
+    Base64Document:
+      type: object
+      required: [filename, mime, content_base64]
+      properties:
+        filename: {type: string, maxLength: 180}
+        mime: {type: string, enum: [application/pdf, image/jpeg, image/png, image/webp]}
+        content_base64: {type: string, format: byte}

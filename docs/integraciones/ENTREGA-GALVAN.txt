@@ -1,0 +1,35 @@
+ENTREGA API SIERSE - GRUAS GALVAN
+==================================
+
+URL base:
+https://seguridadvial-mich.com/api/integraciones/sierse/v1
+
+Archivos tecnicos para el desarrollador:
+- sierse-openapi.yaml
+- test-sierse-api.ps1
+- sierse-ca.crt
+- README-GALVAN.md
+
+Credenciales sensibles (entregar por canales separados):
+- galvan-api.pfx
+- certificado-galvan.txt (contiene la contrasena del PFX)
+- api-galvan.txt (contiene Client ID, Key ID y secreto HMAC)
+
+Seguridad obligatoria:
+- Certificado cliente mTLS.
+- Firma HMAC-SHA256 en cada solicitud.
+- Timestamp Unix y nonce unico.
+- HTTPS exclusivamente.
+
+Prueba inicial:
+GET /estado
+
+No enviar los tres archivos sensibles juntos por correo o chat. Enviar el PFX
+por un canal y las contrasenas/secretos por otro. El secreto y certificado
+vencen y pueden revocarse desde Seguridad Vial.
+
+La API no entrega conductores, telefonos ni domicilios. Los eventos entrantes
+permiten reportar costos, datos del servicio, liberacion y evidencias. Los
+costos/datos operativos se aplican al expediente; una liberacion externa queda
+como REPORTADA/PENDIENTE DE REVISION y nunca se vuelve liberacion oficial sin
+validacion interna de Seguridad Vial.

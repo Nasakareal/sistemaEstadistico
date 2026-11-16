@@ -72,6 +72,58 @@
         </div>
     </div>
 
+    @if(($sierseIntegracion['connected'] ?? false) || ($sierseIntegracion['release_reported'] ?? false))
+        @php
+            $requisitosSierse = [
+                'memory_description' => 'Memoria descriptiva',
+                'payment_receipt' => 'Comprobante de pago',
+                'release_document' => 'Oficio de liberación',
+                'delivery_photo' => 'Foto de entrega',
+            ];
+        @endphp
+        <div class="{{ ($portal ?? false) ? 'panel' : 'card card-outline card-warning' }} mb-3">
+            <div class="{{ ($portal ?? false) ? 'panel-body' : 'card-body' }}">
+                <h4>Intercambio API con SIERSE / Galván</h4>
+                <p>
+                    <strong>Expediente:</strong>
+                    {{ ($sierseIntegracion['complete'] ?? false) ? 'requisitos externos completos' : 'con requisitos pendientes' }}.
+                    <strong>Liberación reportada por Galván:</strong>
+                    {{ ($sierseIntegracion['release_reported'] ?? false) ? 'Sí' : 'No' }}.
+                    <strong>Liberación oficial validada:</strong>
+                    {{ ($sierseIntegracion['officially_released'] ?? false) ? 'Sí' : 'No' }}.
+                </p>
+                @if(($sierseIntegracion['release_reported'] ?? false) && !($sierseIntegracion['officially_released'] ?? false))
+                    <div class="alert alert-warning">
+                        Galván reportó la liberación, pero todavía requiere revisión interna antes de marcar el vehículo oficialmente fuera del corralón.
+                    </div>
+                @endif
+                <div class="{{ ($portal ?? false) ? 'table-wrap' : 'table-responsive' }}">
+                    <table class="{{ ($portal ?? false) ? '' : 'table table-bordered table-sm' }}">
+                        <tbody>
+                            <tr>
+                                <th>Costos del servicio</th>
+                                <td>
+                                    {{ ($sierseIntegracion['costs_received'] ?? false) ? 'Recibidos' : 'Pendientes' }}
+                                    @if(($sierseIntegracion['total_amount'] ?? null) !== null)
+                                        · ${{ number_format((float) $sierseIntegracion['total_amount'], 2) }} MXN
+                                    @endif
+                                </td>
+                            </tr>
+                            @foreach($requisitosSierse as $clave => $etiqueta)
+                                <tr>
+                                    <th>{{ $etiqueta }}</th>
+                                    <td>{{ data_get($sierseIntegracion, 'requirements.' . $clave) ? 'Recibido' : 'Pendiente' }}</td>
+                                </tr>
+                            @endforeach
+                            <tr><th>Eventos recibidos</th><td>{{ $sierseIntegracion['events_count'] ?? 0 }}</td></tr>
+                            <tr><th>Pendientes de revisión</th><td>{{ $sierseIntegracion['pending_review_count'] ?? 0 }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($liberacion && $liberacion->estado === 'ENTREGADO')
         <div class="{{ ($portal ?? false) ? 'panel' : 'card card-outline card-success' }}">
             <div class="{{ ($portal ?? false) ? 'panel-body' : 'card-body' }}">

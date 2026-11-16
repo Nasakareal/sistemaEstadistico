@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "query": {
+    "type": "plate",
+    "value": "PFA-123-A"
+  },
+  "data": [
+    {
+      "source": "vehicle_registry",
+      "id": 90001,
+      "client_uuid": "d1cc7cb3-a604-4ee8-a5b5-3d9cdf3a7811",
+      "inventory_number": "GAL-2026-00123",
+      "conduce_folio": null,
+      "make": "NISSAN",
+      "line": "VERSA",
+      "model": "2020",
+      "type": "SEDAN",
+      "color": "BLANCO",
+      "plate": "PFA-123-A",
+      "plate_state": "MICHOACAN",
+      "vin": "3N1CN7AD0LK000123",
+      "yard": "GRUAS GALVAN",
+      "damage_amount": "3500.00",
+      "damaged_parts": "DEFENSA DELANTERA Y SALPICADERA DERECHA",
+      "insurer": "EJEMPLO SEGUROS",
+      "theft_report": false,
+      "service": {
+        "id": 70001,
+        "sierse_folio": "SIERSE-2026-00123",
+        "status_dates": {
+          "requested_at": "2026-11-15T18:10:00-06:00",
+          "arrived_at": "2026-11-15T18:35:00-06:00",
+          "started_at": "2026-11-15T18:42:00-06:00",
+          "finished_at": "2026-11-15T19:20:00-06:00"
+        }
+      },
+      "release": {
+        "status": "PENDIENTE",
+        "sierse_folio": "SIERSE-2026-00123",
+        "released_at": null
+      },
+      "sierse_integration": {
+        "connected": true,
+        "last_received_at": "2026-11-15T20:15:00-06:00",
+        "events_count": 2,
+        "pending_review_count": 1,
+        "costs_received": true,
+        "costs_status": "APPLIED",
+        "total_amount": "2450.00",
+        "release_reported": false,
+        "release_reported_at": null,
+        "release_event_status": null,
+        "officially_released": false,
+        "requirements": {
+          "memory_description": true,
+          "payment_receipt": true,
+          "release_document": false,
+          "delivery_photo": false
+        },
+        "complete": false
+      },
+      "available_photos": [
+        "vehicle",
+        "inventory",
+        "service"
+      ]
+    }
+  ]
+}

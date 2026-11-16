@@ -18,6 +18,33 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ConduceLegalidadVehiculosReporteController extends Controller
 {
+    public function apiIndex(Request $request, ConduceLegalidadVehiculosReporteService $reporte)
+    {
+        $this->autorizar($request);
+        $this->validar($request);
+
+        $perPage = (int) $request->query('per_page', 25);
+        $vehiculos = $reporte->query($request)
+            ->orderByDesc('fecha_efectiva')
+            ->orderByDesc('v.id')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        $vehiculos->setCollection($reporte->enriquecer($vehiculos->getCollection()));
+
+        return response()->json([
+            'data' => $vehiculos->items(),
+            'summary' => $reporte->resumen($request),
+            'options' => $reporte->opciones(),
+            'pagination' => [
+                'current_page' => $vehiculos->currentPage(),
+                'last_page' => $vehiculos->lastPage(),
+                'per_page' => $vehiculos->perPage(),
+                'total' => $vehiculos->total(),
+            ],
+        ]);
+    }
+
     public function index(Request $request, ConduceLegalidadVehiculosReporteService $reporte)
     {
         $this->autorizar($request);

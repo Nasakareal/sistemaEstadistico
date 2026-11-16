@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiar
 use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\SettingsPersonalController;
 use App\Http\Controllers\Api\SettingsStatisticsFilesController;
+use App\Http\Controllers\ConduceLegalidadVehiculosReporteController;
 use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
 use App\Http\Controllers\Api\LicenciaEmisionController as ApiLicenciaEmisionController;
@@ -464,6 +465,13 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
             ->where('report', '[A-Za-z0-9_-]+')
             ->where('date', '\d{4}-\d{2}(?:-\d{2})?')
             ->name('api.settings.statistics_files.download');
+    });
+
+    Route::prefix('settings/conduce-legalidad')->group(function () {
+        Route::get('/vehiculos', [ConduceLegalidadVehiculosReporteController::class, 'apiIndex'])
+            ->name('api.settings.conduce_legalidad.vehiculos');
+        Route::get('/vehiculos/excel', [ConduceLegalidadVehiculosReporteController::class, 'export'])
+            ->name('api.settings.conduce_legalidad.vehiculos.excel');
     });
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {

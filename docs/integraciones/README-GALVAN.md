@@ -14,7 +14,11 @@ No se entrega una carpeta para instalarla en sus servidores. Esta carpeta es el 
 
 Únicamente vehículos asociados a su grúa o corralón. Puede buscar por inventario, placas, NIV/serie y folio de Conduce con Legalidad como `CL-86-213`.
 
-El expediente incluye datos del vehículo, custodia, servicio, costos, liberación y enlaces autenticados a fotos disponibles. Nunca incluye conductores, teléfonos, domicilios ni fotografías de identificaciones personales.
+El expediente incluye datos del vehículo, custodia, servicio, costos y liberación. El arreglo `photos` enumera las fotografías autorizadas del vehículo, inventario, servicio de grúa, Hecho, Actividad y Conduce con Legalidad que existan para ese registro. Cada elemento contiene `download_path`; esa ruta se descarga usando nuevamente el certificado mTLS y la firma HMAC. No existen URLs públicas permanentes.
+
+Nunca se incluyen conductores, teléfonos, domicilios ni fotografías de identificaciones personales. Tampoco se entregan rutas internas de almacenamiento.
+
+El archivo `EJEMPLO-RESPUESTA-GALVAN.json` muestra una respuesta completa con datos ficticios.
 
 ## Qué puede enviar Galván
 

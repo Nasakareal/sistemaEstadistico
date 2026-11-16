@@ -62,7 +62,36 @@
       "available_photos": [
         "vehicle",
         "inventory",
-        "service"
+        "service",
+        "hecho",
+        "activity",
+        "conduce_legalidad"
+      ],
+      "photos": [
+        {
+          "type": "vehicle",
+          "label": "Vehículo",
+          "download_path": "/api/integraciones/sierse/v1/vehiculos/vehicle_registry/90001/fotos/vehicle",
+          "authentication_required": true
+        },
+        {
+          "type": "hecho",
+          "label": "Hecho: lugar",
+          "download_path": "/api/integraciones/sierse/v1/vehiculos/vehicle_registry/90001/fotos/hecho_lugar_81001",
+          "authentication_required": true
+        },
+        {
+          "type": "activity",
+          "label": "Actividad",
+          "download_path": "/api/integraciones/sierse/v1/vehiculos/vehicle_registry/90001/fotos/actividad_foto_82001",
+          "authentication_required": true
+        },
+        {
+          "type": "conduce_legalidad",
+          "label": "Conduce con Legalidad",
+          "download_path": "/api/integraciones/sierse/v1/vehiculos/vehicle_registry/90001/fotos/conduce_foto_83001",
+          "authentication_required": true
+        }
       ]
     }
   ]

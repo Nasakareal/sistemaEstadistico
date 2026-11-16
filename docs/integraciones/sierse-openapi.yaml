@@ -86,7 +86,12 @@ paths:
           description: No encontrado o fuera del alcance de Galvan
   /vehiculos/{source}/{vehicleId}/fotos/{type}:
     get:
-      summary: Descarga una foto autenticada del vehiculo
+      summary: Descarga una foto autenticada del expediente
+      description: >-
+        El valor exacto de type se obtiene de data.photos[].download_path.
+        Puede corresponder al vehiculo, inventario, servicio, Hecho, Actividad
+        o Conduce con Legalidad. Cada descarga vuelve a comprobar que el
+        vehiculo pertenece al alcance de Galvan.
       parameters:
         - $ref: '#/components/parameters/Source'
         - $ref: '#/components/parameters/VehicleId'
@@ -95,7 +100,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [vehicle, inventory, service]
+            pattern: '^[A-Za-z0-9_]+$'
       responses:
         '200':
           description: Imagen binaria
@@ -205,6 +210,23 @@ components:
         available_photos:
           type: array
           items: {type: string}
+        photos:
+          type: array
+          description: Galeria autorizada sin rutas internas ni URLs publicas permanentes.
+          items:
+            $ref: '#/components/schemas/PhotoReference'
+    PhotoReference:
+      type: object
+      required: [type, label, download_path, authentication_required]
+      properties:
+        type:
+          type: string
+          enum: [vehicle, inventory, service, hecho, activity, conduce_legalidad]
+        label: {type: string}
+        download_path:
+          type: string
+          description: Ruta que debe solicitarse con el mismo certificado mTLS y firma HMAC.
+        authentication_required: {type: boolean, enum: [true]}
     InboundEvent:
       type: object
       required: [external_event_id, event_type, data]

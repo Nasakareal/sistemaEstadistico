@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Actividad;
+use App\Models\ActividadFoto;
+use App\Models\ConduceLegalidadFoto;
 use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Grua;
 use App\Models\SierseIntegrationEvent;
 use App\Models\Vehiculo;
+use App\Services\Fotos\ActividadFotoBlobStorage;
 use App\Services\Fotos\HechoFotoStorage;
 use App\Services\SierseIntegrationEventProcessor;
 use App\Services\SierseIntegrationStatusService;
@@ -98,7 +102,7 @@ class SierseIntegrationController extends Controller
         if ($validated['source'] === 'vehicle_registry') {
             $query = Vehiculo::query()
                 ->where('grua_id', $grua->id)
-                ->with(['servicio', 'liberacionCorralon'])
+                ->with($this->regularVehicleRelations())
                 ->when($updatedSince, fn ($q) => $q->where('updated_at', '>=', $updatedSince))
                 ->orderBy('id');
             $result = $query->paginate($perPage, ['*'], 'page', $page);
@@ -111,7 +115,7 @@ class SierseIntegrationController extends Controller
                             $yard->whereNull('grua_id')->where('corralon_id', $grua->id);
                         });
                 })
-                ->with(['captura.operativo'])
+                ->with($this->conduceVehicleRelations())
                 ->when($updatedSince, fn ($q) => $q->where('updated_at', '>=', $updatedSince))
                 ->orderBy('id');
             $result = $query->paginate($perPage, ['*'], 'page', $page);
@@ -147,25 +151,73 @@ class SierseIntegrationController extends Controller
         string $source,
         int $vehicleId,
         string $type,
-        HechoFotoStorage $storage
+        HechoFotoStorage $storage,
+        ActividadFotoBlobStorage $activityStorage
     ) {
         $this->ensureExchangeEnabled();
-        abort_unless($source === 'vehicle_registry', 404);
-        /** @var Vehiculo $vehicle */
         $vehicle = $this->scopedVehicle($request, $source, $vehicleId);
-        $service = $vehicle->servicio;
-        $paths = [
-            'vehicle' => $vehicle->fotos,
-            'inventory' => $vehicle->foto_inventario_grua,
-            'service' => $service ? $service->foto_vehiculo : null,
-        ];
-        abort_unless(array_key_exists($type, $paths) && $paths[$type], 404);
 
-        return $storage->response(
-            $paths[$type],
-            'sierse_' . $type . '_vehiculo_' . $vehicle->id . '.'
-                . (pathinfo($paths[$type], PATHINFO_EXTENSION) ?: 'jpg')
-        );
+        if ($source === 'vehicle_registry' && in_array($type, ['vehicle', 'inventory', 'service'], true)) {
+            /** @var Vehiculo $vehicle */
+            $service = $vehicle->servicio;
+            $paths = [
+                'vehicle' => $vehicle->getRawOriginal('fotos'),
+                'inventory' => $vehicle->foto_inventario_grua,
+                'service' => $service ? $service->foto_vehiculo : null,
+            ];
+            abort_unless($paths[$type], 404);
+
+            return $storage->response(
+                $paths[$type],
+                'sierse_' . $type . '_vehiculo_' . $vehicle->id . '.'
+                    . (pathinfo($paths[$type], PATHINFO_EXTENSION) ?: 'jpg')
+            );
+        }
+
+        if ($source === 'vehicle_registry'
+            && preg_match('/^hecho_(lugar|lugar_2|situacion)_(\d+)$/', $type, $matches)) {
+            /** @var Vehiculo $vehicle */
+            $hecho = $vehicle->hechos()->whereKey((int) $matches[2])->firstOrFail();
+            $field = 'foto_' . $matches[1];
+            abort_unless($hecho->{$field}, 404);
+
+            return $storage->response($hecho->{$field}, 'sierse_' . $type . '.jpg');
+        }
+
+        if (preg_match('/^actividad_foto_(\d+)$/', $type, $matches)) {
+            $photo = ActividadFoto::query()->findOrFail((int) $matches[1]);
+            $this->authorizeActivityPhoto($source, $vehicle, (int) $photo->actividad_id);
+
+            return $activityStorage->response(
+                $photo->foto_blob_path ?: $photo->foto_thumbnail_blob_path,
+                $photo->foto_path ?: $photo->foto_thumbnail_path,
+                'sierse_actividad_' . $photo->id . '.jpg'
+            );
+        }
+
+        if (preg_match('/^actividad_principal_(\d+)$/', $type, $matches)) {
+            $activity = Actividad::query()->findOrFail((int) $matches[1]);
+            $this->authorizeActivityPhoto($source, $vehicle, (int) $activity->id);
+
+            return $activityStorage->response(
+                $activity->foto_blob_path ?: $activity->foto_thumbnail_blob_path,
+                $activity->foto_path ?: $activity->foto_thumbnail_path,
+                'sierse_actividad_principal_' . $activity->id . '.jpg'
+            );
+        }
+
+        if (preg_match('/^conduce_foto_(\d+)$/', $type, $matches)) {
+            $photo = ConduceLegalidadFoto::query()->findOrFail((int) $matches[1]);
+            $this->authorizeConducePhoto($source, $vehicle, (int) $photo->captura_id);
+
+            return $storage->response(
+                $photo->foto_path,
+                'sierse_conduce_' . $photo->id . '.'
+                    . (pathinfo($photo->foto_path, PATHINFO_EXTENSION) ?: 'jpg')
+            );
+        }
+
+        abort(404);
     }
 
     public function storeEvent(
@@ -276,7 +328,7 @@ class SierseIntegrationController extends Controller
             return Vehiculo::query()
                 ->whereKey($vehicleId)
                 ->where('grua_id', $grua->id)
-                ->with(['servicio', 'liberacionCorralon'])
+                ->with($this->regularVehicleRelations())
                 ->firstOrFail();
         }
 
@@ -288,7 +340,7 @@ class SierseIntegrationController extends Controller
                         $yard->whereNull('grua_id')->where('corralon_id', $grua->id);
                     });
             })
-            ->with(['captura.operativo'])
+            ->with($this->conduceVehicleRelations())
             ->firstOrFail();
     }
 
@@ -324,7 +376,7 @@ class SierseIntegrationController extends Controller
                     $query->orWhereRaw($this->normalizedSql($column) . ' = ?', [$normalized]);
                 }
             })
-            ->with(['servicio', 'liberacionCorralon'])
+            ->with($this->regularVehicleRelations())
             ->limit(20)
             ->get()
             ->map(fn (Vehiculo $vehicle) => $this->regularVehiclePayload($vehicle));
@@ -352,7 +404,7 @@ class SierseIntegrationController extends Controller
                     $query->orWhereRaw($this->normalizedSql($clColumn) . ' = ?', [$normalized]);
                 }
             })
-            ->with(['captura.operativo'])
+            ->with($this->conduceVehicleRelations())
             ->limit($remaining)
             ->get()
             ->map(fn (ConduceLegalidadVehiculo $vehicle) => $this->conduceVehiclePayload($vehicle));
@@ -386,7 +438,7 @@ class SierseIntegrationController extends Controller
                             ->where('conduce_legalidad_vehiculos.corralon_id', $grua->id);
                     });
             })
-            ->with(['captura.operativo'])
+            ->with($this->conduceVehicleRelations())
             ->orderBy('conduce_legalidad_vehiculos.id');
 
         if (isset($matches[3])) {
@@ -402,6 +454,7 @@ class SierseIntegrationController extends Controller
     {
         $service = $vehicle->servicio;
         $release = $vehicle->liberacionCorralon;
+        $photos = $this->photoPayloads('vehicle_registry', $vehicle);
 
         return [
             'source' => 'vehicle_registry',
@@ -438,11 +491,8 @@ class SierseIntegrationController extends Controller
                 'released_at' => optional($release->fecha_entrega)->toIso8601String(),
             ] : null,
             'sierse_integration' => app(SierseIntegrationStatusService::class)->forVehicle($vehicle),
-            'available_photos' => array_values(array_filter([
-                $vehicle->fotos ? 'vehicle' : null,
-                $vehicle->foto_inventario_grua ? 'inventory' : null,
-                $service && $service->foto_vehiculo ? 'service' : null,
-            ])),
+            'available_photos' => $photos->pluck('type')->unique()->values()->all(),
+            'photos' => $photos->values()->all(),
         ];
     }
 
@@ -451,6 +501,7 @@ class SierseIntegrationController extends Controller
         $capture = $vehicle->captura;
         $operational = optional($capture)->operativo;
         $folioNumber = optional($capture)->folio_numero ?: optional($capture)->id;
+        $photos = $this->photoPayloads('conduce_legalidad', $vehicle);
 
         return [
             'source' => 'conduce_legalidad',
@@ -474,6 +525,139 @@ class SierseIntegrationController extends Controller
             'retained' => (bool) $vehicle->retencion_vehiculo,
             'custody_reason' => $vehicle->motivo_retencion,
             'registered_at' => optional($vehicle->created_at)->toIso8601String(),
+            'available_photos' => $photos->pluck('type')->unique()->values()->all(),
+            'photos' => $photos->values()->all(),
+        ];
+    }
+
+    private function photoPayloads(string $source, $vehicle)
+    {
+        $base = '/api/integraciones/sierse/v1/vehiculos/' . $source . '/' . $vehicle->id . '/fotos/';
+        $photos = collect();
+        $push = function (string $type, string $label, string $token) use ($base, $photos): void {
+            $photos->push([
+                'type' => $type,
+                'label' => $label,
+                'download_path' => $base . $token,
+                'authentication_required' => true,
+            ]);
+        };
+
+        if ($source === 'vehicle_registry') {
+            if ($vehicle->getRawOriginal('fotos')) {
+                $push('vehicle', 'Vehículo', 'vehicle');
+            }
+            if ($vehicle->foto_inventario_grua) {
+                $push('inventory', 'Inventario de grúa', 'inventory');
+            }
+            if ($vehicle->servicio && $vehicle->servicio->foto_vehiculo) {
+                $push('service', 'Servicio de grúa', 'service');
+            }
+
+            $hechos = $vehicle->relationLoaded('hechos') ? $vehicle->hechos : collect();
+            foreach ($hechos as $hecho) {
+                foreach ([
+                    'lugar' => 'Hecho: lugar',
+                    'lugar_2' => 'Hecho: lugar adicional',
+                    'situacion' => 'Hecho: situación',
+                ] as $field => $label) {
+                    if ($hecho->{'foto_' . $field}) {
+                        $push('hecho', $label, 'hecho_' . $field . '_' . $hecho->id);
+                    }
+                }
+            }
+
+            $activities = $vehicle->relationLoaded('actividades') ? $vehicle->actividades : collect();
+        } else {
+            $capture = $vehicle->relationLoaded('captura') ? $vehicle->captura : null;
+            $activities = $capture && $capture->relationLoaded('actividad') && $capture->actividad
+                ? collect([$capture->actividad])
+                : collect();
+
+            if ($capture && $capture->relationLoaded('fotos')) {
+                foreach ($capture->fotos as $photo) {
+                    if ($photo->foto_path) {
+                        $push('conduce_legalidad', 'Conduce con Legalidad', 'conduce_foto_' . $photo->id);
+                    }
+                }
+            }
+        }
+
+        foreach ($activities as $activity) {
+            if ($activity->relationLoaded('fotos')) {
+                foreach ($activity->fotos as $photo) {
+                    if ($photo->foto_path || $photo->foto_blob_path
+                        || $photo->foto_thumbnail_path || $photo->foto_thumbnail_blob_path) {
+                        $push('activity', 'Actividad', 'actividad_foto_' . $photo->id);
+                    }
+                }
+            }
+
+            if ($activity->foto_path || $activity->foto_blob_path
+                || $activity->foto_thumbnail_path || $activity->foto_thumbnail_blob_path) {
+                $push('activity', 'Actividad principal', 'actividad_principal_' . $activity->id);
+            }
+
+            $capture = $activity->relationLoaded('conduceLegalidadCaptura')
+                ? $activity->conduceLegalidadCaptura
+                : null;
+            if ($capture && $capture->relationLoaded('fotos')) {
+                foreach ($capture->fotos as $photo) {
+                    if ($photo->foto_path) {
+                        $push('conduce_legalidad', 'Conduce con Legalidad', 'conduce_foto_' . $photo->id);
+                    }
+                }
+            }
+        }
+
+        return $photos->unique('download_path')->take(50)->values();
+    }
+
+    private function authorizeActivityPhoto(string $source, $vehicle, int $activityId): void
+    {
+        if ($source === 'vehicle_registry') {
+            abort_unless($vehicle->actividades()->whereKey($activityId)->exists(), 404);
+            return;
+        }
+
+        abort_unless(
+            $vehicle->captura && (int) $vehicle->captura->actividad_id === $activityId,
+            404
+        );
+    }
+
+    private function authorizeConducePhoto(string $source, $vehicle, int $captureId): void
+    {
+        if ($source === 'vehicle_registry') {
+            abort_unless(
+                $vehicle->actividades()
+                    ->whereHas('conduceLegalidadCaptura', fn ($query) => $query->whereKey($captureId))
+                    ->exists(),
+                404
+            );
+            return;
+        }
+
+        abort_unless($vehicle->captura && (int) $vehicle->captura_id === $captureId, 404);
+    }
+
+    private function regularVehicleRelations(): array
+    {
+        return [
+            'servicio',
+            'liberacionCorralon',
+            'hechos',
+            'actividades.fotos',
+            'actividades.conduceLegalidadCaptura.fotos',
+        ];
+    }
+
+    private function conduceVehicleRelations(): array
+    {
+        return [
+            'captura.operativo',
+            'captura.fotos',
+            'captura.actividad.fotos',
         ];
     }
 

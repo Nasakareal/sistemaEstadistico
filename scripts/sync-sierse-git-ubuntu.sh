@@ -19,6 +19,8 @@ SIERSE_PATHS=(
 )
 
 chown -R nasaka:www-data "${APP_DIR}"
+chmod -R ug+rwX "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
+find "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache" -type d -exec chmod g+s {} +
 
 sudo -u nasaka git -C "${APP_DIR}" stash push -u -m "${BACKUP_LABEL}" -- "${SIERSE_PATHS[@]}"
 sudo -u nasaka git -C "${APP_DIR}" pull --ff-only origin main
@@ -26,6 +28,10 @@ sudo -u nasaka php "${APP_DIR}/artisan" migrate --force
 sudo -u nasaka php "${APP_DIR}/artisan" config:clear
 sudo -u nasaka php "${APP_DIR}/artisan" config:cache
 sudo -u nasaka php "${APP_DIR}/artisan" view:clear
+
+chown -R nasaka:www-data "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
+chmod -R ug+rwX "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
+find "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache" -type d -exec chmod g+s {} +
 
 echo "Git sincronizado con origin/main. Respaldo conservado en stash: ${BACKUP_LABEL}"
 sudo -u nasaka git -C "${APP_DIR}" status --short

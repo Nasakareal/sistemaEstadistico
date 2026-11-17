@@ -706,6 +706,8 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::post('/revision/{hecho}/rechazar', [HechosController::class, 'rechazarRevision'])->name('hechos.revision.rechazar');
 });
 
+require __DIR__ . '/archivo_siniestros.php';
+
 Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
     Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
     Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');

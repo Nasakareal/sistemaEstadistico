@@ -24,6 +24,24 @@
 @section('content')
     <div class="row">
 
+        {{-- ARCHIVO DE SINIESTROS --}}
+        @can('ver archivo siniestros')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-info">
+                        <i class="fa-solid fa-box-archive"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Archivo de Siniestros</div>
+                        <div class="sv-card__desc">Libros, anaqueles, ubicaciones, folios y documentos digitalizados.</div>
+                        <a href="{{ route('archivo_siniestros.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- RECONSTRUCTOR DE HECHOS DE TRÁNSITO 2D --}}
         @can('ver configuraciones')
             <div class="col-md-3 col-sm-6 col-12">

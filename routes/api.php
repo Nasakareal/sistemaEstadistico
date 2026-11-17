@@ -407,6 +407,8 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/operativos/{operativo}/capturas/{captura}/iph-puesta-disposicion', [ApiConduceLegalidadController::class, 'descargarIphCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.iph_puesta_disposicion');
     });
 
+    require __DIR__ . '/api_archivo_siniestros.php';
+
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {
         Route::get('/', [ApiGuardianesCaminoController::class, 'index'])->name('api.guardianes_camino.index');
         Route::get('/resumen', [ApiGuardianesCaminoController::class, 'resumen'])->name('api.guardianes_camino.resumen');

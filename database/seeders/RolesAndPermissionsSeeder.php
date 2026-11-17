@@ -142,6 +142,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear catalogo infracciones puntos licencias',
             'editar catalogo infracciones puntos licencias',
             'ver portal ciudadano puntos licencias',
+
+            // Archivo físico y digital de siniestros
+            'ver archivo siniestros',
+            'gestionar archivo siniestros',
+            'digitalizar archivo siniestros',
         ];
 
         foreach ($permissions as $permission) {

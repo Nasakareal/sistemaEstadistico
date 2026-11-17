@@ -1,0 +1,18 @@
+@php($libro = $libro ?? null)
+<div class="row">
+    <div class="col-md-4 form-group"><label for="codigo">Identificador único *</label><input name="codigo" id="codigo" class="form-control" required maxlength="60" value="{{ old('codigo', $libro->codigo ?? '') }}" placeholder="SIN-2018-0042"></div>
+    <div class="col-md-4 form-group"><label for="numero_libro">Número de libro</label><input name="numero_libro" id="numero_libro" class="form-control" maxlength="40" value="{{ old('numero_libro', $libro->numero_libro ?? '') }}"></div>
+    <div class="col-md-4 form-group"><label for="titulo">Título</label><input name="titulo" id="titulo" class="form-control" maxlength="200" value="{{ old('titulo', $libro->titulo ?? '') }}" placeholder="Registro de siniestros 2018"></div>
+    <div class="col-md-3 form-group"><label for="anio_inicio">Año inicial</label><input type="number" min="2010" max="2100" name="anio_inicio" id="anio_inicio" class="form-control" value="{{ old('anio_inicio', $libro->anio_inicio ?? '') }}"></div>
+    <div class="col-md-3 form-group"><label for="anio_fin">Año final</label><input type="number" min="2010" max="2100" name="anio_fin" id="anio_fin" class="form-control" value="{{ old('anio_fin', $libro->anio_fin ?? '') }}"></div>
+    <div class="col-md-3 form-group"><label for="folio_inicial">Folio inicial</label><input name="folio_inicial" id="folio_inicial" class="form-control" maxlength="60" value="{{ old('folio_inicial', $libro->folio_inicial ?? '') }}"></div>
+    <div class="col-md-3 form-group"><label for="folio_final">Folio final</label><input name="folio_final" id="folio_final" class="form-control" maxlength="60" value="{{ old('folio_final', $libro->folio_final ?? '') }}"></div>
+    <div class="col-md-4 form-group"><label for="fecha_inicio">Fecha inicial</label><input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" value="{{ old('fecha_inicio', $libro && $libro->fecha_inicio ? $libro->fecha_inicio->format('Y-m-d') : '') }}"></div>
+    <div class="col-md-4 form-group"><label for="fecha_fin">Fecha final</label><input type="date" name="fecha_fin" id="fecha_fin" class="form-control" value="{{ old('fecha_fin', $libro && $libro->fecha_fin ? $libro->fecha_fin->format('Y-m-d') : '') }}"></div>
+    <div class="col-md-4 form-group"><label for="total_paginas">Total de páginas</label><input type="number" min="1" max="100000" name="total_paginas" id="total_paginas" class="form-control" value="{{ old('total_paginas', $libro->total_paginas ?? '') }}"></div>
+    @if(!$libro)
+        <div class="col-md-8 form-group"><label for="bloque_destino_id">Bloque de destino (opcional)</label><select name="bloque_destino_id" id="bloque_destino_id" class="form-control"><option value="">Sin asignar por ahora</option>@foreach($bloques as $bloque)<option value="{{ $bloque->id }}" {{ (string) old('bloque_destino_id') === (string) $bloque->id ? 'selected' : '' }}>{{ $bloque->anaquel->area->nombre ?? 'Área' }} / {{ $bloque->anaquel->codigo ?? 'Anaquel' }} / {{ $bloque->codigo }} ({{ $bloque->capacidad_libros }} espacios)</option>@endforeach</select></div>
+        <div class="col-md-4 form-group"><label for="posicion_destino">Posición reservada (opcional)</label><input type="number" min="1" name="posicion_destino" id="posicion_destino" class="form-control" value="{{ old('posicion_destino') }}" placeholder="Automática"></div>
+    @endif
+    <div class="col-12 form-group"><label for="observaciones">Observaciones</label><textarea name="observaciones" id="observaciones" rows="3" maxlength="5000" class="form-control">{{ old('observaciones', $libro->observaciones ?? '') }}</textarea></div>
+</div>

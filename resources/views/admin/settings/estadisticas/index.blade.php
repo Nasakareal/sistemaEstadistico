@@ -106,6 +106,17 @@
                                 </td>
                             </tr>
 
+                            
+                            <tr>
+                                <td><strong>Depósitos Vehiculares - Reporte General</strong></td>
+                                <td>
+                                    <a href="{{ route('reportes.depositos_vehiculares.index') }}" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-warehouse"></i> Consultar depósitos
+                                    </a>
+                                </td>
+                            </tr>
+
+
                             {{-- NUEVA ESTADÍSTICA: DICTAMEN --}}
                             <tr>
                                 <td><strong>Dictamen (Buscador)</strong></td>

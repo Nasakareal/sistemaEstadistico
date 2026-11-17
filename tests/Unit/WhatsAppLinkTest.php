@@ -94,4 +94,38 @@ class WhatsAppLinkTest extends TestCase
             $texto
         );
     }
+
+    public function test_hecho_card_includes_driver_situation_without_creating_a_fake_driver(): void
+    {
+        $hecho = new Hechos();
+        $hecho->id = 779;
+        $hecho->unidad_org_id = 1;
+        $hecho->tipo_hecho = 'CHOQUE';
+        $hecho->fecha = '2026-11-16';
+        $hecho->hora = '10:30:00';
+        $hecho->calle = 'AVENIDA PRUEBA';
+        $hecho->situacion = 'EN PROCESO';
+
+        $vehiculo = new Vehiculo();
+        $vehiculo->marca = 'NISSAN';
+        $vehiculo->tipo = 'SEDAN';
+        $vehiculo->linea = 'VERSA';
+        $vehiculo->color = 'BLANCO';
+        $vehiculo->placas = 'ABC123A';
+        $vehiculo->serie = '3N1CN7AD0KL000000';
+        $vehiculo->situacion_conductor = 'SE_DIO_A_LA_FUGA';
+        $vehiculo->setRelation('conductores', new Collection());
+
+        $hecho->setRelation('vehiculos', new Collection([$vehiculo]));
+        $hecho->setRelation('lesionados', new Collection());
+        $hecho->setRelation('puestaDisposicion', null);
+
+        $texto = WhatsAppLink::textForHecho($hecho);
+
+        $this->assertStringContainsString(
+            'Situación del conductor: SE DIO A LA FUGA.',
+            $texto
+        );
+        $this->assertStringNotContainsString('Manifiesta viajar a bordo', $texto);
+    }
 }

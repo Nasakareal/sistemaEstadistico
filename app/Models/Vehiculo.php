@@ -43,6 +43,7 @@ class Vehiculo extends Model
         'aseguradora',
         'antecedente_vehiculo',
         'reporte_robo',
+        'situacion_conductor',
     ];
 
     protected $casts = [

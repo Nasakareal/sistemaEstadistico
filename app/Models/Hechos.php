@@ -330,11 +330,15 @@ class Hechos extends Model
     public function actualizarEstadoCaptura(): void
     {
         $vehiculosCapturados = $this->vehiculos()->count();
-        $conductoresCapturados = \App\Models\Conductor::whereHas('vehiculos', function ($query) {
-            $query->whereHas('hechos', function ($subQuery) {
-                $subQuery->where('hechos.id', $this->id);
-            });
-        })->distinct('conductores.id')->count('conductores.id');
+        $conductoresCapturados = $this->vehiculos()
+            ->where(function ($query) {
+                $query->whereHas('conductores')
+                    ->orWhere(function ($statusQuery) {
+                        $statusQuery->whereNotNull('vehiculos.situacion_conductor')
+                            ->where('vehiculos.situacion_conductor', '!=', 'PRESENTE');
+                    });
+            })
+            ->count();
 
         $lesionadosCapturados = $this->lesionados()->count();
 

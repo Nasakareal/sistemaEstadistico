@@ -106,6 +106,7 @@ use App\Http\Controllers\BoquillaDotacionController;
 use App\Http\Controllers\ComunicacionController;
 use App\Http\Controllers\ConduceLegalidadWebController;
 use App\Http\Controllers\ConduceLegalidadVehiculosReporteController;
+use App\Http\Controllers\DepositosVehicularesReporteController;
 
 use App\Http\Controllers\CaleaDirectivaController;
 use App\Http\Controllers\CaleaDirectivaVersionController;
@@ -420,13 +421,6 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/hechos',[EstadisticasGlobalesController::class,'hechos'])->name('estadisticas_globales.hechos');
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
     Route::get('/export/mensual',[EstadisticasGlobalesController::class,'exportMensual'])->name('estadisticas_globales.export.mensual');
-});
-
-Route::prefix('reportes/conduce-legalidad')->middleware('auth')->group(function () {
-    Route::get('/vehiculos', [ConduceLegalidadVehiculosReporteController::class, 'index'])
-        ->name('reportes.conduce_legalidad.vehiculos');
-    Route::get('/vehiculos/excel', [ConduceLegalidadVehiculosReporteController::class, 'export'])
-        ->name('reportes.conduce_legalidad.vehiculos.excel');
 });
 
 Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisticas actividades'])->group(function () {
@@ -936,6 +930,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{armamento}', [ArmamentoController::class, 'destroy'])->middleware('can:eliminar armamentos')->name('armamentos.destroy');
     });
 
+
     Route::prefix('estadisticas')->middleware(['can:ver estadisticas', 'role:Superadmin'])->group(function () {
         Route::get('/',[EstadisticasController::class,'index'])->name('estadisticas.index');
         Route::get('/mapa-regiones',[EstadisticasController::class,'mapaRegiones'])->name('estadisticas.mapaRegiones');
@@ -952,6 +947,16 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/dictamen/{id}/docx',[EstadisticasController::class,'dictamenDocx'])->name('estadisticas.dictamen.docx');
         Route::get('/bitacora',[EstadisticasController::class,'bitacora'])->name('estadisticas.bitacora');
         Route::get('/bitacora/descargar',[EstadisticasController::class,'descargarBitacora'])->name('estadisticas.bitacora.descargar');
+
+        Route::prefix('reportes/conduce-legalidad')->middleware('auth')->group(function () {
+            Route::get('/vehiculos', [ConduceLegalidadVehiculosReporteController::class, 'index'])->name('reportes.conduce_legalidad.vehiculos');
+            Route::get('/vehiculos/excel', [ConduceLegalidadVehiculosReporteController::class, 'export'])->name('reportes.conduce_legalidad.vehiculos.excel');
+        });
+
+        Route::prefix('reportes/depositos-vehiculares')->middleware('auth')->group(function () {
+            Route::get('/', [DepositosVehicularesReporteController::class, 'index'])->name('reportes.depositos_vehiculares.index');
+            Route::get('/excel', [DepositosVehicularesReporteController::class, 'export'])->name('reportes.depositos_vehiculares.excel');
+        });
     });
 
     Route::middleware(['auth','can:ver mapa'])->prefix('hechos/zonas')->group(function () {

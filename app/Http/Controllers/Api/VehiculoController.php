@@ -668,6 +668,7 @@ class VehiculoController extends Controller
             // compatibilidad con instalaciones anteriores que todavía no
             // envían el campo; normalize() les asigna false de forma segura.
             'reporte_robo' => 'sometimes|boolean',
+            'situacion_conductor' => 'sometimes|string|in:PRESENTE,NO_SE_ENCONTRABA,NO_PROPORCIONO_INFORMACION,SE_DIO_A_LA_FUGA,SE_RETIRO_DEL_LUGAR',
 
             'conductor_nombre' => 'nullable|string|max:255',
             'telefono' => 'nullable|digits:10',
@@ -842,6 +843,7 @@ class VehiculoController extends Controller
             'partes_danadas'             => $v['partes_danadas'] ?? null,
             'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
             'reporte_robo'               => $v['reporte_robo'] ?? false,
+            'situacion_conductor'         => $v['situacion_conductor'] ?? 'PRESENTE',
             'fotos'                      => $v['fotos'] ?? null,
         ];
     }
@@ -872,6 +874,10 @@ class VehiculoController extends Controller
 
         if (array_key_exists('reporte_robo', $v)) {
             $payload['reporte_robo'] = $v['reporte_robo'];
+        }
+
+        if (array_key_exists('situacion_conductor', $v)) {
+            $payload['situacion_conductor'] = $v['situacion_conductor'];
         }
 
         return $payload;

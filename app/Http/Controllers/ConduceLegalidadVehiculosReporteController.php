@@ -59,7 +59,7 @@ class ConduceLegalidadVehiculosReporteController extends Controller
 
         $vehiculos->setCollection($reporte->enriquecer($vehiculos->getCollection()));
 
-        return view('reportes.conduce_legalidad_vehiculos', [
+        return view('admin.settings.estadisticas.conduce_legalidad_vehiculos', [
             'vehiculos' => $vehiculos,
             'resumen' => $reporte->resumen($request),
             'opciones' => $reporte->opciones(),

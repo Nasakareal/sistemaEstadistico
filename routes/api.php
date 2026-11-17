@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\SettingsPersonalController;
 use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\ConduceLegalidadVehiculosReporteController;
+use App\Http\Controllers\DepositosVehicularesReporteController;
 use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
 use App\Http\Controllers\Api\LicenciaEmisionController as ApiLicenciaEmisionController;
@@ -473,6 +474,16 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/vehiculos/excel', [ConduceLegalidadVehiculosReporteController::class, 'export'])
             ->name('api.settings.conduce_legalidad.vehiculos.excel');
     });
+
+    
+    Route::prefix('settings/depositos-vehiculares')->group(function () {
+        Route::get('/', [DepositosVehicularesReporteController::class, 'apiIndex'])
+            ->name('api.settings.depositos_vehiculares.index');
+
+        Route::get('/excel', [DepositosVehicularesReporteController::class, 'export'])
+            ->name('api.settings.depositos_vehiculares.excel');
+    });
+
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {
         Route::get('/salas', [CulturaVialController::class, 'index'])->name('api.cultura_vial.salas.index');

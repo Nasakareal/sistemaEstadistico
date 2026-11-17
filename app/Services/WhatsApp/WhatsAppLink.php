@@ -118,7 +118,11 @@ class WhatsAppLink
 
                 $lines[] = "De la marca {$marca}, tipo {$tipo}, línea {$linea}, color {$color}, placas {$placas}, NIV {$serie}.";
 
-                if ($v->conductores && $v->conductores->count() > 0) {
+                $situacionConductor = trim((string) ($v->situacion_conductor ?? 'PRESENTE'));
+
+                if ($situacionConductor !== '' && $situacionConductor !== 'PRESENTE') {
+                    $lines[] = 'Situación del conductor: ' . self::situacionConductorTexto($situacionConductor) . '.';
+                } elseif ($v->conductores && $v->conductores->count() > 0) {
                     $c = $v->conductores->first();
                     $nombre = $c->nombre ?: "SIN DATO";
                     $edad = $c->edad ?: "S/E";
@@ -424,6 +428,16 @@ class WhatsAppLink
         }
 
         return Str::upper($s);
+    }
+
+    private static function situacionConductorTexto(string $situacion): string
+    {
+        return [
+            'NO_SE_ENCONTRABA' => 'NO SE ENCONTRABA EN EL LUGAR',
+            'NO_PROPORCIONO_INFORMACION' => 'NO QUISO PROPORCIONAR INFORMACIÓN',
+            'SE_DIO_A_LA_FUGA' => 'SE DIO A LA FUGA',
+            'SE_RETIRO_DEL_LUGAR' => 'SE RETIRÓ DEL LUGAR',
+        ][$situacion] ?? self::upper(str_replace('_', ' ', $situacion));
     }
 
     private static function hasValue(?string $s): bool

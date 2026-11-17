@@ -62,16 +62,10 @@ class Liberacion extends Model
 
     public function regenerarQr(): void
     {
-        if (empty($this->token_unico)) {
-            throw new \RuntimeException('La liberación no tiene token para generar el QR.');
-        }
-
-        $url = url('/liberacion/qr/' . $this->token_unico);
-        $qrCode = static::buildQrCode($url);
         $fileName = static::QR_STORAGE_DIR . '/QR_' . $this->token_unico . '.png';
         $qrPath = 'storage/' . $fileName;
 
-        Storage::disk('public')->put($fileName, $qrCode->getString());
+        Storage::disk('public')->put($fileName, $this->generarQrPng());
 
         $shouldPersistPath = $this->qr_path !== $qrPath;
         $this->qr_path = $qrPath;
@@ -79,6 +73,17 @@ class Liberacion extends Model
         if ($this->exists && $shouldPersistPath) {
             $this->saveQuietly();
         }
+    }
+
+    public function generarQrPng(): string
+    {
+        if (empty($this->token_unico)) {
+            throw new \RuntimeException('La liberación no tiene token para generar el QR.');
+        }
+
+        $url = url('/liberacion/qr/' . $this->token_unico);
+
+        return static::buildQrCode($url)->getString();
     }
 
     protected static function buildQrCode(string $url)

@@ -25,6 +25,22 @@ class ActividadVehiculoLiberacionWebTest extends TestCase
         $this->assertNotNull(app('router')->getRoutes()->getByName('conduce_legalidad.show'));
     }
 
+    public function test_descarga_genera_el_qr_en_memoria_sin_depender_del_archivo_guardado(): void
+    {
+        $liberacion = new \App\Models\Liberacion([
+            'token_unico' => 'token-liberacion-antigua',
+        ]);
+
+        $png = $liberacion->generarQrPng();
+
+        $this->assertStringStartsWith("\x89PNG\r\n\x1a\n", $png);
+
+        $controller = file_get_contents(app_path('Http/Controllers/LiberacionController.php'));
+        $this->assertStringContainsString('base64_encode($liberacion->generarQrPng())', $controller);
+        $this->assertStringNotContainsString('$liberacion->regenerarQr()', $controller);
+        $this->assertStringNotContainsString('file_get_contents($qrPath)', $controller);
+    }
+
     public function test_actividad_ofrece_liberacion_y_acuse_tolera_vehiculo_sin_hecho(): void
     {
         $actividad = file_get_contents(resource_path('views/actividades/show.blade.php'));

@@ -81,17 +81,7 @@ class LiberacionController extends Controller
     public function generarAcuse(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
-        $liberacion->regenerarQr();
-        $liberacion->refresh();
-
-        $qrPath = public_path($liberacion->qr_path);
-
-        if (!file_exists($qrPath)) {
-            \Log::error('QR no encontrado. Campo qr_path: ' . $liberacion->qr_path);
-            abort(500, 'El archivo QR no se encuentra o es inválido.');
-        }
-
-        $qrBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath));
+        $qrBase64 = 'data:image/png;base64,' . base64_encode($liberacion->generarQrPng());
 
         $hecho = $liberacion->hecho;
         $actividad = $this->actividadDelVehiculo($vehiculo);

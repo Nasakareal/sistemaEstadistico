@@ -287,6 +287,22 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         }
     }
 
+    public function test_standby_operatives_are_hidden_from_every_role(): void
+    {
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill([
+            'unidad_id' => 2,
+            'delegacion_id' => 15,
+            'estado' => 'standby',
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+        $operativo->setRelation('creador', null);
+
+        $this->assertFalse($this->canView($this->user('Policia', 2, 15), $operativo));
+        $this->assertFalse($this->canView($this->user('Delegado', 2, 15), $operativo));
+        $this->assertFalse($this->canView($this->user('Superadmin', 1, null), $operativo));
+    }
+
     public function test_delegate_sees_all_captures_only_for_operatives_in_own_delegation(): void
     {
         $delegate = $this->user('Delegado', 2, 15);
@@ -434,7 +450,10 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
 
         $method->invoke(new ConduceLegalidadController(), $query, $this->user('Instructor', 6, null));
 
-        $this->assertSame(['activo', 'conduce_legalidad', 6, 6], $query->getBindings());
+        $this->assertSame(
+            ['standby', 'activo', 'conduce_legalidad', 6, 6],
+            $query->getBindings()
+        );
     }
 
     public function test_superadmin_can_assign_delegaciones_scope(): void

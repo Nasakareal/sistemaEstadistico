@@ -4741,6 +4741,10 @@ class ConduceLegalidadController extends Controller
             return;
         }
 
+        // Standby representa una baja lógica: sólo puede consultarse desde
+        // el endpoint protegido de recuperación, nunca en listados o búsquedas.
+        $query->where('estado', '<>', 'standby');
+
         if ($user->hasRole('Superadmin')) {
             return;
         }
@@ -4778,6 +4782,8 @@ class ConduceLegalidadController extends Controller
             return;
         }
 
+        $query->where('estado', '<>', 'standby');
+
         if ($user->hasRole('Superadmin') || (int) ($user->unidad_id ?? 0) === 3) {
             return;
         }
@@ -4802,6 +4808,10 @@ class ConduceLegalidadController extends Controller
     private function canViewOperativo($user, ConduceLegalidadOperativo $operativo): bool
     {
         if (!$user) {
+            return false;
+        }
+
+        if ($operativo->estado === 'standby') {
             return false;
         }
 

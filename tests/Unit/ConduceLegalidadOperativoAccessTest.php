@@ -304,6 +304,34 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         );
     }
 
+    public function test_every_user_sees_all_captures_in_conduce_legalidad_operatives(): void
+    {
+        $operativo = new ConduceLegalidadOperativo([
+            'tipo_operativo' => 'conduce_legalidad',
+        ]);
+
+        $this->assertTrue(
+            $this->canViewEveryCapture(
+                $this->user('Policia', 2, 15, 10),
+                $operativo
+            )
+        );
+    }
+
+    public function test_regular_user_still_sees_only_own_alcoholimetria_captures(): void
+    {
+        $operativo = new ConduceLegalidadOperativo([
+            'tipo_operativo' => 'alcoholimetria',
+        ]);
+
+        $this->assertFalse(
+            $this->canViewEveryCapture(
+                $this->user('Policia', 2, 15, 10),
+                $operativo
+            )
+        );
+    }
+
     public function test_vehicle_payload_exposes_corralon_address_and_phone_not_internal_id_as_number(): void
     {
         $vehiculo = new ConduceLegalidadVehiculo([
@@ -610,6 +638,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
     private function canViewAllCaptures($user, ConduceLegalidadOperativo $operativo): bool
     {
         $method = new ReflectionMethod(ConduceLegalidadController::class, 'isDelegateOfOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user, $operativo);
+    }
+
+    private function canViewEveryCapture($user, ConduceLegalidadOperativo $operativo): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'canViewAllCapturas');
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user, $operativo);

@@ -52,6 +52,8 @@ class ConduceLegalidadController extends Controller
     private const FORMATO_IPH_ANTERIOR = 'anterior';
     private const TICKET_SUPERVISOR_NOMBRE = 'Luis Eduardo Lugo Ordorica';
     private const TICKET_SUPERVISOR_CARGO = 'Subdirector de la Unidad de Protección en Vialidades Urbanas';
+    private const TICKET_SUPERVISOR_MORELIA_NOMBRE = 'Adolfo Millan Montes';
+    private const TICKET_SUPERVISOR_MORELIA_CARGO = 'Encargado del operativo Conduce con Legalidad';
     private const TICKET_COORDINADOR_NOMBRE = 'Lic. Luis Roberto Rosiles Soberanis';
     private const TICKET_COORDINADOR_CARGO = 'Coordinador del Agrupamiento de Seguridad Vial';
     private const AGENTE_ADSCRIPCION_DEFAULT = 'Unidad de Protección en Vialidades Urbanas';
@@ -193,10 +195,15 @@ class ConduceLegalidadController extends Controller
             ->orderBy('gruas.nombre')
             ->get();
 
+        $usaFlujoVialidades = $this->operativoUsaFlujoVialidades($operativo);
         $this->aplicarUbicacionCorralonAlCatalogo(
             $gruas,
-            (int) $operativo->unidad_id,
-            $operativo->delegacion_id ? (int) $operativo->delegacion_id : null
+            $usaFlujoVialidades
+                ? self::UNIDAD_VIALIDADES_URBANAS
+                : (int) $operativo->unidad_id,
+            $usaFlujoVialidades
+                ? null
+                : ($operativo->delegacion_id ? (int) $operativo->delegacion_id : null)
         );
 
         $this->marcarGruasComoVialidadesUrbanas($gruas, $operativo);
@@ -1688,7 +1695,8 @@ class ConduceLegalidadController extends Controller
         array $adscripcion,
         string $retiro
     ): string {
-        if ((int) ($adscripcion['unidad_id'] ?? 0) !== self::UNIDAD_DELEGACIONES) {
+        if ((int) ($adscripcion['unidad_id'] ?? 0) !== self::UNIDAD_DELEGACIONES
+            || $this->operativoUsaFlujoVialidades($operativo)) {
             return 'Para iniciar el trámite de liberación del vehículo, la persona interesada '
                 . 'deberá acudir a la Dirección de Justicia Cívica y Mediación Administrativa, '
                 . 'ubicada en Periférico Paseo de la República #5000, Colonia Sentimientos de la '
@@ -2631,6 +2639,14 @@ class ConduceLegalidadController extends Controller
 
     private function supervisorTicket(int $unidadId, $delegacionId = null): array
     {
+        if ($unidadId === self::UNIDAD_DELEGACIONES
+            && $this->esDelegacionMorelia((int) $delegacionId)) {
+            return [
+                'nombre' => self::TICKET_SUPERVISOR_MORELIA_NOMBRE,
+                'cargo' => self::TICKET_SUPERVISOR_MORELIA_CARGO,
+            ];
+        }
+
         if ($unidadId !== self::UNIDAD_DELEGACIONES) {
             return [
                 'nombre' => self::TICKET_SUPERVISOR_NOMBRE,
@@ -3975,7 +3991,9 @@ class ConduceLegalidadController extends Controller
     private function gruasOperativoQuery(ConduceLegalidadOperativo $operativo)
     {
         $query = Grua::query();
-        $unidadId = (int) ($operativo->unidad_id ?? 0);
+        $unidadId = $this->operativoUsaFlujoVialidades($operativo)
+            ? self::UNIDAD_VIALIDADES_URBANAS
+            : (int) ($operativo->unidad_id ?? 0);
 
         if ($unidadId === self::UNIDAD_DELEGACIONES) {
             $delegacionId = (int) ($operativo->delegacion_id ?? 0);
@@ -4043,7 +4061,7 @@ class ConduceLegalidadController extends Controller
 
     private function marcarGruasComoVialidadesUrbanas($gruas, ConduceLegalidadOperativo $operativo): void
     {
-        if ((int) $operativo->unidad_id !== self::UNIDAD_VIALIDADES_URBANAS) {
+        if (!$this->operativoUsaFlujoVialidades($operativo)) {
             return;
         }
 
@@ -4060,6 +4078,44 @@ class ConduceLegalidadController extends Controller
             ]);
             $grua->unidades->push($unidad);
         });
+    }
+
+    private function operativoUsaFlujoVialidades(ConduceLegalidadOperativo $operativo): bool
+    {
+        if ((int) $operativo->unidad_id === self::UNIDAD_VIALIDADES_URBANAS) {
+            return true;
+        }
+
+        if ((int) $operativo->unidad_id !== self::UNIDAD_DELEGACIONES
+            || (int) ($operativo->delegacion_id ?? 0) <= 0) {
+            return false;
+        }
+
+        $delegacion = $operativo->relationLoaded('delegacion')
+            ? $operativo->delegacion
+            : Delegacion::query()->find((int) $operativo->delegacion_id);
+
+        if (!$operativo->relationLoaded('delegacion')) {
+            $operativo->setRelation('delegacion', $delegacion);
+        }
+
+        return $this->esDelegacionMorelia(
+            (int) $operativo->delegacion_id,
+            $delegacion
+        );
+    }
+
+    protected function esDelegacionMorelia(int $delegacionId, ?Delegacion $delegacion = null): bool
+    {
+        if ($delegacionId <= 0) {
+            return false;
+        }
+
+        $nombre = $delegacion
+            ? $delegacion->nombre
+            : Delegacion::query()->whereKey($delegacionId)->value('nombre');
+
+        return mb_strtoupper(trim((string) $nombre), 'UTF-8') === 'MORELIA';
     }
 
     private function assertGruasCorrespondenOperativo(
@@ -4276,10 +4332,11 @@ class ConduceLegalidadController extends Controller
             $delegacion = Delegacion::query()->find($adscripcion['delegacion_id']);
         }
 
-        $isManager = $this->canManage($user);
-        $canViewAllCapturas = $forzarVistaCompleta
-            || $isManager
-            || $this->isDelegateOfOperativo($user, $operativo);
+        $canViewAllCapturas = $this->canViewAllCapturas(
+            $user,
+            $operativo,
+            $forzarVistaCompleta
+        );
         $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
         $misCapturas = $operativo->mis_capturas_count;
         if ($misCapturas === null && $user) {
@@ -4784,6 +4841,12 @@ class ConduceLegalidadController extends Controller
         $query->where(function ($capturas) use ($user) {
             $capturas->where('created_by', $user ? $user->id : null);
 
+            // Dentro de Conduce con Legalidad, todo el personal que puede ver
+            // el operativo también puede consultar las capturas del equipo.
+            $capturas->orWhereHas('operativo', function ($operativos) {
+                $operativos->where('tipo_operativo', 'conduce_legalidad');
+            });
+
             if ($user
                 && $user->hasRole('Delegado')
                 && $this->isDelegacionesUser($user)
@@ -4795,6 +4858,17 @@ class ConduceLegalidadController extends Controller
                 });
             }
         });
+    }
+
+    private function canViewAllCapturas(
+        $user,
+        ConduceLegalidadOperativo $operativo,
+        bool $forzarVistaCompleta = false
+    ): bool {
+        return $forzarVistaCompleta
+            || $operativo->tipo_operativo === 'conduce_legalidad'
+            || $this->canManage($user)
+            || $this->isDelegateOfOperativo($user, $operativo);
     }
 
     private function canUseRnd($user): bool

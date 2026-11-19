@@ -1682,7 +1682,11 @@ class ConduceLegalidadController extends Controller
             'agente_nombre' => $this->nullableString($captura->agente_nombre)
                 ?: ($creador ? $this->nombreUsuario($creador) : 'No capturado'),
             'agente_placa' => $placaAgente ?: 'No capturada',
-            'adscripcion' => $this->joinText([$unidadAgente, $delegacion], ' · '),
+            'adscripcion' => $this->adscripcionAgenteTicket(
+                $adscripcion,
+                $unidadAgente,
+                $delegacion
+            ),
             'coordinador_nombre' => self::TICKET_COORDINADOR_NOMBRE,
             'coordinador_cargo' => self::TICKET_COORDINADOR_CARGO,
             'supervisor_nombre' => $supervisor['nombre'],
@@ -1726,6 +1730,18 @@ class ConduceLegalidadController extends Controller
 
         return 'Para realizar el trámite de liberación, acuda a la ' . $destino
             . ', en un horario de 9:00 a. m. a 3:00 p. m. ' . $retiro;
+    }
+
+    private function adscripcionAgenteTicket(
+        array $adscripcion,
+        string $unidadAgente,
+        ?string $delegacion
+    ): string {
+        if ((int) ($adscripcion['unidad_id'] ?? 0) === self::UNIDAD_DELEGACIONES) {
+            return $this->unidadOperativaTexto(self::UNIDAD_DELEGACIONES);
+        }
+
+        return $this->joinText([$unidadAgente, $delegacion], ' · ');
     }
 
     public function descargarIphCaptura(

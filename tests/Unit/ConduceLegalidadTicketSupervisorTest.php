@@ -39,6 +39,25 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         );
     }
 
+    public function test_delegaciones_ticket_omits_specific_delegation_from_adscripcion(): void
+    {
+        $method = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'adscripcionAgenteTicket'
+        );
+        $method->setAccessible(true);
+
+        $adscripcion = $method->invoke(
+            new ConduceLegalidadController(),
+            ['unidad_id' => 2, 'delegacion_id' => 5],
+            'Unidad de Delegaciones',
+            'DELEGACION MORELIA'
+        );
+
+        $this->assertSame('UNIDAD DE DELEGACIONES', $adscripcion);
+        $this->assertStringNotContainsString('MORELIA', $adscripcion);
+    }
+
     public function test_supervisor_payload_uses_delegate_from_specific_delegation(): void
     {
         $controller = $this->controllerWithDelegate();

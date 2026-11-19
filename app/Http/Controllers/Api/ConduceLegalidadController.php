@@ -4065,19 +4065,64 @@ class ConduceLegalidadController extends Controller
             return;
         }
 
-        $gruas->each(function (Grua $grua) {
-            if ($grua->unidades->contains(fn ($unidad) => (int) $unidad->id === self::UNIDAD_VIALIDADES_URBANAS)) {
+        $esDelegacionesMorelia = (int) $operativo->unidad_id === self::UNIDAD_DELEGACIONES
+            && $this->esDelegacionMorelia(
+                (int) $operativo->delegacion_id,
+                $operativo->relationLoaded('delegacion') ? $operativo->delegacion : null
+            );
+        $delegacionMorelia = $esDelegacionesMorelia
+            ? ($operativo->relationLoaded('delegacion')
+                ? $operativo->delegacion
+                : Delegacion::query()->find((int) $operativo->delegacion_id))
+            : null;
+
+        $gruas->each(function (Grua $grua) use ($esDelegacionesMorelia, $delegacionMorelia) {
+            $this->agregarUnidadGruaEnMemoria(
+                $grua,
+                self::UNIDAD_VIALIDADES_URBANAS,
+                'Unidad de Protección en Vialidades Urbanas',
+                'vialidades-urbanas'
+            );
+
+            if (!$esDelegacionesMorelia) {
                 return;
             }
 
-            $unidad = new Unidad();
-            $unidad->forceFill([
-                'id' => self::UNIDAD_VIALIDADES_URBANAS,
-                'nombre' => 'Unidad de Protección en Vialidades Urbanas',
-                'slug' => 'vialidades-urbanas',
-            ]);
-            $grua->unidades->push($unidad);
+            // La app instalada valida nuevamente el alcance recibido. Se
+            // agregan referencias sólo al payload para que no descarte las
+            // grúas de Siniestros del operativo especial de Morelia.
+            $this->agregarUnidadGruaEnMemoria(
+                $grua,
+                self::UNIDAD_DELEGACIONES,
+                'Unidad de Delegaciones',
+                'delegaciones'
+            );
+            if ($delegacionMorelia
+                && !$grua->delegaciones->contains(
+                    fn ($delegacion) => (int) $delegacion->id === (int) $delegacionMorelia->id
+                )) {
+                $grua->delegaciones->push($delegacionMorelia);
+            }
         });
+    }
+
+    private function agregarUnidadGruaEnMemoria(
+        Grua $grua,
+        int $unidadId,
+        string $nombre,
+        string $slug
+    ): void {
+        if ($grua->unidades->contains(fn ($unidad) => (int) $unidad->id === $unidadId)) {
+            return;
+        }
+
+        $unidad = new Unidad();
+        $unidad->forceFill([
+            'id' => $unidadId,
+            'nombre' => $nombre,
+            'slug' => $slug,
+        ]);
+        $grua->unidades->push($unidad);
     }
 
     private function operativoUsaFlujoVialidades(ConduceLegalidadOperativo $operativo): bool

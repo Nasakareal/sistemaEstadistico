@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\Delegacion;
+use App\Models\Grua;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Builder;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -18,6 +20,22 @@ class ConduceLegalidadMoreliaLegacyTest extends TestCase
         $this->assertInstanceOf(Builder::class, $query);
         $this->assertStringContainsString('unidad_grua', $query->toSql());
         $this->assertSame([1], $query->getBindings());
+    }
+
+    public function test_morelia_cranes_are_tagged_for_the_installed_mobile_filter(): void
+    {
+        $operativo = $this->moreliaOperativo();
+        $grua = new Grua(['nombre' => 'MUÑOZ']);
+        $grua->id = 10;
+        $grua->setRelation('unidades', new Collection());
+        $grua->setRelation('delegaciones', new Collection());
+        $gruas = new Collection([$grua]);
+
+        $this->invoke('marcarGruasComoVialidadesUrbanas', $gruas, $operativo);
+
+        $this->assertTrue($grua->unidades->contains('id', 2));
+        $this->assertTrue($grua->unidades->contains('id', 5));
+        $this->assertTrue($grua->delegaciones->contains('id', 5));
     }
 
     public function test_morelia_delegation_uses_justicia_civica_release_address(): void

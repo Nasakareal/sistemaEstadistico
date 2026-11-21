@@ -3905,11 +3905,7 @@ class ConduceLegalidadController extends Controller
         $aplica = $infraccion && (
             $esAlcoholimetria
                 ? $this->esFundamentoAlcoholimetria($infraccion)
-                : (
-                    $this->infraccionAplicaRetencionOperativo($infraccion)
-                    && $this->ambitoFundamentoAplicaConduceLegalidad($infraccion->ambito_vehiculo)
-                    && !$this->esFundamentoExcluidoDelOperativo($infraccion)
-                )
+                : $this->infraccionAplicaConduceLegalidad($infraccion)
         );
 
         if (!$aplica) {
@@ -4298,10 +4294,23 @@ class ConduceLegalidadController extends Controller
 
     private function fundamentosConduceLegalidadPayload()
     {
-        return $this->fundamentosCorralonPayload()
-            ->filter(fn (array $fundamento) => $this->ambitoFundamentoAplicaConduceLegalidad(
-                $fundamento['ambito_vehiculo'] ?? null
-            ))
+        return LicenciaPuntoInfraccion::activas()
+            ->get()
+            ->filter(fn (LicenciaPuntoInfraccion $infraccion) =>
+                $this->infraccionAplicaConduceLegalidad($infraccion)
+            )
+            ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
+                return implode('|', [
+                    $infraccion->ambito_vehiculo ?: 'general',
+                    $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $infraccion->fraccion ?: 'ZZZZ',
+                    $infraccion->inciso ?: 'ZZZZ',
+                    $infraccion->nombre,
+                ]);
+            })
+            ->map(fn (LicenciaPuntoInfraccion $infraccion) =>
+                $this->fundamentoInfraccionPayload($infraccion)
+            )
             ->map(function (array $fundamento) {
                 // Compatibilidad con versiones móviles anteriores: esas versiones
                 // sólo muestran fundamentos marcados como retención, aunque el
@@ -4316,6 +4325,107 @@ class ConduceLegalidadController extends Controller
                 return $fundamento;
             })
             ->values();
+    }
+
+    private function infraccionAplicaConduceLegalidad(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        if ($this->esFundamentoExcluidoDelOperativo($infraccion)
+            || $this->esFundamentoAlcoholimetria($infraccion)) {
+            return false;
+        }
+
+        $visible = $this->esCausaVisibleConduceLegalidad($infraccion);
+        $ambitoPermitido = $this->ambitoFundamentoAplicaConduceLegalidad(
+            $infraccion->ambito_vehiculo
+        );
+        $texto = Str::upper(Str::ascii(implode(' ', array_filter([
+            $infraccion->codigo,
+            $infraccion->nombre,
+        ]))));
+        $esExcepcionMenorConduciendo = Str::contains($texto, 'MENOR')
+            && Str::contains($texto, 'CONDUC')
+            && Str::contains($texto, 'MOTOCICLETA');
+
+        // El catálogo legal conserva "menor conduciendo motocicleta" dentro
+        // del bloque particular; su texto, no ese ámbito heredado, determina
+        // que debe ofrecerse en este operativo.
+        if (!$ambitoPermitido && !$esExcepcionMenorConduciendo) {
+            return false;
+        }
+
+        $esMotocicleta = strtolower(trim((string) $infraccion->ambito_vehiculo)) === 'motocicleta';
+
+        return $this->infraccionAplicaRetencionOperativo($infraccion)
+            || $visible
+            || $esMotocicleta;
+    }
+
+    private function esCausaVisibleConduceLegalidad(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        $texto = Str::upper(Str::ascii(implode(' ', array_filter([
+            $infraccion->codigo,
+            $infraccion->nombre,
+            $infraccion->etiqueta_operativa,
+            $infraccion->texto_operativo,
+            $infraccion->descripcion,
+        ]))));
+
+        return Str::contains($texto, [
+            'CASCO',
+            'PASAJERO ENTRE CONDUCTOR Y MANUBRIO',
+            'PASAJERO ENTRE MANUBRIO',
+            'EXCESO PERSONAS',
+            'MAS PERSONAS',
+            'MENOR DE DOCE',
+            'MENORES DE DOCE',
+            'MENOR DOCE',
+            'MENOR DE EDAD SIN PERMISO',
+            'MENOR CONDUCIENDO',
+            'SIN AMBAS PLACAS',
+            'SIN PLACAS',
+            'PLACAS ALTERADAS',
+            'PLACAS OBSTRUIDAS',
+            'OBSTRUYAN PLACAS',
+            'EMISION DE HUMO',
+            'HUMO VISIBLEMENTE',
+            'SIRENAS',
+            'TORRETAS',
+            'ESTROBOS',
+            'CROMATICA',
+            'ANTIRADAR',
+            'ACERAS',
+            'AREAS PEATONALES',
+            'VIAS EXCLUSIVAS PARA CICLISTAS',
+            'CARRILES CONFINADOS',
+            'CARRILES CENTRALES',
+            'PUENTES PEATONALES',
+            'ENTRE CARRILES',
+            'VIAS PRIMARIAS',
+            'VIAS RESTRINGIDAS',
+            'CENTRO DEL CARRIL',
+            'REBASA POR LADO',
+            'PREFERENCIA DE PASO',
+            'REGLAS DE CIRCULACION DE CARRIL',
+            'SIN LUCES TRASERAS',
+            'SIN LUCES DELANTERAS',
+            'LUCES DELANTERAS Y TRASERAS',
+            'ADITAMENTOS LUMINOSOS',
+            'BANDAS REFLEJANTES',
+            'CARGA QUE IMPIDE CONTROL',
+            'SUJETA A OTRO VEHICULO',
+            'PLACA EN LUGAR NO VISIBLE',
+            'INCLINACION INDEBIDA',
+            'COMPETENCIAS',
+            'ACROBACIAS',
+            'MANIOBRAS RIESGOSAS',
+            'CONDICION FISICA EVIDENTEMENTE PELIGROSA',
+            'RUIDO EXCESIVO',
+            'VOLUMEN EXCESIVO',
+            'SILENCIADOR DE ESCAPE',
+            'SISTEMA DE ESCAPE',
+            'CLAXON',
+            'BOCINA',
+        ]) || (Str::contains($texto, 'MENOR') && Str::contains($texto, 'CONDUC'));
     }
 
     private function fundamentosPersonaPayload()

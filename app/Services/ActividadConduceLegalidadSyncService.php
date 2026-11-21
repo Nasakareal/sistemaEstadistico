@@ -82,6 +82,16 @@ class ActividadConduceLegalidadSyncService
             return null;
         }
 
+        // Compartir la subcategoria no convierte una actividad informativa en
+        // una captura del operativo. Solo se sincronizan actividades que ya
+        // nacieron vinculadas desde el modulo Conduce con Legalidad.
+        $captura = $actividad->conduceLegalidadCaptura()
+            ->with('fundamentos')
+            ->first();
+        if (!$captura) {
+            return null;
+        }
+
         $actividad->loadMissing('vehiculos');
         if ($actividad->vehiculos->count() > 1) {
             throw ValidationException::withMessages([
@@ -89,9 +99,6 @@ class ActividadConduceLegalidadSyncService
             ]);
         }
 
-        $captura = $actividad->conduceLegalidadCaptura()
-            ->with('fundamentos')
-            ->first();
         $selecciones = $fundamentos;
         if ($selecciones === [] && $captura) {
             $selecciones = $captura->fundamentos->map(fn ($item) => [
@@ -102,21 +109,8 @@ class ActividadConduceLegalidadSyncService
         }
         $infracciones = $this->fundamentosValidados($selecciones);
 
-        $operativo = $captura
-            ? $captura->operativo
-            : $this->operativoActivo(
-                (int) $actividad->unidad_org_id,
-                $actividad->delegacion_id ? (int) $actividad->delegacion_id : null
-            );
         $primera = $infracciones[0];
         $primerSnapshot = $this->snapshot($primera, $selecciones[0] ?? []);
-
-        if (!$captura) {
-            $captura = new ConduceLegalidadCaptura();
-            $captura->operativo_id = $operativo->id;
-            $captura->actividad_id = $actividad->id;
-            $captura->client_uuid = 'actividad-' . $actividad->id;
-        }
 
         $captura->fill([
             'licencia_punto_infraccion_id' => $primera->id,

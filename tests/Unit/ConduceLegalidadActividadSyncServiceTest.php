@@ -234,6 +234,7 @@ class ConduceLegalidadActividadSyncServiceTest extends TestCase
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
         Schema::create('actividades', function (Blueprint $table): void {
             $table->id();

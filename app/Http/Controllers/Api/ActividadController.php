@@ -303,14 +303,6 @@ class ActividadController extends Controller
         $delegacionId = (int) ($user->delegacion_id ?? 0);
         $delegacionId = $delegacionId > 0 ? $delegacionId : null;
 
-        $conduceSync = app(ActividadConduceLegalidadSyncService::class);
-        $conduceSync->assertCanSync(
-            (int) $validated['actividad_subcategoria_id'],
-            $unidadOrg,
-            $delegacionId,
-            $validated['conduce_legalidad_fundamentos'] ?? [],
-            count($validated['vehiculos'] ?? [])
-        );
         $infraccionesCorralon = app(ActividadCorralonInfraccionService::class)->validarYSnapshot(
             (int) $validated['actividad_subcategoria_id'],
             $validated['actividad_infracciones'] ?? []
@@ -392,7 +384,7 @@ class ActividadController extends Controller
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
         try {
-            return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync, $infraccionesCorralon, $submissionFingerprint) {
+            return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $infraccionesCorralon, $submissionFingerprint) {
                 $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
                 'submission_fingerprint' => $submissionFingerprint,
@@ -493,10 +485,9 @@ class ActividadController extends Controller
                 $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
 
-            $conduceSync->sync(
-                $actividad,
-                $validated['conduce_legalidad_fundamentos'] ?? []
-            );
+            // El alta normal de actividades es informativa, aun cuando use la
+            // subcategoria Conduce con Legalidad. El modulo del operativo crea
+            // y vincula sus propias capturas por separado.
 
             if ((int) ($actividad->personas_detenidas ?? 0) > 0) {
                 DB::afterCommit(function () use ($actividad) {
@@ -717,7 +708,8 @@ class ActividadController extends Controller
         }
 
         $conduceSync = app(ActividadConduceLegalidadSyncService::class);
-        if ($conduceSync->isConduceLegalidadSubcategoriaId(
+        $actividadConduceVinculada = $actividad->conduceLegalidadCaptura()->exists();
+        if ($actividadConduceVinculada && $conduceSync->isConduceLegalidadSubcategoriaId(
             (int) $validated['actividad_subcategoria_id']
         )) {
             $actividad->loadMissing('vehiculos');
@@ -1599,7 +1591,8 @@ class ActividadController extends Controller
         }
 
         $conduceSync = app(ActividadConduceLegalidadSyncService::class);
-        if ($conduceSync->isConduceLegalidadSubcategoriaId($actividad->actividad_subcategoria_id)
+        if ($actividad->conduceLegalidadCaptura()->exists()
+            && $conduceSync->isConduceLegalidadSubcategoriaId($actividad->actividad_subcategoria_id)
             && $actividad->vehiculos()->count() >= 1) {
             return response()->json([
                 'ok' => false,

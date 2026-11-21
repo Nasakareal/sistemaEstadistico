@@ -60,6 +60,7 @@ class ConduceLegalidadController extends Controller
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
+        'ART440_FIV_MOTO_PUENTE_PEATONAL',
         'ART420_FIV_IA_B_TRANSPORTE_PUBLICO_ESCOLAR',
         'ART465_FXI_POLARIZADO_MAYOR_20',
         'ART519_FIV_IA_NO_MOVER_SINIESTRO_DANOS',
@@ -4398,7 +4399,6 @@ class ConduceLegalidadController extends Controller
             'VIAS EXCLUSIVAS PARA CICLISTAS',
             'CARRILES CONFINADOS',
             'CARRILES CENTRALES',
-            'PUENTES PEATONALES',
             'ENTRE CARRILES',
             'VIAS PRIMARIAS',
             'VIAS RESTRINGIDAS',
@@ -4815,6 +4815,10 @@ class ConduceLegalidadController extends Controller
 
     private function textoOperativoInfraccion(LicenciaPuntoInfraccion $infraccion): string
     {
+        if (strtoupper(trim((string) $infraccion->codigo)) === 'ART421_FI_IA_PARTICULAR_MENOR_SIN_PERMISO') {
+            return 'Persona menor de edad conduciendo motocicleta';
+        }
+
         return $this->nullableString($infraccion->nombre)
             ?: $this->nullableString($infraccion->descripcion)
             ?: $this->nullableString($infraccion->codigo)
@@ -4823,9 +4827,15 @@ class ConduceLegalidadController extends Controller
 
     private function narrativaSugeridaInfraccion(LicenciaPuntoInfraccion $infraccion): ?string
     {
-        return strtoupper(trim((string) $infraccion->codigo)) === self::FUNDAMENTO_SIN_LICENCIA_CODIGO
-            ? self::NARRATIVA_SIN_LICENCIA
-            : null;
+        $codigo = strtoupper(trim((string) $infraccion->codigo));
+        if ($codigo === self::FUNDAMENTO_SIN_LICENCIA_CODIGO) {
+            return self::NARRATIVA_SIN_LICENCIA;
+        }
+        if ($codigo === 'ART421_FI_IA_PARTICULAR_MENOR_SIN_PERMISO') {
+            return 'Se detecta a una persona menor de edad conduciendo una motocicleta.';
+        }
+
+        return null;
     }
 
     private function esFundamentoExcluidoDelOperativo(LicenciaPuntoInfraccion $infraccion): bool

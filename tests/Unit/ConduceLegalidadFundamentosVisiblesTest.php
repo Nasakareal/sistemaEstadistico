@@ -82,6 +82,19 @@ class ConduceLegalidadFundamentosVisiblesTest extends TestCase
         $this->assertFalse($this->aplica($infraccion));
     }
 
+    public function test_excluye_el_fundamento_de_puente_peatonal(): void
+    {
+        $infraccion = new LicenciaPuntoInfraccion([
+            'codigo' => 'ART440_FIV_MOTO_PUENTE_PEATONAL',
+            'nombre' => 'Motocicleta circula sobre puentes peatonales',
+            'ambito_vehiculo' => 'motocicleta',
+            'retencion_vehiculo' => false,
+            'deposito_si_sin_persona_habilitada' => false,
+        ]);
+
+        $this->assertFalse($this->aplica($infraccion));
+    }
+
     private function aplica(LicenciaPuntoInfraccion $infraccion): bool
     {
         $method = new ReflectionMethod(

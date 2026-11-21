@@ -43,6 +43,39 @@ class ActivityReportResidualMappingTest extends TestCase
         $this->assertSame(8, $resultado[$otros]['personas']);
     }
 
+    public function test_delegaciones_suma_hechos_en_el_renglon_sin_reemplazar_actividades_capturadas(): void
+    {
+        $service = new RegionalSheetService();
+        $method = new ReflectionMethod($service, 'sumarResumenes');
+        $method->setAccessible(true);
+
+        $actividad = [
+            'cantidad' => 2,
+            'estado_fuerza' => 5,
+            'unidades' => 2,
+            'kilometros' => 12.5,
+            'personas' => 7,
+            'recomendaciones' => 1,
+        ];
+        $hecho = [
+            'cantidad' => 1,
+            'estado_fuerza' => 1,
+            'unidades' => 1,
+            'kilometros' => 3.5,
+            'personas' => 2,
+            'recomendaciones' => 0,
+        ];
+
+        $this->assertSame([
+            'cantidad' => 3,
+            'estado_fuerza' => 6,
+            'unidades' => 3,
+            'kilometros' => 16.0,
+            'personas' => 9,
+            'recomendaciones' => 1,
+        ], $method->invoke($service, $actividad, $hecho));
+    }
+
     public function test_excel_vialidades_envia_las_seis_subcategorias_a_sus_renglones_otros(): void
     {
         $method = new ReflectionMethod(TotalSheetService::class, 'construirFilas');

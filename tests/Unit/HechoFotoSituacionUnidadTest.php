@@ -41,4 +41,15 @@ class HechoFotoSituacionUnidadTest extends TestCase
             $this->assertStringContainsString('Opcional para esta unidad.', $source);
         }
     }
+
+    public function test_abanderamiento_solo_esta_disponible_para_usuarios_de_delegaciones(): void
+    {
+        $delegaciones = HechoAccess::situacionesPermitidas(new User(['unidad_id' => 2]));
+        $siniestros = HechoAccess::situacionesPermitidas(new User(['unidad_id' => 1]));
+        $seguridadVial = HechoAccess::situacionesPermitidas(new User(['unidad_id' => 3]));
+
+        $this->assertArrayHasKey('ABANDERAMIENTO', $delegaciones);
+        $this->assertArrayNotHasKey('ABANDERAMIENTO', $siniestros);
+        $this->assertArrayNotHasKey('ABANDERAMIENTO', $seguridadVial);
+    }
 }

@@ -31,11 +31,13 @@ class DelegacionesExcelRevisionService
             'OBSTRUCCIÓN DE COCHERAS',
             'OTROS TIPOS DE OBSTRUCCIÓN',
             'ACTOS DELICTIVOS',
+            'SINIESTROS',
             'CONSENTRACION PERSONAS',
             'OTROS REPORTES (Especificar en las novedades relevantes)',
         ],
         3 => [
             'CORTES DE CIRCULACIÓN',
+            'ACCIDENTES',
             'MARCHAS',
             'MÍTINES',
             'OBRAS PÚBLICAS',
@@ -376,7 +378,7 @@ class DelegacionesExcelRevisionService
         return [
             'actividades_contadas' => (int) $actividades,
             'hechos_contados' => (int) $hechos,
-            'dispositivos' => (int) $actividades + ((int) $hechos * 2),
+            'dispositivos' => (int) $actividades + (int) $hechos,
             'estado_fuerza' => $personasParticipantes,
             'personas_participantes' => $personasParticipantes,
             'personas_alcanzadas' => $personasAlcanzadas,
@@ -411,9 +413,16 @@ class DelegacionesExcelRevisionService
             ->limit(120)
             ->get()
             ->map(function ($row) {
-                return $this->detalleHecho($row, 'El formato lo refleja en 2 renglones del Excel: SINIESTROS y ACCIDENTES') + [
-                    'peso_dispositivo' => 2,
-                    'renglon_excel' => 'SINIESTROS + ACCIDENTES',
+                $esAbanderamiento = mb_strtoupper(trim((string) ($row->situacion ?? ''))) === 'ABANDERAMIENTO';
+
+                return $this->detalleHecho(
+                    $row,
+                    $esAbanderamiento
+                        ? 'Se refleja como ABANDERAMIENTOS / ACCIDENTES'
+                        : 'Se refleja como REPORTES C5i / SINIESTROS'
+                ) + [
+                    'peso_dispositivo' => 1,
+                    'renglon_excel' => $esAbanderamiento ? 'ACCIDENTES' : 'SINIESTROS',
                 ];
             })
             ->values()
@@ -470,11 +479,17 @@ class DelegacionesExcelRevisionService
         }
 
         $hechos = $this->queryHechosContadosExcel($inicio, $fin)
-            ->whereIn('h.delegacion_id', $delegacionIds)
+            ->whereIn('h.delegacion_id', $delegacionIds);
+
+        $hechosAbanderamiento = (clone $hechos)
+            ->whereRaw("UPPER(TRIM(COALESCE(h.situacion, ''))) = 'ABANDERAMIENTO'")
+            ->count();
+        $hechosReporte = (clone $hechos)
+            ->whereRaw("UPPER(TRIM(COALESCE(h.situacion, ''))) <> 'ABANDERAMIENTO'")
             ->count();
 
-        $base['SINIESTROS'] = ($base['SINIESTROS'] ?? 0) + (int) $hechos;
-        $base['ACCIDENTES'] = ($base['ACCIDENTES'] ?? 0) + (int) $hechos;
+        $base['SINIESTROS'] = ($base['SINIESTROS'] ?? 0) + (int) $hechosReporte;
+        $base['ACCIDENTES'] = ($base['ACCIDENTES'] ?? 0) + (int) $hechosAbanderamiento;
 
         $actividades = array_values(array_unique(array_merge(array_keys($excel), array_keys($base))));
         $diferencias = [];

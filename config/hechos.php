@@ -100,5 +100,12 @@ return [
             'TURNADO' => 'TURNADO',
             'REPORTE' => 'REPORTE',
         ],
+        'situaciones_delegaciones' => [
+            'RESUELTO' => 'RESUELTO',
+            'PENDIENTE' => 'PENDIENTE',
+            'TURNADO' => 'TURNADO',
+            'REPORTE' => 'REPORTE',
+            'ABANDERAMIENTO' => 'ABANDERAMIENTO',
+        ],
     ],
 ];

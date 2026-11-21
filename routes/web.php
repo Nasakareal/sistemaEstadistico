@@ -1113,6 +1113,10 @@ Route::prefix('admin/settings/estadisticas-fomento')->middleware(['auth'])->grou
     Route::get('/excel-diario/descargar/{fecha}', [EstadisticasFomentoSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.descargar');
     Route::get('/municipios-atendidos', [EstadisticasFomentoSettingsController::class, 'municipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos');
     Route::get('/municipios-atendidos/exportar', [EstadisticasFomentoSettingsController::class, 'exportarMunicipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos.exportar');
+    Route::get('/personal', [EstadisticasFomentoSettingsController::class, 'personal'])->name('settings.estadisticas_fomento.personal');
+    Route::get('/personal/rendimiento', [EstadisticasFomentoSettingsController::class, 'rendimientoPersonal'])->name('settings.estadisticas_fomento.personal.rendimiento');
+    Route::get('/personal/incapacidades', [EstadisticasFomentoSettingsController::class, 'incapacidadesPersonal'])->name('settings.estadisticas_fomento.personal.incapacidades');
+    Route::get('/personal/disciplina', [EstadisticasFomentoSettingsController::class, 'disciplinaPersonal'])->name('settings.estadisticas_fomento.personal.disciplina');
     Route::get('/servicios-personal', [EstadisticasFomentoSettingsController::class, 'serviciosPersonal'])->name('settings.estadisticas_fomento.servicios_personal');
 });
 

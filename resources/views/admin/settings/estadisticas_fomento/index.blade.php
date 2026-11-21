@@ -55,6 +55,21 @@
 
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
+                <div class="sv-card__icon bg-info">
+                    <i class="fa-solid fa-users-viewfinder"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Estadísticas del personal</div>
+                    <div class="sv-card__desc">Concentrado, equidad en servicios, incapacidades y disciplina.</div>
+                    <a href="{{ route('settings.estadisticas_fomento.personal') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
                 <div class="sv-card__icon bg-warning">
                     <i class="fa-solid fa-ranking-star"></i>
                 </div>
@@ -64,6 +79,28 @@
                     <a href="{{ route('settings.estadisticas_fomento.servicios_personal') }}" class="btn sv-btn">
                         <i class="fas fa-arrow-right"></i> Acceder
                     </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-warning"><i class="fa-solid fa-notes-medical"></i></div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Incapacidades</div>
+                    <div class="sv-card__desc">Periodos y días acumulados del personal de Fomento.</div>
+                    <a href="{{ route('settings.estadisticas_fomento.personal.incapacidades') }}" class="btn sv-btn"><i class="fas fa-arrow-right"></i> Acceder</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-danger"><i class="fa-solid fa-gavel"></i></div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Disciplina</div>
+                    <div class="sv-card__desc">Amonestaciones y arrestos registrados por elemento.</div>
+                    <a href="{{ route('settings.estadisticas_fomento.personal.disciplina') }}" class="btn sv-btn"><i class="fas fa-arrow-right"></i> Acceder</a>
                 </div>
             </div>
         </div>

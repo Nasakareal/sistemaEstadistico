@@ -272,7 +272,7 @@
 
                         <div class="row">
                             <div class="col-md-4">
-                                @include('hechos.partials.catalog_select', ['nombre' => 'situacion', 'etiqueta' => 'Situación', 'opciones' => config('hechos.catalogos.situaciones'), 'valor' => $hecho->situacion])
+                                @include('hechos.partials.catalog_select', ['nombre' => 'situacion', 'etiqueta' => 'Situación', 'opciones' => $situacionesDisponibles, 'valor' => $hecho->situacion])
                             </div>
 
                             @if($puedeUsarDictamenes)

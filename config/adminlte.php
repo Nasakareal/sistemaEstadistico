@@ -514,6 +514,13 @@ return [
                             'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                         [
+                            'text'    => 'Estadísticas del personal',
+                            'icon'    => 'fa-solid fa-users-viewfinder',
+                            'classes' => 'text-info',
+                            'route'   => 'settings.estadisticas_fomento.personal',
+                            'can'     => 'menu-estadisticas-actividades-fomento',
+                        ],
+                        [
                             'text'    => 'Servicios por personal',
                             'icon'    => 'fa-solid fa-ranking-star',
                             'classes' => 'text-info',

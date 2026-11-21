@@ -344,7 +344,7 @@ class RegionalSheetService
         ];
 
         $datosActividades = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 2);
-        $datosSiniestros = $this->obtenerResumenSiniestros($fecha, $idsDelegaciones);
+        $datosSiniestros = $this->obtenerResumenSiniestros($fecha, $idsDelegaciones, false);
 
         $sheet->mergeCells('A12:A18');
         $sheet->mergeCells('B12:B18');
@@ -365,7 +365,7 @@ class RegionalSheetService
             ];
 
             if ($actividad === 'SINIESTROS') {
-                $item = $datosSiniestros;
+                $item = $this->sumarResumenes($item, $datosSiniestros);
             }
 
             if ($actividad === 'HECHOS DE TRÁNSITO') {
@@ -418,7 +418,11 @@ class RegionalSheetService
 
         $sheet->getStyle('D12:I18')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
-    protected function obtenerResumenSiniestros(string $fecha, array $idsDelegaciones): array
+    protected function obtenerResumenSiniestros(
+        string $fecha,
+        array $idsDelegaciones,
+        bool $soloAbanderamientos = false
+    ): array
     {
         [$inicio, $fin] = $this->rangoCorte($fecha);
         
@@ -434,6 +438,10 @@ class RegionalSheetService
             ->where('h.captura_completa_at', '>=', $inicio)
             ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
+            ->whereRaw(
+                "UPPER(TRIM(COALESCE(h.situacion, ''))) " . ($soloAbanderamientos ? '=' : '<>') . ' ?',
+                ['ABANDERAMIENTO']
+            )
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
             })
@@ -482,7 +490,7 @@ class RegionalSheetService
             $actividades,
             'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)'
         );
-        $datosSiniestros = $this->obtenerResumenSiniestros($fecha, $idsDelegaciones);
+        $datosSiniestros = $this->obtenerResumenSiniestros($fecha, $idsDelegaciones, true);
 
         $sheet->mergeCells('A19:A25');
         $sheet->mergeCells('B19:B25');
@@ -503,7 +511,7 @@ class RegionalSheetService
             ];
 
             if ($actividad === 'ACCIDENTES') {
-                $item = $datosSiniestros;
+                $item = $this->sumarResumenes($item, $datosSiniestros);
             }
 
             $sheet->setCellValue('C' . $fila, $actividad);
@@ -540,6 +548,15 @@ class RegionalSheetService
         ]);
 
         $sheet->getStyle('D19:I25')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function sumarResumenes(array $primero, array $segundo): array
+    {
+        foreach (['cantidad', 'estado_fuerza', 'unidades', 'kilometros', 'personas', 'recomendaciones'] as $campo) {
+            $primero[$campo] = ($primero[$campo] ?? 0) + ($segundo[$campo] ?? 0);
+        }
+
+        return $primero;
     }
 
     protected function llenarOperativos($sheet, string $fecha, array $idsDelegaciones): void
@@ -2487,7 +2504,7 @@ class RegionalSheetService
         foreach ($hechos as $hecho) {
             $situacion = mb_strtoupper(trim($hecho->situacion ?? ''));
 
-            if ($situacion === 'RESUELTO' || $situacion === 'REPORTE') {
+            if (in_array($situacion, ['RESUELTO', 'REPORTE', 'ABANDERAMIENTO'], true)) {
                 $datos['RESUELTOS']++;
             } elseif ($situacion === 'TURNADO') {
                 $datos['TURNADOS']++;

@@ -29,7 +29,6 @@ class HechoController extends Controller
     private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDECER'];
     private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
     private const COND     = ['BUENO','REGULAR','MALO'];
-    private const SITUAS   = ['RESUELTO','PENDIENTE','TURNADO','REPORTE'];
 
     public function patrullasSiniestros(Request $request)
     {
@@ -407,7 +406,7 @@ class HechoController extends Controller
             'causas' => 'required|string|max:255',
             'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
-            'situacion' => ['required', 'string', Rule::in(self::SITUAS)],
+            'situacion' => ['required', 'string', Rule::in(array_keys(HechoAccess::situacionesPermitidas($user)))],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
@@ -727,7 +726,7 @@ class HechoController extends Controller
             'causas' => 'sometimes|required|string|max:255',
             'responsable' => 'sometimes|nullable|string|max:255',
             'colision_camino' => 'sometimes|required|string|max:255',
-            'situacion' => ['sometimes', 'required', 'string', Rule::in(self::SITUAS)],
+            'situacion' => ['sometimes', 'required', 'string', Rule::in(array_keys(HechoAccess::situacionesPermitidas($user)))],
             'oficio_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO' : 'sometimes|nullable',
             'vehiculos_mp' => 'sometimes|nullable|integer|min:0',
             'personas_mp' => 'sometimes|nullable|integer|min:0',

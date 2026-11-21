@@ -27,6 +27,10 @@ class EstadisticasReportesController extends Controller
         'carreteras-rendimiento' => 4,
         'carreteras-incapacidades' => 4,
         'fomento-panel' => 6,
+        'fomento-personal' => 6,
+        'fomento-rendimiento-personal' => 6,
+        'fomento-incapacidades-personal' => 6,
+        'fomento-disciplina-personal' => 6,
         'fomento-servicios-personal' => 6,
     ];
 
@@ -67,6 +71,18 @@ class EstadisticasReportesController extends Controller
                 app(EstadisticasCarreterasController::class)->incapacidades($request)
             ),
             'fomento-panel' => $this->fomentoPanel($request),
+            'fomento-personal' => $this->viewData(
+                app(EstadisticasFomentoSettingsController::class)->personal($request)
+            ),
+            'fomento-rendimiento-personal' => $this->viewData(
+                app(EstadisticasFomentoSettingsController::class)->rendimientoPersonal($request)
+            ),
+            'fomento-incapacidades-personal' => $this->viewData(
+                app(EstadisticasFomentoSettingsController::class)->incapacidadesPersonal($request)
+            ),
+            'fomento-disciplina-personal' => $this->viewData(
+                app(EstadisticasFomentoSettingsController::class)->disciplinaPersonal($request)
+            ),
             'fomento-servicios-personal' => $this->viewData(
                 app(EstadisticasFomentoSettingsController::class)->serviciosPersonal($request)
             ),
@@ -93,6 +109,10 @@ class EstadisticasReportesController extends Controller
 
         return [
             'municipios_atendidos' => $this->viewData($controller->municipiosAtendidos($request)),
+            'personal' => $this->viewData($controller->personal($request)),
+            'rendimiento_personal' => $this->viewData($controller->rendimientoPersonal($request)),
+            'incapacidades_personal' => $this->viewData($controller->incapacidadesPersonal($request)),
+            'disciplina_personal' => $this->viewData($controller->disciplinaPersonal($request)),
             'servicios_personal' => $this->viewData($controller->serviciosPersonal($request)),
         ];
     }

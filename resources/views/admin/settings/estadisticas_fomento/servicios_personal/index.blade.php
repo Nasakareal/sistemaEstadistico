@@ -168,6 +168,33 @@
             </table>
         </div>
     </div>
+
+    <div class="sv-panel">
+        <div class="sv-panel__title">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Listado de servicios registrados</span>
+        </div>
+        <div class="table-responsive sv-table-wrap">
+            <table id="fomentoServiciosDetalle" class="table table-sm table-hover mb-0">
+                <thead><tr><th>Fecha</th><th>Personal</th><th>No. empleado</th><th>Horario</th><th>Folio</th><th>Motivo</th><th>Observaciones</th></tr></thead>
+                <tbody>
+                    @forelse($servicios as $servicio)
+                        <tr>
+                            <td data-order="{{ $servicio['fecha_inicio'] }}">{{ \Carbon\Carbon::parse($servicio['fecha_inicio'])->format('d/m/Y') }}@if($servicio['fecha_fin'] && $servicio['fecha_fin'] !== $servicio['fecha_inicio'])<br><small>al {{ \Carbon\Carbon::parse($servicio['fecha_fin'])->format('d/m/Y') }}</small>@endif</td>
+                            <td class="text-left"><strong>{{ $servicio['nombre_completo'] }}</strong></td>
+                            <td>{{ $servicio['numero_empleado'] ?: 'N/A' }}</td>
+                            <td>{{ $servicio['hora_inicio'] ? substr((string) $servicio['hora_inicio'], 0, 5) : 'N/A' }}@if($servicio['hora_fin']) - {{ substr((string) $servicio['hora_fin'], 0, 5) }}@endif</td>
+                            <td>{{ $servicio['folio'] ?: 'N/A' }}</td>
+                            <td class="text-left">{{ $servicio['motivo'] ?: 'N/A' }}</td>
+                            <td class="text-left">{{ $servicio['observaciones'] ?: 'N/A' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="text-center py-4">No hay servicios registrados en el periodo.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 @stop
 
 @section('css')
@@ -210,7 +237,9 @@
     }
 
     #fomentoServiciosPersonal th,
-    #fomentoServiciosPersonal td{
+    #fomentoServiciosPersonal td,
+    #fomentoServiciosDetalle th,
+    #fomentoServiciosDetalle td{
         vertical-align:middle;
         text-align:center;
     }
@@ -283,6 +312,30 @@
                 { extend: 'colvis', text: 'Columnas' }
             ]
         }).buttons().container().appendTo('#fomentoServiciosPersonal_wrapper .col-md-6:eq(0)');
+
+        $('#fomentoServiciosDetalle').DataTable({
+            pageLength: 25,
+            order: [[0, 'desc'], [1, 'asc']],
+            responsive: true,
+            lengthChange: true,
+            autoWidth: false,
+            buttons: [
+                { extend: 'copy', text: 'Copiar' },
+                { extend: 'excel', text: 'Excel' },
+                { extend: 'pdf', text: 'PDF' },
+                { extend: 'print', text: 'Imprimir' }
+            ],
+            language: {
+                emptyTable: 'No hay servicios registrados',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ servicios',
+                infoEmpty: 'Mostrando 0 servicios',
+                infoFiltered: '(filtrado de _MAX_ servicios)',
+                lengthMenu: 'Mostrar _MENU_ servicios',
+                search: 'Buscador:',
+                zeroRecords: 'Sin resultados encontrados',
+                paginate: { first: 'Primero', last: 'Último', next: 'Siguiente', previous: 'Anterior' }
+            }
+        }).buttons().container().appendTo('#fomentoServiciosDetalle_wrapper .col-md-6:eq(0)');
     });
 </script>
 @stop

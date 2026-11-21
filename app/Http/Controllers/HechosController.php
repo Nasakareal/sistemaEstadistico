@@ -180,6 +180,7 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario);
         $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario);
+        $situacionesDisponibles = HechoAccess::situacionesPermitidas($usuario);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
             ? Dictamen::query()
@@ -189,7 +190,7 @@ class HechosController extends Controller
                 ->get()
             : collect();
 
-        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones'));
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones', 'situacionesDisponibles'));
     }
 
     public function store(Request $request)
@@ -236,7 +237,7 @@ class HechosController extends Controller
             'causas' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.causas', [])))],
             'responsable' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.responsables', [])))],
             'colision_camino' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.colisiones_camino', [])))],
-            'situacion' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.situaciones', [])))],
+            'situacion' => ['required', 'string', Rule::in(array_keys(HechoAccess::situacionesPermitidas($usuario)))],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
@@ -545,8 +546,9 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
         $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario, $hecho);
         $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario, $hecho);
+        $situacionesDisponibles = HechoAccess::situacionesPermitidas($usuario);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones', 'situacionesDisponibles'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -626,7 +628,7 @@ class HechosController extends Controller
             'causas' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.causas', [])))],
             'responsable' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.responsables', [])))],
             'colision_camino' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.colisiones_camino', [])))],
-            'situacion' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.situaciones', [])))],
+            'situacion' => ['required', 'string', Rule::in(array_keys(HechoAccess::situacionesPermitidas($usuario)))],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',

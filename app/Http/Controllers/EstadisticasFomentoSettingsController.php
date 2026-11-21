@@ -146,6 +146,81 @@ class EstadisticasFomentoSettingsController extends Controller
             'fechaFin' => $fin->toDateString(),
             'rows' => $reporte['rows'],
             'totales' => $reporte['totales'],
+            'servicios' => $reporte['servicios'],
+        ]);
+    }
+
+    public function personal(Request $request)
+    {
+        return $this->reportePersonal($request, 'resumen');
+    }
+
+    public function rendimientoPersonal(Request $request)
+    {
+        return $this->reportePersonal($request, 'rendimiento');
+    }
+
+    public function incapacidadesPersonal(Request $request)
+    {
+        return $this->reportePersonal($request, 'incapacidades');
+    }
+
+    public function disciplinaPersonal(Request $request)
+    {
+        return $this->reportePersonal($request, 'disciplina');
+    }
+
+    private function reportePersonal(Request $request, string $modo)
+    {
+        $this->ensureCanViewFomentoStats($request);
+
+        $data = $request->validate([
+            'fecha_inicio' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_fin' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_inicio'],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $tz = 'America/Mexico_City';
+        $hoy = now($tz);
+        $inicio = Carbon::parse($data['fecha_inicio'] ?? $hoy->copy()->startOfYear()->toDateString(), $tz)->startOfDay();
+        $fin = Carbon::parse($data['fecha_fin'] ?? $hoy->toDateString(), $tz)->endOfDay();
+        $reporte = $this->estadisticasPersonalData($inicio, $fin);
+        $busqueda = mb_strtoupper(trim((string) ($data['q'] ?? '')), 'UTF-8');
+        $rows = collect($reporte['rows']);
+
+        if ($busqueda !== '') {
+            $rows = $rows->filter(function ($row) use ($busqueda) {
+                return str_contains(mb_strtoupper((string) $row['nombre_completo'], 'UTF-8'), $busqueda)
+                    || str_contains(mb_strtoupper((string) ($row['numero_empleado'] ?? ''), 'UTF-8'), $busqueda);
+            });
+        }
+
+        if ($modo === 'incapacidades') {
+            $rows = $rows->sort(function ($a, $b) {
+                return $b['dias_incapacidad'] <=> $a['dias_incapacidad']
+                    ?: $b['incapacidades'] <=> $a['incapacidades']
+                    ?: strnatcasecmp($a['nombre_completo'], $b['nombre_completo']);
+            });
+        } elseif ($modo === 'disciplina') {
+            $rows = $rows->sort(function ($a, $b) {
+                return $b['incidencias_disciplina'] <=> $a['incidencias_disciplina']
+                    ?: strnatcasecmp($a['nombre_completo'], $b['nombre_completo']);
+            });
+        } elseif ($modo === 'rendimiento') {
+            $rows = $rows->sort(function ($a, $b) {
+                return $a['total_servicios'] <=> $b['total_servicios']
+                    ?: $a['dias_servicio'] <=> $b['dias_servicio']
+                    ?: strnatcasecmp($a['nombre_completo'], $b['nombre_completo']);
+            });
+        }
+
+        return view('admin.settings.estadisticas_fomento.personal.index', [
+            'modo' => $modo,
+            'fechaInicio' => $inicio->toDateString(),
+            'fechaFin' => $fin->toDateString(),
+            'busqueda' => $data['q'] ?? '',
+            'rows' => $rows->values()->all(),
+            'totales' => $reporte['totales'],
         ]);
     }
 
@@ -472,6 +547,114 @@ class EstadisticasFomentoSettingsController extends Controller
         return compact('meses', 'rows', 'totales');
     }
 
+    private function estadisticasPersonalData(Carbon $inicio, Carbon $fin): array
+    {
+        $servicios = $this->serviciosPersonalData($inicio, $fin);
+        $rows = collect($servicios['rows'])->keyBy('id');
+        $personalIds = $rows->keys()->map(fn ($id) => (int) $id)->all();
+
+        $rows = $rows->map(function ($row) {
+            return $row + [
+                'incapacidades' => 0,
+                'dias_incapacidad' => 0,
+                'amonestaciones' => 0,
+                'arrestos' => 0,
+                'incidencias_disciplina' => 0,
+                'balance_servicios' => 'SIN SERVICIOS',
+                'diferencia_promedio' => 0,
+            ];
+        });
+
+        if (!empty($personalIds) && $this->tablaExiste('personal_incidencias') && $this->tablaExiste('incidencia_tipos')) {
+            $incidencias = DB::table('personal_incidencias as pi')
+                ->join('incidencia_tipos as it', 'it.id', '=', 'pi.incidencia_tipo_id')
+                ->whereIn('pi.personal_id', $personalIds)
+                ->where('pi.activo', 1)
+                ->where(function ($query) {
+                    $query->whereRaw("UPPER(TRIM(COALESCE(it.clave, ''))) IN ('INCAPACIDAD', 'AMONESTACION', 'ARRESTO')")
+                        ->orWhereRaw("UPPER(TRIM(COALESCE(it.nombre, ''))) IN ('INCAPACIDAD', 'AMONESTACION', 'AMONESTACIÓN', 'ARRESTO')");
+                })
+                ->whereDate('pi.fecha_inicio', '<=', $fin->toDateString())
+                ->where(function ($query) use ($inicio) {
+                    $query->whereNull('pi.fecha_fin')
+                        ->orWhereDate('pi.fecha_fin', '>=', $inicio->toDateString());
+                })
+                ->select([
+                    'pi.personal_id',
+                    'pi.fecha_inicio',
+                    'pi.fecha_fin',
+                    'it.clave as tipo_clave',
+                    'it.nombre as tipo_nombre',
+                ])
+                ->get();
+
+            foreach ($incidencias as $incidencia) {
+                $personalId = (int) $incidencia->personal_id;
+
+                if (!$rows->has($personalId)) {
+                    continue;
+                }
+
+                $row = $rows->get($personalId);
+                $tipo = $this->normalizarTexto((string) ($incidencia->tipo_clave ?: $incidencia->tipo_nombre));
+
+                if ($tipo === 'INCAPACIDAD') {
+                    [$dias] = $this->diasIncidenciaServicio($incidencia, $inicio, $fin);
+                    $row['incapacidades']++;
+                    $row['dias_incapacidad'] += $dias;
+                } elseif ($tipo === 'ARRESTO') {
+                    $row['arrestos']++;
+                    $row['incidencias_disciplina']++;
+                } elseif ($tipo === 'AMONESTACION') {
+                    $row['amonestaciones']++;
+                    $row['incidencias_disciplina']++;
+                }
+
+                $rows->put($personalId, $row);
+            }
+        }
+
+        $activos = $rows->filter(fn ($row) => $this->normalizarTexto($row['estatus'] ?? '') === 'ACTIVO');
+        $promedioServicios = $activos->count() > 0 ? round((float) $activos->avg('total_servicios'), 1) : 0.0;
+        $minServicios = $activos->count() > 0 ? (int) $activos->min('total_servicios') : 0;
+        $maxServicios = $activos->count() > 0 ? (int) $activos->max('total_servicios') : 0;
+
+        $rows = $rows->map(function ($row) use ($promedioServicios, $minServicios, $maxServicios) {
+            $servicios = (int) $row['total_servicios'];
+            $activo = $this->normalizarTexto($row['estatus'] ?? '') === 'ACTIVO';
+
+            if (!$activo) {
+                $balance = 'INACTIVO';
+            } elseif ($maxServicios === 0) {
+                $balance = 'SIN SERVICIOS';
+            } elseif ($minServicios < $maxServicios && $servicios === $minServicios) {
+                $balance = 'PRIORIDAD SIGUIENTE';
+            } elseif ($servicios > $promedioServicios) {
+                $balance = 'POR ENCIMA DEL PROMEDIO';
+            } else {
+                $balance = 'EQUILIBRADO';
+            }
+
+            $row['balance_servicios'] = $balance;
+            $row['diferencia_promedio'] = round($servicios - $promedioServicios, 1);
+
+            return $row;
+        })->values();
+
+        $totales = $servicios['totales'] + [
+            'activos' => $activos->count(),
+            'inactivos' => max(0, $rows->count() - $activos->count()),
+            'promedio_servicios' => $promedioServicios,
+            'incapacidades' => (int) $rows->sum('incapacidades'),
+            'dias_incapacidad' => (int) $rows->sum('dias_incapacidad'),
+            'amonestaciones' => (int) $rows->sum('amonestaciones'),
+            'arrestos' => (int) $rows->sum('arrestos'),
+            'incidencias_disciplina' => (int) $rows->sum('incidencias_disciplina'),
+        ];
+
+        return ['rows' => $rows->all(), 'totales' => $totales];
+    }
+
     private function serviciosPersonalData(Carbon $inicio, Carbon $fin): array
     {
         $personal = $this->basePersonalFomentoQuery()
@@ -586,7 +769,30 @@ class EstadisticasFomentoSettingsController extends Controller
             'dias_fin_semana' => collect($rows)->sum('dias_fin_semana'),
         ];
 
-        return compact('rows', 'totales');
+        $personalPorId = collect($rows)->keyBy('id');
+        $servicios = $incidenciasPorPersonal
+            ->flatten(1)
+            ->map(function ($incidencia) use ($personalPorId) {
+                $persona = $personalPorId->get((int) $incidencia->personal_id);
+
+                return [
+                    'personal_id' => (int) $incidencia->personal_id,
+                    'nombre_completo' => $persona['nombre_completo'] ?? 'PERSONAL NO DISPONIBLE',
+                    'numero_empleado' => $persona['numero_empleado'] ?? null,
+                    'fecha_inicio' => $incidencia->fecha_inicio,
+                    'fecha_fin' => $incidencia->fecha_fin,
+                    'hora_inicio' => $incidencia->hora_inicio,
+                    'hora_fin' => $incidencia->hora_fin,
+                    'folio' => $incidencia->folio,
+                    'motivo' => $incidencia->motivo,
+                    'observaciones' => $incidencia->observaciones,
+                ];
+            })
+            ->sortByDesc('fecha_inicio')
+            ->values()
+            ->all();
+
+        return compact('rows', 'totales', 'servicios');
     }
 
     private function basePersonalFomentoQuery()
@@ -653,6 +859,16 @@ class EstadisticasFomentoSettingsController extends Controller
             $personal->grado,
             Personal::formarNombreCompleto($personal->nombre, $personal->ap_paterno, $personal->ap_materno),
         ])->filter()->implode(' '));
+    }
+
+    private function normalizarTexto(?string $texto): string
+    {
+        $texto = strtr((string) $texto, [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U', 'ü' => 'U', 'ñ' => 'N',
+        ]);
+
+        return mb_strtoupper(trim($texto), 'UTF-8');
     }
 
     private function baseMunicipiosAtendidosQuery()

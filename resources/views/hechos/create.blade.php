@@ -241,7 +241,7 @@
 
                         <div class="row">
                             <div class="col-md-4">
-                                @include('hechos.partials.catalog_select', ['nombre' => 'situacion', 'etiqueta' => 'Situación', 'opciones' => config('hechos.catalogos.situaciones')])
+                                @include('hechos.partials.catalog_select', ['nombre' => 'situacion', 'etiqueta' => 'Situación', 'opciones' => $situacionesDisponibles])
                             </div>
 
                             @if($puedeUsarDictamenes)

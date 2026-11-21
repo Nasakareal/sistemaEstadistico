@@ -632,6 +632,7 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
     Route::get('/mapa/patrullas', [MapaPatrullasController::class, 'data'])->middleware('can:ver mapa');
 
     Route::get('/hechos/{hecho}/reporte-doc', [DocumentoHechoController::class, 'descargarDoc'])->middleware('can:ver hechos');
+    Route::get('/hechos/{hecho}/iph-puesta-disposicion', [HechoController::class, 'descargarIphPuestaDisposicion']);
 
     Route::prefix('estadisticas-globales')->middleware('can:ver estadisticas globales')->group(function () {
         Route::get('/kpis', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'kpis']);

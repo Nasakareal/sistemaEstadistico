@@ -17,6 +17,8 @@ use App\Services\CodigoPostalGeoService;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Fotos\HechoFotoStorage;
 use App\Services\HechoRevisionNotificationService;
+use App\Services\IphPuestaDisposicionDocxService;
+use App\Services\IphPuestaDisposicionService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
 use App\Support\HechoLocationGuard;
@@ -29,6 +31,25 @@ class HechoController extends Controller
     private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDECER'];
     private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
     private const COND     = ['BUENO','REGULAR','MALO'];
+
+    public function descargarIphPuestaDisposicion(
+        Request $request,
+        Hechos $hecho,
+        IphPuestaDisposicionService $iphService,
+        IphPuestaDisposicionDocxService $docxService
+    ) {
+        $usuario = $request->user();
+
+        abort_unless($iphService->puedeGenerar($usuario), 403, 'No tienes permiso para generar este documento.');
+        abort_unless(HechoAccess::canView($usuario, $hecho), 404);
+
+        $mapeo = $iphService->mapearDesdeHecho($hecho);
+        [$path, $filename] = $docxService->generar($hecho, $mapeo);
+
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
+    }
 
     public function patrullasSiniestros(Request $request)
     {

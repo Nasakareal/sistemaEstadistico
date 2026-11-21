@@ -70,6 +70,32 @@ class ConduceLegalidadMultipleFundamentosTest extends TestCase
         }
     }
 
+    public function test_resguardo_rejects_lights_only_and_accepts_arrest(): void
+    {
+        $luces = new LicenciaPuntoInfraccion();
+        $luces->forceFill([
+            'retencion_vehiculo' => false,
+            'deposito_si_sin_persona_habilitada' => false,
+            'arresto_persona' => false,
+        ]);
+        $puente = new LicenciaPuntoInfraccion();
+        $puente->forceFill([
+            'retencion_vehiculo' => false,
+            'deposito_si_sin_persona_habilitada' => false,
+            'arresto_persona' => true,
+        ]);
+
+        $method = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'fundamentosAmeritanResguardo'
+        );
+        $method->setAccessible(true);
+        $controller = new ConduceLegalidadController();
+
+        $this->assertFalse($method->invoke($controller, [$luces]));
+        $this->assertTrue($method->invoke($controller, [$luces, $puente]));
+    }
+
     public function test_iph_includes_every_capture_legal_ground(): void
     {
         $primero = new LicenciaPuntoInfraccion();

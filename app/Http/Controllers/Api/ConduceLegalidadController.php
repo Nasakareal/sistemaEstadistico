@@ -3382,6 +3382,27 @@ class ConduceLegalidadController extends Controller
                 'fundamentos' => 'Selecciona al menos un fundamento legal antes de guardar la alimentación.',
             ]);
         }
+
+        if (!$this->esOperativoAlcoholimetria($operativo)
+            && !$this->fundamentosAmeritanResguardo($fundamentos)) {
+            throw ValidationException::withMessages([
+                'fundamentos' => 'No puedes guardar únicamente con fundamentos informativos, como luces, reflejantes o ruido. Agrega al menos un fundamento que amerite resguardo del vehículo: retención, depósito o arresto. Para esta validación, cualquier fundamento con arresto sí permite continuar.',
+            ]);
+        }
+    }
+
+    /**
+     * @param array<int, LicenciaPuntoInfraccion> $fundamentos
+     */
+    private function fundamentosAmeritanResguardo(array $fundamentos): bool
+    {
+        foreach ($fundamentos as $fundamento) {
+            if ($this->infraccionAplicaRetencionOperativo($fundamento)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function storeFotos(ConduceLegalidadCaptura $captura, Request $request, $user): void
@@ -3542,7 +3563,9 @@ class ConduceLegalidadController extends Controller
             foreach ($infracciones as $fundamento) {
                 $retencionCondicional = (bool) $fundamento->deposito_si_sin_persona_habilitada
                     && !$personaHabilitadaResguardo;
-                if ((bool) $fundamento->retencion_vehiculo || $retencionCondicional) {
+                if ((bool) $fundamento->retencion_vehiculo
+                    || $retencionCondicional
+                    || (bool) $fundamento->arresto_persona) {
                     $retenciones[] = [
                         'fundamento' => $fundamento,
                         'condicional' => $retencionCondicional,
@@ -3980,7 +4003,8 @@ class ConduceLegalidadController extends Controller
     private function infraccionAplicaRetencionOperativo(LicenciaPuntoInfraccion $infraccion): bool
     {
         return (bool) $infraccion->retencion_vehiculo
-            || (bool) $infraccion->deposito_si_sin_persona_habilitada;
+            || (bool) $infraccion->deposito_si_sin_persona_habilitada
+            || (bool) $infraccion->arresto_persona;
     }
 
     private function assertVehiculosCorrespondenOperativo(

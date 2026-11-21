@@ -15,6 +15,9 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
     private const SIN_LICENCIA_OPERATIVO_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const SIN_LICENCIA_OPERATIVO_NOMBRE = 'Persona sin licencia y sin persona habilitada inmediata';
     private const SIN_LICENCIA_OPERATIVO_FUNDAMENTO = 'Fundamento operativo compuesto: articulo 402, relativo a que solo puede conducir quien cuente con licencia vigente expedida por autoridad competente; articulos 700 y 702, relativos a supuestos expresos de retiro o remision al deposito. No se documenta como causal automatica "sin licencia = deposito"; se documenta que la persona carece de habilitacion juridica para conducir y que la circulacion no puede continuar bajo su mando. La medida de retiro se asienta solo cuando no existe en el lugar persona legalmente habilitada para hacerse cargo inmediato del vehiculo y se adopta para poner fin a la continuacion de la conducta.';
+    private const MENOR_OPERATIVO_CODIGO = 'OP_CL_MENOR_CONDUCIENDO_SIN_HABILITADO';
+    private const MENOR_OPERATIVO_NOMBRE = 'Persona menor de edad conduciendo motocicleta y sin persona habilitada inmediata';
+    private const MENOR_OPERATIVO_FUNDAMENTO = 'Fundamento operativo compuesto: articulo 421, fraccion I, inciso a), relativo a la persona menor de edad que conduce motocicleta sin estar legalmente habilitada; articulos 700 y 702, relativos al marco de retiro o remision. No se documenta como causal automatica "menor de edad = deposito". La medida de retiro se asienta solo cuando no existe en el lugar una persona legalmente habilitada que pueda hacerse cargo inmediato y seguro de la motocicleta, para impedir la continuacion de la conducta.';
 
     public function run(): void
     {
@@ -173,6 +176,26 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
                 'retencion_vehiculo' => true,
                 'descripcion' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
                 'fundamento_legal' => self::SIN_LICENCIA_OPERATIVO_FUNDAMENTO,
+                'activa' => true,
+            ],
+            [
+                'codigo' => self::MENOR_OPERATIVO_CODIGO,
+                'nombre' => self::MENOR_OPERATIVO_NOMBRE,
+                'articulo' => '421; 700; 702',
+                'fraccion' => 'I',
+                'inciso' => 'a',
+                'ambito_vehiculo' => 'motocicleta',
+                'puntos' => 3,
+                'multa_uma_min' => null,
+                'multa_uma_max' => null,
+                'amonestacion' => true,
+                'arresto_persona' => false,
+                'suspension_licencia' => false,
+                'cancelacion_licencia' => false,
+                'deposito_si_sin_persona_habilitada' => true,
+                'retencion_vehiculo' => false,
+                'descripcion' => self::MENOR_OPERATIVO_NOMBRE,
+                'fundamento_legal' => self::MENOR_OPERATIVO_FUNDAMENTO,
                 'activa' => true,
             ],
         ], DecretoGoberLicenciaPuntoCatalog::rows());

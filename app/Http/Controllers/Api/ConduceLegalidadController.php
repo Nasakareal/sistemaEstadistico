@@ -58,10 +58,29 @@ class ConduceLegalidadController extends Controller
     private const TICKET_COORDINADOR_CARGO = 'Coordinador del Agrupamiento de Seguridad Vial';
     private const AGENTE_ADSCRIPCION_DEFAULT = 'Unidad de Protección en Vialidades Urbanas';
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
+    private const FUNDAMENTO_MENOR_SIN_HABILITADO_CODIGO = 'OP_CL_MENOR_CONDUCIENDO_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
+    private const NARRATIVA_MENOR_SIN_HABILITADO = 'Se detecta a una persona menor de edad conduciendo una motocicleta. Al verificar que no se encuentra legalmente habilitada para continuar conduciendo, se le impide proseguir la marcha. Al no encontrarse en el lugar una persona legalmente habilitada que pueda hacerse cargo inmediato y seguro de la motocicleta, la autoridad adopta la medida de retiro para evitar la continuacion de la conducta. Se deja constancia de que el resguardo no deriva automaticamente de la minoria de edad, sino de la imposibilidad de continuar legalmente y de la falta de una alternativa inmediata habilitada, tomando en cuenta el marco de retiro y remision previsto en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
+        'ART402_LICENCIA_FORANEA_REINCIDENCIA',
+        'ART420_FIII_I_MOTO_PASAJERO_MENOR',
         'ART440_FIV_MOTO_PUENTE_PEATONAL',
         'ART420_FIV_IA_B_TRANSPORTE_PUBLICO_ESCOLAR',
+        'ART432_FVII_REBASAR_IZQUIERDA_SEPARACION',
+        'ART432_FVIII_ALINEARSE_DERECHA',
+        'ART432_FIX_DISTANCIA_RAZONABLE',
+        'ART432_FX_DIRECCIONALES',
+        'ART432_FXI_PERMITIR_INCORPORACION',
+        'ART432_FXII_CEDER_SERVICIO_SOCIAL',
+        'ART432_FXV_VIAS_FERREAS',
+        'ART432_FXVI_ASCENSO_CARRIL_ACERA',
+        'ART432_FXVII_PORTAR_REGLAMENTO',
+        'ART432_FXIX_CARAVANA_ESPACIO',
+        'ART437_SERVICIO_SOCIAL_USO_INDEBIDO_SENALES',
+        'ART439_FII_MOTO_REBASE_IZQUIERDA',
+        'ART459_FII_I_MOTORIZADO_CINTURONES_SEGURIDAD',
+        'ART459_FII_I_MOTORIZADO_LIMPIAPARABRISAS',
+        'ART459_FII_I_MOTORIZADO_HERRAMIENTA_LLANTAS',
         'ART465_FXI_POLARIZADO_MAYOR_20',
         'ART519_FIV_IA_NO_MOVER_SINIESTRO_DANOS',
     ];
@@ -4323,6 +4342,7 @@ class ConduceLegalidadController extends Controller
             ->get()
             ->filter(fn (LicenciaPuntoInfraccion $infraccion) =>
                 $this->infraccionAplicaConduceLegalidad($infraccion)
+                && !$this->esFundamentoMenorSimple($infraccion)
             )
             ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
                 return implode('|', [
@@ -4367,9 +4387,7 @@ class ConduceLegalidadController extends Controller
             $infraccion->codigo,
             $infraccion->nombre,
         ]))));
-        $esExcepcionMenorConduciendo = Str::contains($texto, 'MENOR')
-            && Str::contains($texto, 'CONDUC')
-            && Str::contains($texto, 'MOTOCICLETA');
+        $esExcepcionMenorConduciendo = $this->esMenorConduciendoMotocicleta($infraccion);
 
         // El catálogo legal conserva "menor conduciendo motocicleta" dentro
         // del bloque particular; su texto, no ese ámbito heredado, determina
@@ -4449,7 +4467,7 @@ class ConduceLegalidadController extends Controller
             'SISTEMA DE ESCAPE',
             'CLAXON',
             'BOCINA',
-        ]) || (Str::contains($texto, 'MENOR') && Str::contains($texto, 'CONDUC'));
+        ]) || $this->esMenorConduciendoMotocicleta($infraccion);
     }
 
     private function fundamentosPersonaPayload()
@@ -4839,7 +4857,7 @@ class ConduceLegalidadController extends Controller
 
     private function textoOperativoInfraccion(LicenciaPuntoInfraccion $infraccion): string
     {
-        if (strtoupper(trim((string) $infraccion->codigo)) === 'ART421_FI_IA_PARTICULAR_MENOR_SIN_PERMISO') {
+        if ($this->esMenorConduciendoMotocicleta($infraccion)) {
             return 'Persona menor de edad conduciendo motocicleta';
         }
 
@@ -4855,11 +4873,45 @@ class ConduceLegalidadController extends Controller
         if ($codigo === self::FUNDAMENTO_SIN_LICENCIA_CODIGO) {
             return self::NARRATIVA_SIN_LICENCIA;
         }
-        if ($codigo === 'ART421_FI_IA_PARTICULAR_MENOR_SIN_PERMISO') {
+        if ($codigo === self::FUNDAMENTO_MENOR_SIN_HABILITADO_CODIGO) {
+            return self::NARRATIVA_MENOR_SIN_HABILITADO;
+        }
+        if ($this->esMenorConduciendoMotocicleta($infraccion)) {
             return 'Se detecta a una persona menor de edad conduciendo una motocicleta.';
         }
 
         return null;
+    }
+
+    private function esMenorConduciendoMotocicleta(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        $codigo = strtoupper(trim((string) $infraccion->codigo));
+        if (str_starts_with($codigo, 'ART421_')
+            && str_contains($codigo, 'PARTICULAR_MENOR_SIN_PERMISO')) {
+            return true;
+        }
+
+        $texto = $this->normalizarTextoFiltro(implode(' ', [
+            $infraccion->nombre,
+            $infraccion->etiqueta_operativa,
+            $infraccion->texto_operativo,
+            $infraccion->descripcion,
+        ]));
+
+        return str_contains($texto, 'MENOR CONDUCIENDO MOTOCICLETA')
+            || str_contains($texto, 'MENOR DE EDAD CONDUCIENDO MOTOCICLETA')
+            || str_contains(
+                $texto,
+                'MENOR DE EDAD SIN PERMISO VIGENTE O CONDUCIENDO MOTOCICLETA'
+            );
+    }
+
+    private function esFundamentoMenorSimple(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        $codigo = strtoupper(trim((string) $infraccion->codigo));
+
+        return str_starts_with($codigo, 'ART421_')
+            && str_contains($codigo, 'PARTICULAR_MENOR_SIN_PERMISO');
     }
 
     private function esFundamentoExcluidoDelOperativo(LicenciaPuntoInfraccion $infraccion): bool

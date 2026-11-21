@@ -181,6 +181,21 @@ class CaleaEncuestaController extends Controller
         return response()->json(['message' => 'Encuesta actualizada.', 'data' => $this->resumen($encuesta->fresh()->loadCount(['preguntas', 'intentos']))]);
     }
 
+    public function destroy(Request $request, CaleaEncuesta $encuesta)
+    {
+        $this->superadmin($request);
+        $titulo = $encuesta->titulo;
+
+        DB::transaction(function () use ($encuesta) {
+            $encuesta->delete();
+        });
+
+        return response()->json([
+            'message' => 'Encuesta CALEA eliminada definitivamente.',
+            'data' => ['id' => $encuesta->id, 'titulo' => $titulo],
+        ]);
+    }
+
     public function iniciar(Request $request, CaleaEncuesta $encuesta)
     {
         $user = $request->user();
@@ -356,6 +371,13 @@ class CaleaEncuestaController extends Controller
     private function intentoAutorizado(Request $r, string $uuid): CaleaEncuestaIntento { $a = CaleaEncuestaIntento::where('uuid', $uuid)->firstOrFail(); abort_if($a->user_id && (!$r->user() || $r->user()->id !== $a->user_id), 403); return $a; }
     private function enCurso(CaleaEncuestaIntento $a): void { if ($a->estado === 'en_curso' && $a->expira_at->isPast()) $a->update(['estado' => 'expirado', 'finalizado_at' => now()]); abort_unless($a->fresh()->estado === 'en_curso', 409, 'Este intento ya no está activo.'); }
     private function admin(Request $r): User { $u = $r->user(); abort_unless($u && ($u->isSuperadmin() || $u->hasRole('Administrador')), 403, 'Sólo administradores pueden gestionar encuestas.'); return $u; }
+    private function superadmin(Request $r): User
+    {
+        $u = $r->user();
+        abort_unless($u && $u->isSuperadmin(), 403, 'Sólo Superadmin puede eliminar encuestas CALEA.');
+
+        return $u;
+    }
     private function global(User $u): bool { return $u->isSuperadmin() || ((int) $u->unidad_id === 3 && $u->hasRole('Administrador')); }
     private function scope($q, User $u): void { if (!$this->global($u)) $q->where('unidad_id', $u->unidad_id); }
     private function assertUserScope(User $a, User $u): void { abort_unless($this->global($a) || ((int) $a->unidad_id === (int) $u->unidad_id), 403, 'No puedes administrar usuarios de otra unidad.'); }

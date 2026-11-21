@@ -177,6 +177,7 @@ Route::prefix('calea-encuestas')->middleware(['auth:sanctum', 'grua.api.scope'])
     Route::post('/', [CaleaEncuestaController::class, 'store']);
     Route::get('/{encuesta}', [CaleaEncuestaController::class, 'show']);
     Route::put('/{encuesta}', [CaleaEncuestaController::class, 'update']);
+    Route::delete('/{encuesta}', [CaleaEncuestaController::class, 'destroy']);
     Route::get('/{encuesta}/resultados', [CaleaEncuestaController::class, 'resultados']);
     Route::post('/{encuesta}/iniciar', [CaleaEncuestaController::class, 'iniciar']);
     Route::get('/intentos/{uuid}', [CaleaEncuestaController::class, 'intento']);

@@ -62,7 +62,7 @@ class Hechos extends Model
         'delegacion_id',
         'lat',
         'lng',
-        'km_recorridos', // 👈 NUEVO
+        'km_recorridos',
         'calidad_geo',
         'nota_geo',
         'fuente_ubicacion',
@@ -93,7 +93,7 @@ class Hechos extends Model
         'checaron_antecedentes' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
-        'km_recorridos' => 'decimal:2', // 👈 NUEVO
+        'km_recorridos' => 'decimal:2',
         'es_relevante' => 'boolean',
         'marcado_relevante_at' => 'datetime',
         'revisado_at' => 'datetime',

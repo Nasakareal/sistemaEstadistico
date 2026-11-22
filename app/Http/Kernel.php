@@ -37,6 +37,7 @@ class Kernel extends HttpKernel
     ];
 
     protected $routeMiddleware = [
+        'limit.external.sync' => \App\Http\Middleware\LimitExternalSync::class,
         'auth'               => \App\Http\Middleware\Authenticate::class,
         'auth.basic'         => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'cache.headers'      => \Illuminate\Http\Middleware\SetCacheHeaders::class,

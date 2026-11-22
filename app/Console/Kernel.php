@@ -183,6 +183,11 @@ class Kernel extends ConsoleKernel
             ->timezone($timezone)
             ->monthlyOn(1, '00:10')
             ->withoutOverlapping();
+
+        $schedule->command('security:prune-inactive-tokens --days=60 --dry-run')
+            ->timezone($timezone)
+            ->dailyAt('03:35')
+            ->withoutOverlapping();
     }
 
     protected function commands()

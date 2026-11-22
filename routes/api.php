@@ -517,7 +517,7 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         Route::get('/informe/fecha/{fecha}', [ActividadController::class, 'informeFecha'])->name('api.actividades.informe.fecha');
         Route::get('/compartir-totales-whatsapp', [ActividadController::class, 'compartirTotalesWhatsapp'])->name('api.actividades.compartir_totales');
         Route::get('/{actividad}/compartir', [ActividadController::class, 'compartir'])->whereNumber('actividad')->name('api.actividades.compartir');
-        Route::get('/', [ActividadController::class, 'index'])->name('api.actividades.index');
+        Route::get('/', [ActividadController::class, 'index'])->middleware('limit.external.sync')->name('api.actividades.index');
         Route::post('/', [ActividadController::class, 'store'])->middleware('can:crear actividades')->name('api.actividades.store');
         Route::get('/{actividad}', [ActividadController::class, 'show'])->whereNumber('actividad')->name('api.actividades.show');
         Route::put('/{actividad}', [ActividadController::class, 'update'])->whereNumber('actividad')->middleware('can:editar actividades')->name('api.actividades.update');
@@ -582,7 +582,7 @@ Route::middleware(['auth:sanctum', 'grua.api.scope'])->group(function () {
         ->middleware('can:crear hechos');
     Route::get('/hechos/buscar', [HechoController::class, 'buscar'])->middleware('can:ver hechos');
     Route::get('/hechos/seguimiento', [HechoController::class, 'seguimiento'])->middleware('can:ver hechos');
-    Route::get('/hechos', [HechoController::class, 'index'])->middleware('can:ver hechos');
+    Route::get('/hechos', [HechoController::class, 'index'])->middleware(['can:ver hechos', 'limit.external.sync']);
     Route::post('/hechos', [HechoController::class, 'store'])->middleware('can:crear hechos');
     Route::get('/hechos/{hecho}', [HechoController::class, 'show'])->middleware('can:ver hechos');
     Route::put('/hechos/{hecho}', [HechoController::class, 'update']);

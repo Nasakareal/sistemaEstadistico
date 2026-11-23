@@ -17,6 +17,7 @@
         $sinFecha = (bool) ($sinFecha ?? request()->boolean('sin_fecha'));
         $fechaFiltro = $sinFecha ? '' : ($fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d'));
         $busqueda = $busqueda ?? trim((string) request('query', ''));
+        $puedeVerEliminados = $usuario->hasRole('Superadmin');
     @endphp
 
     <div class="row">
@@ -25,6 +26,11 @@
                 <div class="card-header">
                     <h3 class="card-title">Hechos</h3>
                     <div class="card-tools">
+                        @if($puedeVerEliminados)
+                            <a href="{{ route('hechos.eliminados.index') }}" class="btn btn-outline-warning mr-2">
+                                <i class="fa-solid fa-box-archive"></i> Hechos eliminados
+                            </a>
+                        @endif
                         @can('crear hechos')
                             <a href="{{ url('/hechos/create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Añadir nuevo accidente
@@ -297,10 +303,13 @@
                                             @endif
 
                                             @if($puedeEliminarHecho)
-                                                <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                <form action="{{ route('hechos.destroy', $hecho->id) }}"
+                                                      method="POST"
+                                                      style="display:inline-block;"
+                                                      onsubmit="return confirm('¿Estás seguro de eliminar este hecho?');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger btn-sm">
+                                                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar hecho">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                 </form>

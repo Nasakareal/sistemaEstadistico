@@ -12,11 +12,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
-use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CodigoPostalGeoService;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Fotos\HechoFotoStorage;
 use App\Services\HechoRevisionNotificationService;
+use App\Services\HechoEliminadoService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
 use App\Models\Dictamen;
@@ -1090,7 +1090,7 @@ class HechoController extends Controller
         ], 200);
     }
 
-    public function destroy(Request $request, Hechos $hecho)
+    public function destroy(Request $request, Hechos $hecho, HechoEliminadoService $service)
     {
         $user = $request->user();
 
@@ -1121,36 +1121,10 @@ class HechoController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($hecho) {
-                $fotoStorage = app(HechoFotoStorage::class);
-                $fotoStorage->delete($hecho->foto_lugar);
-                $fotoStorage->delete($hecho->foto_lugar_2);
-                $fotoStorage->delete($hecho->foto_situacion);
-
-                if (!empty($hecho->descargo_path) && Storage::disk('public')->exists($hecho->descargo_path)) {
-                    Storage::disk('public')->delete($hecho->descargo_path);
-                }
-
-                $dictamenActual = $hecho->dictamen;
-                if ($dictamenActual) {
-                    $dictamenActual->hecho_id = null;
-                    $dictamenActual->save();
-                }
-
-                $hecho->vehiculos()->detach();
-                $hecho->lesionados()->delete();
-
-                if ($hecho->croquis) {
-                    app(CroquisArchivoStorage::class)->delete($hecho->croquis->imagen_preview);
-                    app(CroquisArchivoStorage::class)->delete($hecho->croquis->pdf_path);
-                    $hecho->croquis->delete();
-                }
-
-                $hecho->delete();
-            });
+            $service->archivar($hecho, optional($user)->id);
         } catch (\Throwable $e) {
             return response()->json([
-                'message' => 'No se pudo eliminar el hecho. Revisa relaciones o llaves foráneas relacionadas.',
+                'message' => 'No se pudo mover el hecho al archivo de eliminados.',
                 'errors' => [
                     'hecho' => [$e->getMessage()],
                 ],

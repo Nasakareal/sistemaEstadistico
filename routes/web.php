@@ -18,6 +18,7 @@ use App\Http\Controllers\FormatoController;
 use App\Http\Controllers\GruaController;
 use App\Http\Controllers\HechoFotoArchivoController;
 use App\Http\Controllers\HechosController;
+use App\Http\Controllers\HechosEliminadosController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiberacionController;
 use App\Http\Controllers\LicenciaController;
@@ -639,6 +640,12 @@ Route::prefix('gruas')->middleware(['auth','can:ver gruas'])->group(function () 
 Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/',[HechosController::class,'index'])->name('hechos.index');
     Route::get('/seguimiento', [HechosController::class, 'seguimiento'])->name('hechos.seguimiento');
+    Route::get('/eliminados', [HechosEliminadosController::class, 'index'])
+        ->middleware('can:eliminar hechos')
+        ->name('hechos.eliminados.index');
+    Route::post('/eliminados/{hechoEliminado}/restaurar', [HechosEliminadosController::class, 'restore'])
+        ->middleware('can:eliminar hechos')
+        ->name('hechos.eliminados.restore');
     Route::get('/create',[HechosController::class,'create'])->middleware('can:crear hechos')->name('hechos.create');
     Route::post('/',[HechosController::class,'store'])->middleware('can:crear hechos')->name('hechos.store');
     Route::get('/{hecho}',[HechosController::class,'show'])->middleware('can:ver hechos')->name('hechos.show');

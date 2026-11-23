@@ -953,7 +953,7 @@
 
             Swal.fire({
                 title: '¿Estás seguro de eliminar este hecho?',
-                text: 'No podrás revertir esta acción.',
+                text: 'Esta acción eliminará el hecho del sistema.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',

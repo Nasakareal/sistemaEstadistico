@@ -11,9 +11,9 @@ use App\Helpers\StreetNormalizer;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Fotos\HechoFotoStorage;
 use App\Services\HechoRevisionNotificationService;
+use App\Services\HechoEliminadoService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
-use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CodigoPostalGeoService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
@@ -861,7 +861,7 @@ class HechosController extends Controller
             || (int) ($data['personas_mp'] ?? 0) > 0;
     }
 
-    public function destroy(Hechos $hecho)
+    public function destroy(Hechos $hecho, HechoEliminadoService $service)
     {
         $usuario = auth()->user();
 
@@ -903,33 +903,13 @@ class HechosController extends Controller
         }
 
         try {
-            $fotoStorage = app(HechoFotoStorage::class);
-            $fotoStorage->delete($hecho->foto_lugar);
-            $fotoStorage->delete($hecho->foto_lugar_2);
-            $fotoStorage->delete($hecho->foto_situacion);
-
-            $dictamenActual = $hecho->dictamen;
-            if ($dictamenActual) {
-                $dictamenActual->hecho_id = null;
-                $dictamenActual->save();
-            }
-
-            $hecho->vehiculos()->detach();
-            $hecho->lesionados()->delete();
-
-            if ($hecho->croquis) {
-                app(CroquisArchivoStorage::class)->delete($hecho->croquis->imagen_preview);
-                app(CroquisArchivoStorage::class)->delete($hecho->croquis->pdf_path);
-                $hecho->croquis->delete();
-            }
-
-            $hecho->delete();
+            $service->archivar($hecho, $usuario->id);
 
             return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');
         } catch (\Throwable $e) {
             return redirect()->route('hechos.index')->with(
                 'error',
-                'No se pudo eliminar el hecho. Revisa relaciones/llaves foráneas relacionadas. Error: ' . $e->getMessage()
+                'No se pudo eliminar el hecho. Error: ' . $e->getMessage()
             );
         }
     }
